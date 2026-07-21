@@ -1,0 +1,37 @@
+{
+  "policy_id": "public-example-policy",
+  "rules": [
+    {
+      "kind": "required_field",
+      "path": "summary",
+      "rule_id": "summary-present"
+    },
+    {
+      "kind": "equals",
+      "path": "decision",
+      "rule_id": "decision-accepted",
+      "value": "accept"
+    },
+    {
+      "kind": "one_of",
+      "path": "risk_level",
+      "rule_id": "risk-level-allowed",
+      "values": [
+        "low",
+        "moderate"
+      ]
+    },
+    {
+      "kind": "false",
+      "path": "blocked",
+      "rule_id": "blocked-is-false"
+    },
+    {
+      "kind": "empty_list",
+      "path": "actions",
+      "rule_id": "actions-empty"
+    }
+  ],
+  "schema_version": "1.0"
+}
+

@@ -1,0 +1,9 @@
+{
+  "actions": [
+    "synthetic-item"
+  ],
+  "blocked": true,
+  "decision": "decline",
+  "risk_level": "high",
+  "summary": "Synthetic example."
+}
