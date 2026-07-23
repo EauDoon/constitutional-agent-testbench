@@ -238,7 +238,7 @@ Runtime imports are limited to the Python standard library and local package mod
 
 ## Authorship and independence
 
-Project direction and requirements are by Oonyl. This public package was drafted and tested with OpenAI Codex. Final evaluation, review, and acceptance remain with Oonyl. See [`PROVENANCE.md`](PROVENANCE.md) for the complete statement.
+OpenAI Codex assisted with drafting and testing. Oonyl directed, reviewed, and takes responsibility for the result. See [`PROVENANCE.md`](PROVENANCE.md) for the complete statement.
 
 This is an independent community project. It is not an OpenAI product, and OpenAI does not endorse it.
 

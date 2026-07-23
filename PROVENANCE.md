@@ -2,9 +2,7 @@
 
 ## Authorship and review
 
-Project direction and requirements are by Oonyl.
-
-The public text and implementation were drafted and tested with OpenAI Codex. Final evaluation, review, and acceptance remain with Oonyl.
+OpenAI Codex assisted with drafting and testing. Oonyl directed, reviewed, and takes responsibility for the result.
 
 This is an independent community project. It is not an OpenAI product, and OpenAI does not endorse it.
 
