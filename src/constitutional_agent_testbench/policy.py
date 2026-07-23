@@ -7,10 +7,17 @@ from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any
 
-from .common import TestbenchError, canonical_json, ensure_json_value
+from .common import (
+    MAX_JSON_NESTING,
+    TestbenchError,
+    canonical_json,
+    ensure_json_value,
+)
 
 
 SCHEMA_VERSION = "1.0"
+MAX_POLICY_RULES = 256
+MAX_ONE_OF_VALUES = 256
 SUPPORTED_RULE_KINDS = frozenset(
     {"required_field", "equals", "one_of", "false", "empty_list"}
 )
@@ -79,6 +86,10 @@ def _check_identifier(value: Any, *, label: str) -> str:
 def _check_path(value: Any, *, label: str) -> str:
     if not isinstance(value, str) or not _PATH_PATTERN.fullmatch(value):
         raise _invalid(f"{label} is not a valid object field path.")
+    if len(value.split(".")) > MAX_JSON_NESTING:
+        raise _invalid(
+            f"{label} exceeds the {MAX_JSON_NESTING}-segment path limit."
+        )
     return value
 
 
@@ -102,6 +113,11 @@ def validate_policy(raw_policy: Any) -> Policy:
     if not isinstance(raw_policy, dict):
         raise _invalid("Policy must be a JSON object.")
 
+    try:
+        ensure_json_value(raw_policy, label="Policy")
+    except (RecursionError, TypeError, ValueError) as exc:
+        raise _invalid(str(exc), exc)
+
     _check_exact_keys(
         raw_policy,
         {"schema_version", "policy_id", "rules"},
@@ -115,6 +131,10 @@ def validate_policy(raw_policy: Any) -> Policy:
     raw_rules = raw_policy["rules"]
     if not isinstance(raw_rules, list) or not raw_rules:
         raise _invalid("Policy rules must be a non-empty JSON array.")
+    if len(raw_rules) > MAX_POLICY_RULES:
+        raise _invalid(
+            f"Policy rules must not contain more than {MAX_POLICY_RULES} items."
+        )
 
     rules: list[Rule] = []
     seen_rule_ids: set[str] = set()
@@ -141,8 +161,8 @@ def validate_policy(raw_policy: Any) -> Policy:
         path = _check_path(raw_rule["path"], label=f"{label} path")
 
         if kind == "equals":
+            _check_json_value(raw_rule["value"], label=f"{label} value")
             rule_value = deepcopy(raw_rule["value"])
-            _check_json_value(rule_value, label=f"{label} value")
             rules.append(Rule(rule_id=rule_id, kind=kind, path=path, value=rule_value))
             continue
 
@@ -150,6 +170,11 @@ def validate_policy(raw_policy: Any) -> Policy:
             raw_values = raw_rule["values"]
             if not isinstance(raw_values, list) or not raw_values:
                 raise _invalid(f"{label} values must be a non-empty JSON array.")
+            if len(raw_values) > MAX_ONE_OF_VALUES:
+                raise _invalid(
+                    f"{label} values must not contain more than "
+                    f"{MAX_ONE_OF_VALUES} items."
+                )
             canonical_values: set[str] = set()
             for value in raw_values:
                 _check_json_value(value, label=f"{label} values")

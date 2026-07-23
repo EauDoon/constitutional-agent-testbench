@@ -4,8 +4,21 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from constitutional_agent_testbench.common import JsonInputError, load_json
+from constitutional_agent_testbench.common import (
+    MAX_JSON_INPUT_BYTES,
+    MAX_JSON_NESTING,
+    MAX_JSON_NODES,
+    JsonInputError,
+    ensure_json_value,
+    load_json,
+)
+from constitutional_agent_testbench.evaluator import (
+    EvaluationInputError,
+    evaluate_response,
+)
 from constitutional_agent_testbench.policy import (
+    MAX_ONE_OF_VALUES,
+    MAX_POLICY_RULES,
     Policy,
     PolicyValidationError,
     Rule,
@@ -100,6 +113,116 @@ class PolicyValidationTests(unittest.TestCase):
             path.write_text('{"value": 1, "value": 2}', encoding="utf-8")
             with self.assertRaises(JsonInputError):
                 load_json(path)
+
+    def test_rejects_input_larger_than_the_file_size_limit(self) -> None:
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "large.json"
+            path.write_bytes(b" " * (MAX_JSON_INPUT_BYTES + 1))
+            with self.assertRaises(JsonInputError):
+                load_json(path)
+
+    def test_rejects_response_beyond_the_nesting_limit(self) -> None:
+        response: dict = {}
+        current = response
+        for _ in range(MAX_JSON_NESTING):
+            child: dict = {}
+            current["nested"] = child
+            current = child
+
+        with self.assertRaises(EvaluationInputError):
+            evaluate_response(valid_policy(), response)
+
+    def test_accepts_the_node_limit_and_rejects_one_more(self) -> None:
+        ensure_json_value(
+            [None] * (MAX_JSON_NODES - 1),
+            label="Boundary value",
+        )
+        with self.assertRaises(ValueError):
+            ensure_json_value(
+                [None] * MAX_JSON_NODES,
+                label="Boundary value",
+            )
+
+    def test_accepts_the_rule_limit_and_rejects_one_more(self) -> None:
+        raw = {
+            "schema_version": "1.0",
+            "policy_id": "bounded-policy",
+            "rules": [
+                {
+                    "rule_id": f"rule-{index}",
+                    "kind": "required_field",
+                    "path": f"value{index}",
+                }
+                for index in range(MAX_POLICY_RULES)
+            ],
+        }
+        self.assertEqual(len(validate_policy(raw).rules), MAX_POLICY_RULES)
+
+        raw["rules"].append(
+            {
+                "rule_id": "one-too-many",
+                "kind": "required_field",
+                "path": "overflow",
+            }
+        )
+        with self.assertRaises(PolicyValidationError):
+            validate_policy(raw)
+
+    def test_rejects_an_aggregate_policy_beyond_the_node_limit(self) -> None:
+        raw = {
+            "schema_version": "1.0",
+            "policy_id": "aggregate-limit-policy",
+            "rules": [
+                {
+                    "rule_id": f"rule-{index}",
+                    "kind": "equals",
+                    "path": f"value{index}",
+                    "value": [0] * 1_000,
+                }
+                for index in range(100)
+            ],
+        }
+        with self.assertRaises(PolicyValidationError):
+            validate_policy(raw)
+
+    def test_deep_equals_value_preserves_the_policy_error_contract(self) -> None:
+        value: dict = {}
+        current = value
+        for _ in range(MAX_JSON_NESTING):
+            child: dict = {}
+            current["nested"] = child
+            current = child
+        raw = {
+            "schema_version": "1.0",
+            "policy_id": "deep-value-policy",
+            "rules": [
+                {
+                    "rule_id": "deep-value",
+                    "kind": "equals",
+                    "path": "value",
+                    "value": value,
+                }
+            ],
+        }
+        with self.assertRaises(PolicyValidationError):
+            validate_policy(raw)
+
+    def test_accepts_the_one_of_limit_and_rejects_one_more(self) -> None:
+        raw = valid_policy()
+        raw["rules"][2]["values"] = list(range(MAX_ONE_OF_VALUES))
+        validate_policy(raw)
+
+        raw["rules"][2]["values"].append(MAX_ONE_OF_VALUES)
+        with self.assertRaises(PolicyValidationError):
+            validate_policy(raw)
+
+    def test_rejects_a_path_beyond_the_nesting_limit(self) -> None:
+        raw = valid_policy()
+        raw["rules"][0]["path"] = ".".join(
+            f"field{index}" for index in range(MAX_JSON_NESTING + 1)
+        )
+        with self.assertRaises(PolicyValidationError):
+            validate_policy(raw)
 
     def test_revalidates_manually_constructed_policy(self) -> None:
         raw_policy = Policy(

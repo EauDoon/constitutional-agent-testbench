@@ -9,7 +9,9 @@ This project performs deterministic, local evaluation of JSON data. It does not 
 - Treat policies and responses as untrusted data, not executable instructions.
 - Supply only files that the current operator is permitted to read.
 - Review a policy before relying on its result.
-- Apply operating-system limits when processing very large or deeply nested inputs.
+- Keep JSON input files within the built-in 1,000,000-byte limit.
+- Keep in-memory JSON values within 32 container levels and 100,000 nodes.
+- Keep policies within 256 rules, 256 values per `one_of` rule, and 32 path segments.
 - Keep personal data, credentials, access tokens, and confidential material out of policies, responses, examples, and issue reports.
 - Write generated output only to an intended local destination.
 
@@ -17,7 +19,7 @@ The command line interface follows paths explicitly supplied by its operator. It
 
 ## Reporting a concern
 
-Report a suspected vulnerability through the public issue channel associated with the project distribution. Include a minimal synthetic reproduction. Do not include private data, credentials, or active exploit material.
+Report a suspected vulnerability through GitHub's private vulnerability reporting for this repository. If that option is unavailable, open a minimal public issue requesting a private contact channel. Do not include private data, credentials, active exploit material, or affected-system identifiers in a public issue.
 
 ## Security boundary
 

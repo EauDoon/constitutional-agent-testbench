@@ -201,7 +201,8 @@ Keep these boundaries in view:
 - Input authenticity and downstream consequences are outside the evaluator's scope.
 - The package does not inspect prompts, free-form reasoning, model internals, or training data.
 - The rule language does not provide array traversal, regular expressions, numeric ranges, arithmetic, or cross-field logic.
-- Policies and responses are untrusted data, but operating-system limits remain important for very large or deeply nested files.
+- JSON input files are limited to 1,000,000 bytes. In-memory JSON values are limited to 32 container levels and 100,000 nodes.
+- Policies are limited to 256 rules, `one_of` rules are limited to 256 candidate values, and field paths are limited to 32 segments.
 - The command line interface follows explicitly supplied paths. Standard file handling may follow symbolic links.
 - Generated output is written only when an operator supplies `--output`, and the operator is responsible for selecting an intended destination.
 - Personal data, credentials, access tokens, and confidential material should be kept out of policies, responses, examples, and issue reports.
@@ -214,7 +215,9 @@ From the repository root, expose `src` on `PYTHONPATH`, then run:
 python -m unittest discover -s tests -v
 ```
 
-The test suite covers all supported rule kinds, strict policy validation, missing-field failure, stable reason codes, JSON type distinctions, duplicate object members, nested-value isolation, deterministic synthetic generation, and fail-closed handling of conflicting synthetic constraints.
+The test suite covers all supported rule kinds, strict policy validation, missing-field failure, stable reason codes, JSON type distinctions, duplicate object members, nested-value isolation, input limits, deterministic synthetic generation, fail-closed handling of conflicting synthetic constraints, and the command-line JSON and exit-code contracts.
+
+Continuous integration installs the package and runs the complete suite on Python 3.11 through 3.14. It also verifies the installed console command against the bundled synthetic policy.
 
 Runtime imports are limited to the Python standard library and local package modules. The package declares no runtime dependencies.
 

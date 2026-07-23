@@ -8,6 +8,11 @@ from pathlib import Path
 from typing import Any
 
 
+MAX_JSON_INPUT_BYTES = 1_000_000
+MAX_JSON_NESTING = 32
+MAX_JSON_NODES = 100_000
+
+
 class TestbenchError(Exception):
     """Base class for controlled public errors."""
 
@@ -43,18 +48,37 @@ def load_json(path: str | Path) -> Any:
     """Load strict UTF-8 JSON without echoing paths or input content in errors."""
 
     try:
-        text = Path(path).read_text(encoding="utf-8")
-    except (OSError, UnicodeError) as exc:
+        with Path(path).open("rb") as input_file:
+            data = input_file.read(MAX_JSON_INPUT_BYTES + 1)
+    except OSError as exc:
+        raise JsonInputError("Unable to read the requested JSON input.") from exc
+
+    if len(data) > MAX_JSON_INPUT_BYTES:
+        raise JsonInputError(
+            "The requested input exceeds the 1,000,000-byte file-size limit."
+        )
+
+    try:
+        text = data.decode("utf-8")
+    except UnicodeError as exc:
         raise JsonInputError("Unable to read the requested JSON input.") from exc
 
     try:
-        return json.loads(
+        value = json.loads(
             text,
             object_pairs_hook=_reject_duplicate_members,
             parse_constant=_reject_non_finite,
         )
     except (json.JSONDecodeError, RecursionError, ValueError) as exc:
         raise JsonInputError("The requested input is not valid strict JSON.") from exc
+
+    try:
+        ensure_json_value(value, label="JSON input")
+    except ValueError as exc:
+        raise JsonInputError(
+            "The requested input exceeds supported JSON structural limits."
+        ) from exc
+    return value
 
 
 def stable_json(value: Any) -> str:
@@ -81,27 +105,42 @@ def write_json(path: str | Path, value: Any) -> None:
 
 
 def ensure_json_value(value: Any, *, label: str) -> None:
-    """Reject values that are not portable JSON values."""
+    """Reject non-portable or structurally unbounded JSON values."""
 
-    if value is None or isinstance(value, (bool, str)):
-        return
-    if isinstance(value, int) and not isinstance(value, bool):
-        return
-    if isinstance(value, float):
-        if math.isfinite(value):
-            return
-        raise ValueError(f"{label} contains a non-finite number.")
-    if isinstance(value, list):
-        for item in value:
-            ensure_json_value(item, label=label)
-        return
-    if isinstance(value, dict):
-        for key, item in value.items():
-            if not isinstance(key, str):
-                raise ValueError(f"{label} contains a non-string object key.")
-            ensure_json_value(item, label=label)
-        return
-    raise ValueError(f"{label} contains a value that JSON cannot represent.")
+    stack: list[tuple[Any, int]] = [(value, 0)]
+    nodes = 0
+    while stack:
+        current, container_depth = stack.pop()
+        nodes += 1
+        if nodes > MAX_JSON_NODES:
+            raise ValueError(f"{label} exceeds the {MAX_JSON_NODES}-node limit.")
+
+        if current is None or isinstance(current, (bool, str)):
+            continue
+        if isinstance(current, int) and not isinstance(current, bool):
+            continue
+        if isinstance(current, float):
+            if math.isfinite(current):
+                continue
+            raise ValueError(f"{label} contains a non-finite number.")
+
+        next_depth = container_depth + 1
+        if next_depth > MAX_JSON_NESTING:
+            raise ValueError(
+                f"{label} exceeds the {MAX_JSON_NESTING}-level nesting limit."
+            )
+        if isinstance(current, list):
+            stack.extend((item, next_depth) for item in current)
+            continue
+        if isinstance(current, dict):
+            for key, item in current.items():
+                if not isinstance(key, str):
+                    raise ValueError(
+                        f"{label} contains a non-string object key."
+                    )
+                stack.append((item, next_depth))
+            continue
+        raise ValueError(f"{label} contains a value that JSON cannot represent.")
 
 
 def canonical_json(value: Any) -> str:
