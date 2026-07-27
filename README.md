@@ -4,6 +4,10 @@
 
 Constitutional Agent Testbench evaluates a JSON response against a declared, machine-readable policy. It gives builders a small and inspectable way to test whether structured output contains required fields, uses approved values, and preserves explicitly declared defaults before another workflow relies on it.
 
+Its PrecedenceTrace mode also checks whether permuting declared peer rules
+changes semantic results, reason evidence, or rule participation for one fixed
+response.
+
 The package is deliberately narrow. It does not call models, use a network, execute candidate content, take external actions, or persist inputs. Runtime code uses only the Python standard library. The result is a local evaluation layer that is easy to inspect, reproduce, and place beside a larger AI system.
 
 ## Why it is useful
@@ -26,6 +30,7 @@ This is useful for development checks, regression suites, demonstrations, and pr
 | Fail-closed checks | Treats every missing evaluation path as a failed rule. |
 | Stable JSON output | Emits sorted JSON object keys and stable public reason codes. |
 | Synthetic fixture generation | Builds and re-evaluates one passing case and one failing case from a valid policy. |
+| PrecedenceTrace | Exhaustively permutes two to seven peer rules and emits bounded order-drift evidence plus a reproducible swap-path witness. |
 | Local operation | Makes no network or model calls and writes a file only when `--output` is explicitly supplied. |
 
 ## Quick start
@@ -52,12 +57,13 @@ The first command reports that the policy is valid. The second reports `"passed"
 
 ## Command line interface
 
-The command line interface supports three operations:
+The command line interface supports four operations:
 
 | Command | Purpose |
 | --- | --- |
 | `validate-policy` | Validate a policy and report its identifier and schema version. |
 | `evaluate` | Evaluate a response and return the overall result plus every rule result. |
+| `check-order` | Run PrecedenceTrace against one fixed response and two to seven declared peer rules. |
 | `generate-synthetic` | Produce a verified passing and failing case, either on standard output or in an explicitly selected file. |
 
 Run directly from a source checkout after adding `src` to `PYTHONPATH`:
@@ -65,13 +71,19 @@ Run directly from a source checkout after adding `src` to `PYTHONPATH`:
 ```text
 python -m constitutional_agent_testbench.cli validate-policy examples/policy.json
 python -m constitutional_agent_testbench.cli evaluate examples/policy.json examples/passing-response.json
+python -m constitutional_agent_testbench.cli check-order examples/policy.json examples/passing-response.json
 python -m constitutional_agent_testbench.cli generate-synthetic examples/policy.json
 python -m constitutional_agent_testbench.cli generate-synthetic examples/policy.json --output generated-cases.json
 ```
 
 Operational results and controlled errors are JSON with sorted object keys. Help output remains plain command-line text. When `--output` is supplied, `generate-synthetic` writes the complete case bundle and prints a path-free acknowledgement.
 
-An important integration detail: a completed `evaluate` command returns process exit code `0` even when the JSON result contains `"passed": false`. Automation should inspect the `passed` field. Controlled command, input, policy, response, generation, and output errors return process exit code `2` with a machine-readable error object on standard error.
+An important integration detail: completed `evaluate` and `check-order`
+commands return process exit code `0` when their JSON result reports a failed
+evaluation or order drift. Automation should inspect `passed`, `status`, and
+`conforms_within_coverage`. Controlled command, input, policy, response,
+generation, coverage-limit, and output errors return process exit code `2`
+with a machine-readable error object on standard error.
 
 ## Library use
 
@@ -79,6 +91,7 @@ The public API exposes policy validation, response evaluation, and synthetic cas
 
 ```python
 from constitutional_agent_testbench import (
+    check_order_conformance,
     evaluate_response,
     generate_synthetic_cases,
     validate_policy,
@@ -109,6 +122,10 @@ result = evaluate_response(
     {"decision": "approve", "blocked": False},
 )
 fixtures = generate_synthetic_cases(policy)
+order_report = check_order_conformance(
+    policy,
+    {"decision": "approve", "blocked": False},
+)
 ```
 
 `result` contains:
@@ -118,6 +135,71 @@ fixtures = generate_synthetic_cases(policy)
 - `rule_results`: one ordered result per declared rule.
 
 Each rule result contains `rule_id`, `kind`, `path`, `passed`, and `reason_code`. Candidate values are not copied into evaluation results.
+
+## PrecedenceTrace
+
+PrecedenceTrace is a conformance mode, not a policy engine or precedence
+resolver. For one fixed policy and response it:
+
+1. exhaustively evaluates every permutation of two to seven rules;
+2. evaluates each permutation three times and stops as
+   `INCONCLUSIVE_NONDETERMINISTIC` if any repeated result differs;
+3. compares semantic outcome, reason-code evidence keyed by stable rule ID,
+   rule participation, and presentation order separately; and
+4. returns a one-adjacent-swap witness when the drift is visible across one
+   edge, or bounded endpoint evidence with an adjacent-swap path when a rule
+   identity disappears between the differing regions.
+
+Invoking the mode is the operator's declaration that the supplied rules should
+be tested as peers. Policy schema 1.0 is unchanged and has no priority or
+equal-authority field; undeclared fields still fail validation. The mode tests
+behavior and does not infer institutional authority.
+
+The optional library evaluator hook is trusted executable Python code, not
+untrusted data. It must be deterministic, side-effect-free, locally bounded by
+the caller, and emit the exact CAT result schema. PrecedenceTrace does not
+sandbox it, interrupt it, or undo its effects. Additional fields, a mismatched
+`policy_id`, foreign or duplicate rule IDs, kind/path mismatches, and a passing
+result that omits a declared rule fail closed. The top-level pass state must
+equal complete participation plus the conjunction of reported per-rule pass
+states. A stable incomplete failing result is reported as non-conforming rather
+than clean.
+
+The result statuses are:
+
+| Status | Meaning |
+| --- | --- |
+| `SEMANTIC_ORDER_DRIFT` | Overall pass changed under identical participation, or a pass state changed for the same rule identity wherever it was observed. |
+| `EVIDENCE_ORDER_DRIFT` | Kind, path, or reason code changed for the same rule identity wherever it was observed. |
+| `PARTICIPATION_ORDER_DRIFT` | The set or multiplicity of evaluated rule IDs changed without being counted again as outcome or evidence drift. |
+| `COMPOUND_ORDER_DRIFT` | More than one independent semantic drift dimension changed within coverage. |
+| `INCOMPLETE_RULE_COVERAGE` | At least one stable result omitted a declared rule. |
+| `PRESENTATION_ONLY_DRIFT` | Only the ordered result array changed; this is non-semantic. |
+| `NO_VARIANCE_OBSERVED` | No projected dimension changed within complete coverage. |
+| `INCONCLUSIVE_NONDETERMINISTIC` | Repeated evaluation changed for at least one attempted order. |
+
+The built-in evaluator returns rule results in the requested policy order, so
+`PRESENTATION_ONLY_DRIFT` is the expected clean result for ordinary policies.
+It still sets `conforms_within_coverage` to `true` because presentation order
+is reported separately from semantic conformance.
+
+The mode refuses eight or more rules rather than silently sampling and calling
+the result exhaustive. It limits each in-memory policy, response, and evaluator
+result to 1,000,000 serialized UTF-8 bytes, separately limits the final report
+to 1,000,000 bytes, repeats every order three times, and applies a
+100,000,000-byte deterministic work budget to planned inputs and observed
+evaluator output. Reports expose unique orders, total evaluator calls,
+input-work estimates, returned-result bytes, charged work, incomplete-order
+counts, and the per-result and report limits. A valid evaluation can therefore
+still fail closed with `ORDER_CHECK_TOO_LARGE` if its bounded witness report
+would exceed the separate report limit. A custom evaluator can still consume unbounded time,
+memory, network, or external resources before it returns; callers that do not
+fully trust it must isolate it outside this process. A clean report is bounded
+evidence for this input, policy, evaluator, and observation contract. It is not a mathematical proof of
+commutativity, a proof that rules are institutionally equal, a correctness or
+safety certification, or proof that any observed drift was caused by hidden
+hierarchy. Short-circuiting, shared state, caching, time, and other evaluator
+behavior can produce the same symptom.
 
 ## Policy format
 
@@ -199,9 +281,10 @@ Keep these boundaries in view:
 
 - Policy quality and completeness remain the user's responsibility.
 - Input authenticity and downstream consequences are outside the evaluator's scope.
-- The package does not inspect prompts, free-form reasoning, model internals, or training data.
+- The built-in evaluator does not inspect prompts, free-form reasoning, model internals, or training data.
 - The rule language does not provide array traversal, regular expressions, numeric ranges, arithmetic, or cross-field logic.
 - JSON input files are limited to 1,000,000 bytes. In-memory JSON values are limited to 32 container levels and 100,000 nodes.
+- PrecedenceTrace additionally limits each in-memory policy, response, and returned evaluator result to 1,000,000 serialized UTF-8 bytes.
 - Policies are limited to 256 rules, `one_of` rules are limited to 256 candidate values, and field paths are limited to 32 segments.
 - The command line interface follows explicitly supplied paths. Standard file handling may follow symbolic links.
 - Generated output is written only when an operator supplies `--output`, and the operator is responsible for selecting an intended destination.
@@ -215,9 +298,14 @@ From the repository root, expose `src` on `PYTHONPATH`, then run:
 python -m unittest discover -s tests -v
 ```
 
-The test suite covers all supported rule kinds, strict policy validation, missing-field failure, stable reason codes, JSON type distinctions, duplicate object members, nested-value isolation, input limits, deterministic synthetic generation, fail-closed handling of conflicting synthetic constraints, and the command-line JSON and exit-code contracts.
+The test suite covers all supported rule kinds, strict policy validation,
+missing-field failure, stable reason codes, JSON type distinctions, duplicate
+object members, nested-value isolation, input limits, deterministic synthetic
+generation, fail-closed handling of conflicting synthetic constraints,
+PrecedenceTrace drift classes and planted counterexamples, and the command-line
+JSON and exit-code contracts.
 
-Continuous integration installs the package and runs the complete suite on Python 3.11 through 3.14. It also verifies the installed console command against the bundled synthetic policy.
+Continuous integration installs the package and runs the complete suite on Python 3.11 through 3.14. It also verifies the installed console command and builds and inspects both wheel and source-distribution artifacts.
 
 Runtime imports are limited to the Python standard library and local package modules. The package declares no runtime dependencies.
 
@@ -227,20 +315,22 @@ Runtime imports are limited to the Python standard library and local package mod
 | --- | --- |
 | [`src/constitutional_agent_testbench/policy.py`](src/constitutional_agent_testbench/policy.py) | Policy schema, validation, and validated policy representation. |
 | [`src/constitutional_agent_testbench/evaluator.py`](src/constitutional_agent_testbench/evaluator.py) | Rule evaluation and stable reason codes. |
+| [`src/constitutional_agent_testbench/precedence.py`](src/constitutional_agent_testbench/precedence.py) | PrecedenceTrace enumeration, orthogonal projections and bounded swap-path witnesses. |
 | [`src/constitutional_agent_testbench/synthetic.py`](src/constitutional_agent_testbench/synthetic.py) | Deterministic passing and failing fixture generation. |
 | [`src/constitutional_agent_testbench/common.py`](src/constitutional_agent_testbench/common.py) | Strict JSON, canonical equality, path, and output helpers. |
 | [`src/constitutional_agent_testbench/cli.py`](src/constitutional_agent_testbench/cli.py) | Command parsing, JSON results, error handling, and optional output writing. |
 | [`tests/`](tests/) | Unit tests for validation, evaluation, and synthetic generation. |
 | [`examples/`](examples/) | A complete policy plus passing and failing response fixtures. |
 | [`pyproject.toml`](pyproject.toml) | Python version, packaging metadata, and console entry point. |
+| [`CHANGELOG.md`](CHANGELOG.md) | Version history. |
 | [`SECURITY.md`](SECURITY.md) | Safe-operation boundaries and vulnerability reporting guidance. |
 | [`PROVENANCE.md`](PROVENANCE.md) | Public authorship and review record. |
 
-## Authorship and independence
+## Authorship
 
-OpenAI Codex assisted with drafting and testing. Oonyl directed, reviewed, and takes responsibility for the result. See [`PROVENANCE.md`](PROVENANCE.md) for the complete statement.
-
-This is an independent community project. It is not an OpenAI product, and OpenAI does not endorse it.
+Oonyl directs problem selection, product direction, requirements, evaluation,
+rights review, and final acceptance. See [`PROVENANCE.md`](PROVENANCE.md) for
+the complete statement.
 
 ## License
 

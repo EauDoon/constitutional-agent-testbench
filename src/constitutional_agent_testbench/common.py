@@ -155,6 +155,31 @@ def canonical_json(value: Any) -> str:
     )
 
 
+def bounded_canonical_json_size(value: Any, *, label: str, limit: int) -> int:
+    """Measure canonical UTF-8 JSON incrementally and fail above ``limit``.
+
+    ``JSONEncoder.iterencode`` avoids constructing one complete serialized copy
+    merely to enforce an in-memory boundary. Structural validation remains the
+    caller's responsibility.
+    """
+
+    encoder = json.JSONEncoder(
+        allow_nan=False,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+    total = 0
+    try:
+        for chunk in encoder.iterencode(value):
+            total += len(chunk.encode("utf-8"))
+            if total > limit:
+                raise ValueError(f"{label} exceeds the {limit}-byte limit.")
+    except (OverflowError, RecursionError, TypeError) as exc:
+        raise ValueError(f"{label} is not strict JSON.") from exc
+    return total
+
+
 def json_values_equal(left: Any, right: Any) -> bool:
     """Compare JSON values without Python's bool and integer equivalence."""
 

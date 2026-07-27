@@ -10,6 +10,7 @@ from typing import Any
 from .common import TestbenchError, load_json, stable_json, write_json
 from .evaluator import evaluate_response
 from .policy import validate_policy
+from .precedence import check_order_conformance
 from .synthetic import generate_synthetic_cases
 
 
@@ -44,6 +45,13 @@ def _build_parser() -> argparse.ArgumentParser:
     evaluate_parser.add_argument("policy")
     evaluate_parser.add_argument("response")
 
+    order_parser = subparsers.add_parser(
+        "check-order",
+        help="Exhaustively check peer-rule order conformance.",
+    )
+    order_parser.add_argument("policy")
+    order_parser.add_argument("response")
+
     synthetic_parser = subparsers.add_parser(
         "generate-synthetic", help="Generate verified synthetic cases."
     )
@@ -66,6 +74,10 @@ def _run_command(arguments: argparse.Namespace) -> dict[str, Any]:
     if arguments.command == "evaluate":
         response = load_json(arguments.response)
         return evaluate_response(policy, response)
+
+    if arguments.command == "check-order":
+        response = load_json(arguments.response)
+        return check_order_conformance(policy, response)
 
     bundle = generate_synthetic_cases(policy)
     if arguments.output:

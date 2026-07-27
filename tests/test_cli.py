@@ -8,7 +8,8 @@ from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
 from constitutional_agent_testbench.cli import main
-from constitutional_agent_testbench.common import MAX_JSON_INPUT_BYTES
+from constitutional_agent_testbench.common import MAX_JSON_INPUT_BYTES, load_json
+from constitutional_agent_testbench.precedence import check_order_conformance
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -107,6 +108,54 @@ class CliTests(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         self.assertEqual(stderr, "")
         self.assertTrue(json.loads(stdout)["passed"])
+
+    def test_check_order_reports_conformance_as_result_data(self) -> None:
+        exit_code, stdout, stderr = run_cli(
+            ["check-order", str(POLICY), str(PASSING_RESPONSE)]
+        )
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(stderr, "")
+        report = json.loads(stdout)
+        self.assertEqual(report["status"], "PRESENTATION_ONLY_DRIFT")
+        self.assertTrue(report["conforms_within_coverage"])
+        self.assertEqual(report["coverage"]["orders_evaluated"], 120)
+        self.assertEqual(report["coverage"]["evaluations_performed"], 360)
+        self.assertEqual(
+            report,
+            check_order_conformance(load_json(POLICY), load_json(PASSING_RESPONSE)),
+        )
+
+    def test_check_order_refuses_to_label_sampling_as_exhaustive(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            policy_path = Path(temporary_directory) / "large-policy.json"
+            response_path = Path(temporary_directory) / "response.json"
+            policy_path.write_text(
+                json.dumps(
+                    {
+                        "schema_version": "1.0",
+                        "policy_id": "large-order-policy",
+                        "rules": [
+                            {
+                                "rule_id": f"rule-{index}",
+                                "kind": "required_field",
+                                "path": f"value{index}",
+                            }
+                            for index in range(8)
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            response_path.write_text("{}", encoding="utf-8")
+
+            exit_code, stdout, stderr = run_cli(
+                ["check-order", str(policy_path), str(response_path)]
+            )
+
+        self.assertEqual(exit_code, 2)
+        self.assertEqual(stdout, "")
+        self.assertEqual(json.loads(stderr)["error"]["code"], "ORDER_CHECK_TOO_LARGE")
 
 
 if __name__ == "__main__":

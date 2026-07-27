@@ -2,13 +2,15 @@
 
 ## Authorship and review
 
-OpenAI Codex assisted with drafting and testing. Oonyl directed, reviewed, and takes responsibility for the result.
-
-This is an independent community project. It is not an OpenAI product, and OpenAI does not endorse it.
+Oonyl directs problem selection, product direction, requirements, evaluation,
+rights review, and final acceptance for this project.
 
 ## Inputs and dependencies
 
-This repository was independently created from high-level requirements. The implementation uses the Python standard library. No private source files, secrets, personal data, proprietary examples, copied third-party code, or external assets are included.
+This repository was created from high-level requirements. The implementation
+uses the Python standard library. No private source files, secrets, personal
+data, proprietary examples, copied third-party code, or external assets are
+included.
 
 ## Review boundary
 
