@@ -31,7 +31,7 @@ This is useful for development checks, regression suites, demonstrations, and pr
 | Stable JSON output | Emits sorted JSON object keys and stable public reason codes. |
 | Synthetic fixture generation | Builds and re-evaluates one passing case and one failing case from a valid policy. |
 | PrecedenceTrace | Exhaustively permutes two to seven peer rules and emits bounded order-drift evidence plus a reproducible swap-path witness. |
-| Local operation | Makes no network or model calls and writes a file only when `--output` is explicitly supplied. |
+| Local operation | Makes no network or model calls and writes a file only when `--output` or the playground export action is explicitly supplied. |
 
 ## Quick start
 
@@ -57,7 +57,7 @@ The first command reports that the policy is valid. The second reports `"passed"
 
 ## Command line interface
 
-The command line interface supports four operations:
+The command line interface supports five operations:
 
 | Command | Purpose |
 | --- | --- |
@@ -65,6 +65,7 @@ The command line interface supports four operations:
 | `evaluate` | Evaluate a response and return the overall result plus every rule result. |
 | `check-order` | Run PrecedenceTrace against one fixed response and two to seven declared peer rules. |
 | `generate-synthetic` | Produce a verified passing and failing case, either on standard output or in an explicitly selected file. |
+| `playground` | Open the offline policy playground, or run its headless smoke check. |
 
 Run directly from a source checkout after adding `src` to `PYTHONPATH`:
 
@@ -74,6 +75,7 @@ python -m constitutional_agent_testbench.cli evaluate examples/policy.json examp
 python -m constitutional_agent_testbench.cli check-order examples/policy.json examples/passing-response.json
 python -m constitutional_agent_testbench.cli generate-synthetic examples/policy.json
 python -m constitutional_agent_testbench.cli generate-synthetic examples/policy.json --output generated-cases.json
+python -m constitutional_agent_testbench.cli playground --smoke-test
 ```
 
 Operational results and controlled errors are JSON with sorted object keys. Help output remains plain command-line text. When `--output` is supplied, `generate-synthetic` writes the complete case bundle and prints a path-free acknowledgement.
@@ -84,6 +86,14 @@ evaluation or order drift. Automation should inspect `passed`, `status`, and
 `conforms_within_coverage`. Controlled command, input, policy, response,
 generation, coverage-limit, and output errors return process exit code `2`
 with a machine-readable error object on standard error.
+
+Add `--strict-exit` to `evaluate` or `check-order` when automation should use
+the process status as a gate. Conformance returns `0`, valid nonconformance or
+drift returns `1`, and invalid or unresolved input returns `2`.
+
+`playground` is offline and reuses the library evaluator. It writes nothing
+during editing or evaluation. The **Export result** button opens an explicit
+save dialog and is the only playground write path.
 
 ## Library use
 

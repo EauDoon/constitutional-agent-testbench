@@ -63,6 +63,16 @@ def load_json(path: str | Path) -> Any:
     except UnicodeError as exc:
         raise JsonInputError("Unable to read the requested JSON input.") from exc
 
+    return parse_json_text(text)
+
+
+def parse_json_text(text: str) -> Any:
+    """Parse bounded strict JSON supplied directly by a local editor."""
+
+    if len(text.encode("utf-8")) > MAX_JSON_INPUT_BYTES:
+        raise JsonInputError(
+            "The requested input exceeds the 1,000,000-byte file-size limit."
+        )
     try:
         value = json.loads(
             text,

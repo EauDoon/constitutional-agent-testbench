@@ -1,0 +1,10 @@
+{
+  "version": "0.2.0",
+  "python": ">=3.11",
+  "build_backend": "setuptools==83.0.0",
+  "artifacts": [
+    "constitutional_agent_testbench-0.2.0-py3-none-any.whl",
+    "constitutional_agent_testbench-0.2.0.tar.gz"
+  ],
+  "integrity_sidecars": ["SHA256SUMS"]
+}

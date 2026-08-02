@@ -8,7 +8,8 @@ from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
 from constitutional_agent_testbench.cli import main
-from constitutional_agent_testbench.common import MAX_JSON_INPUT_BYTES, load_json
+from constitutional_agent_testbench.common import JsonInputError, MAX_JSON_INPUT_BYTES, load_json
+from constitutional_agent_testbench.playground import evaluate_documents
 from constitutional_agent_testbench.precedence import check_order_conformance
 
 
@@ -108,6 +109,37 @@ class CliTests(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         self.assertEqual(stderr, "")
         self.assertTrue(json.loads(stdout)["passed"])
+
+    def test_strict_exit_distinguishes_valid_nonconformance(self) -> None:
+        exit_code, stdout, stderr = run_cli(
+            ["evaluate", str(POLICY), str(FAILING_RESPONSE), "--strict-exit"]
+        )
+        self.assertEqual(exit_code, 1)
+        self.assertEqual(stderr, "")
+        self.assertFalse(json.loads(stdout)["passed"])
+
+    def test_strict_exit_keeps_conformance_at_zero(self) -> None:
+        exit_code, stdout, stderr = run_cli(
+            ["check-order", str(POLICY), str(PASSING_RESPONSE), "--strict-exit"]
+        )
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(stderr, "")
+        self.assertTrue(json.loads(stdout)["conforms_within_coverage"])
+
+    def test_playground_smoke_is_offline_and_nonwriting(self) -> None:
+        exit_code, stdout, stderr = run_cli(["playground", "--smoke-test"])
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(stderr, "")
+        self.assertEqual(json.loads(stdout)["export_requires_explicit_action"], True)
+
+    def test_playground_editor_uses_strict_bounded_json(self) -> None:
+        policy_text = POLICY.read_text(encoding="utf-8")
+        passing_text = PASSING_RESPONSE.read_text(encoding="utf-8")
+        self.assertTrue(evaluate_documents(policy_text, passing_text)["passed"])
+        with self.assertRaises(JsonInputError):
+            evaluate_documents(policy_text, '{"decision":"one","decision":"two"}')
+        with self.assertRaises(JsonInputError):
+            evaluate_documents(policy_text, '{"decision":NaN}')
 
     def test_check_order_reports_conformance_as_result_data(self) -> None:
         exit_code, stdout, stderr = run_cli(

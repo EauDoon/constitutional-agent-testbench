@@ -17,6 +17,7 @@ dependencies = []
 
 [project.scripts]
 constitutional-agent-testbench = "constitutional_agent_testbench.cli:main"
+constitutional-agent-testbench-playground = "constitutional_agent_testbench.playground:main"
 
 [tool.setuptools]
 package-dir = { "" = "src" }

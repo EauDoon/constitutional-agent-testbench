@@ -44,6 +44,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     evaluate_parser.add_argument("policy")
     evaluate_parser.add_argument("response")
+    evaluate_parser.add_argument("--strict-exit", action="store_true", help="return 1 for valid nonconformance")
 
     order_parser = subparsers.add_parser(
         "check-order",
@@ -51,16 +52,24 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     order_parser.add_argument("policy")
     order_parser.add_argument("response")
+    order_parser.add_argument("--strict-exit", action="store_true", help="return 1 for valid drift or nonconformance")
 
     synthetic_parser = subparsers.add_parser(
         "generate-synthetic", help="Generate verified synthetic cases."
     )
     synthetic_parser.add_argument("policy")
     synthetic_parser.add_argument("--output")
+    playground_parser = subparsers.add_parser("playground", help="open the offline policy playground")
+    playground_parser.add_argument("policy", nargs="?")
+    playground_parser.add_argument("response", nargs="?")
+    playground_parser.add_argument("--smoke-test", action="store_true")
     return parser
 
 
 def _run_command(arguments: argparse.Namespace) -> dict[str, Any]:
+    if arguments.command == "playground":
+        from .playground import run_playground
+        return run_playground(arguments.policy, arguments.response, smoke_test=arguments.smoke_test)
     raw_policy = load_json(arguments.policy)
     policy = validate_policy(raw_policy)
 
@@ -107,6 +116,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 2
 
     sys.stdout.write(stable_json(result))
+    if getattr(arguments, "strict_exit", False):
+        if arguments.command == "evaluate":
+            return 0 if result.get("passed") is True else 1
+        if arguments.command == "check-order":
+            return 0 if result.get("conforms_within_coverage") is True else 1
     return 0
 
 

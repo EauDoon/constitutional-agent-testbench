@@ -14,12 +14,13 @@ concurrency:
 
 jobs:
   verify:
-    name: Python ${{ matrix.python }}
-    runs-on: ubuntu-latest
+    name: ${{ matrix.os }} Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 5
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest, windows-latest]
         python: ["3.11", "3.12", "3.13", "3.14"]
     steps:
       - name: Check out exact source
@@ -39,16 +40,16 @@ jobs:
       - name: Verify PrecedenceTrace conformance mode
         run: constitutional-agent-testbench check-order examples/policy.json examples/passing-response.json
       - name: Install the pinned distribution builder
-        if: matrix.python == '3.12'
+        if: matrix.python == '3.12' && matrix.os == 'ubuntu-latest'
         run: python -m pip install --disable-pip-version-check build==1.3.0
       - name: Build and inspect wheel and source distribution
-        if: matrix.python == '3.12'
+        if: matrix.python == '3.12' && matrix.os == 'ubuntu-latest'
         run: |
           python -m build
           python -m zipfile -l dist/*.whl
           python -m tarfile -l dist/*.tar.gz
       - name: Verify both installed distributions outside the checkout
-        if: matrix.python == '3.12'
+        if: matrix.python == '3.12' && matrix.os == 'ubuntu-latest'
         run: |
           python -m pip install --force-reinstall --no-deps dist/*.tar.gz
           sdist_smoke_dir="$(mktemp -d)"
@@ -61,3 +62,31 @@ jobs:
           cd "$smoke_dir"
           python -c "import constitutional_agent_testbench as c; assert c.__version__ == '0.2.0'; assert callable(c.check_order_conformance)"
           constitutional-agent-testbench check-order "${GITHUB_WORKSPACE}/examples/policy.json" "${GITHUB_WORKSPACE}/examples/passing-response.json" | python -c "import json, sys; report=json.load(sys.stdin); assert report['coverage']['orders_evaluated'] == 120; assert report['coverage']['evaluations_performed'] == 360; assert report['conforms_within_coverage'] is True"
+
+  windows-installed-wheel:
+    name: Windows installed wheel
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - name: Build and install the wheel
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check --no-cache-dir "setuptools==83.0.0"
+          python -m pip wheel --disable-pip-version-check --no-cache-dir --no-deps --no-build-isolation --wheel-dir "$env:RUNNER_TEMP" .
+          $wheel = Get-ChildItem -LiteralPath $env:RUNNER_TEMP -Filter "constitutional_agent_testbench-0.2.0-*.whl" | Select-Object -First 1
+          if ($null -eq $wheel) { throw "Expected wheel was not built." }
+          python -m pip install --disable-pip-version-check --no-cache-dir --force-reinstall --no-deps $wheel.FullName
+      - name: Run installed-wheel contract checks
+        shell: pwsh
+        run: |
+          python -m unittest discover -s tests -v
+          constitutional-agent-testbench validate-policy examples/policy.json
+          constitutional-agent-testbench playground --smoke-test
