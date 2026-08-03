@@ -2,7 +2,7 @@
 
 ## Authorship and review
 
-Oonyl directs problem selection, product direction, requirements, evaluation,
+EauDoon directs problem selection, product direction, requirements, evaluation,
 rights review, and final acceptance for this project.
 
 ## Inputs and dependencies

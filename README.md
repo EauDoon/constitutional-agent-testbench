@@ -338,7 +338,7 @@ Runtime imports are limited to the Python standard library and local package mod
 
 ## Authorship
 
-Oonyl directs problem selection, product direction, requirements, evaluation,
+EauDoon directs problem selection, product direction, requirements, evaluation,
 rights review, and final acceptance. See [`PROVENANCE.md`](PROVENANCE.md) for
 the complete statement.
 
