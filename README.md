@@ -10,6 +10,8 @@ response.
 
 The package is deliberately narrow. It does not call models, use a network, execute candidate content, take external actions, or persist inputs. Runtime code uses only the Python standard library. The result is a local evaluation layer that is easy to inspect, reproduce, and place beside a larger AI system.
 
+![Workflow showing policy and JSON validation, rule evaluation, an optional peer-rule order check, and stable reporting.](https://raw.githubusercontent.com/EauDoon/constitutional-agent-testbench/main/.github/assets/project-overview.svg)
+
 ## Why it is useful
 
 - Turn output expectations into versioned JSON rules instead of leaving them only in prompts or prose.
