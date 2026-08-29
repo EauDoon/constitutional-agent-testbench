@@ -11,6 +11,7 @@ from constitutional_agent_testbench.common import (
     JsonInputError,
     ensure_json_value,
     load_json,
+    parse_json_text,
 )
 from constitutional_agent_testbench.evaluator import (
     EvaluationInputError,
@@ -114,6 +115,20 @@ class PolicyValidationTests(unittest.TestCase):
             with self.assertRaises(JsonInputError):
                 load_json(path)
 
+    def test_rejects_unpaired_unicode_surrogates(self) -> None:
+        invalid_documents = (
+            '"\\ud800"',
+            '"\\udfff"',
+            '{"\\ud800": true}',
+            '"\ud800"',
+        )
+        for document in invalid_documents:
+            with self.subTest(document=ascii(document)):
+                with self.assertRaises(JsonInputError):
+                    parse_json_text(document)
+
+        self.assertEqual(parse_json_text('"\\ud83d\\udca1"'), "💡")
+
     def test_rejects_input_larger_than_the_file_size_limit(self) -> None:
         with TemporaryDirectory() as directory:
             path = Path(directory) / "large.json"
@@ -204,6 +219,12 @@ class PolicyValidationTests(unittest.TestCase):
                 }
             ],
         }
+        with self.assertRaises(PolicyValidationError):
+            validate_policy(raw)
+
+    def test_rejects_surrogates_in_programmatic_policy_values(self) -> None:
+        raw = valid_policy()
+        raw["rules"][1]["value"] = "\ud800"
         with self.assertRaises(PolicyValidationError):
             validate_policy(raw)
 
