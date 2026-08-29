@@ -98,6 +98,12 @@ class EvaluatorTests(unittest.TestCase):
         with self.assertRaises(EvaluationInputError):
             evaluate_response(policy(), [])
 
+    def test_response_rejects_unpaired_unicode_surrogates(self) -> None:
+        response = passing_response()
+        response["summary"] = "\ud800"
+        with self.assertRaises(EvaluationInputError):
+            evaluate_response(policy(), response)
+
     def test_synthetic_generation_is_deterministic_and_verified(self) -> None:
         first = generate_synthetic_cases(policy())
         second = generate_synthetic_cases(policy())
@@ -120,4 +126,3 @@ class EvaluatorTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
