@@ -4,4 +4,5 @@ include LICENSE
 include PROVENANCE.md
 include README.md
 include SECURITY.md
+include src/constitutional_agent_testbench/py.typed
 recursive-include examples *.json

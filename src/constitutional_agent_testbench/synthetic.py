@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import Any
+from typing import Any, TypedDict
 
 from .common import TestbenchError, canonical_json
-from .evaluator import evaluate_response
+from .evaluator import EvaluationResult, evaluate_response
 from .policy import Policy, Rule, validate_policy
 
 
@@ -14,6 +14,21 @@ class SyntheticGenerationError(TestbenchError):
     """Raised when a policy cannot yield a verified synthetic pair."""
 
     code = "SYNTHETIC_GENERATION_FAILED"
+
+
+class SyntheticCase(TypedDict):
+    """One verified synthetic response and its evaluation."""
+
+    evaluation: EvaluationResult
+    response: dict[str, Any]
+
+
+class SyntheticCaseBundle(TypedDict):
+    """Verified passing and failing cases derived from one policy."""
+
+    failing_case: SyntheticCase
+    passing_case: SyntheticCase
+    policy_id: str
 
 
 def _choose_value(rules: list[Rule]) -> Any:
@@ -88,7 +103,7 @@ def _delete_path(document: dict[str, Any], path: str) -> bool:
 
 def generate_synthetic_cases(
     policy: Policy | dict[str, Any],
-) -> dict[str, Any]:
+) -> SyntheticCaseBundle:
     """Build and verify one passing and one failing synthetic response."""
 
     validated_policy = validate_policy(policy)

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import unittest
+from importlib.resources import files
 
+import constitutional_agent_testbench as cat
 from constitutional_agent_testbench.evaluator import (
     EvaluationInputError,
     evaluate_response,
@@ -55,6 +57,26 @@ def passing_response() -> dict:
 
 
 class EvaluatorTests(unittest.TestCase):
+    def test_package_exports_the_evaluation_contract(self) -> None:
+        self.assertIs(cat.EvaluationInputError, EvaluationInputError)
+        self.assertEqual(
+            set(cat.EvaluationResult.__required_keys__),
+            {"passed", "policy_id", "rule_results"},
+        )
+        self.assertEqual(
+            set(cat.RuleResult.__required_keys__),
+            {"kind", "passed", "path", "reason_code", "rule_id"},
+        )
+        self.assertTrue((files("constitutional_agent_testbench") / "py.typed").is_file())
+
+    def test_evaluation_result_uses_the_public_key_set(self) -> None:
+        result = evaluate_response(policy(), passing_response())
+        self.assertEqual(set(result), {"passed", "policy_id", "rule_results"})
+        self.assertEqual(
+            set(result["rule_results"][0]),
+            {"kind", "passed", "path", "reason_code", "rule_id"},
+        )
+
     def test_all_supported_rules_pass(self) -> None:
         result = evaluate_response(policy(), passing_response())
         self.assertTrue(result["passed"])
@@ -188,6 +210,8 @@ class EvaluatorTests(unittest.TestCase):
         first = generate_synthetic_cases(policy())
         second = generate_synthetic_cases(policy())
         self.assertEqual(first, second)
+        self.assertEqual(set(first), {"failing_case", "passing_case", "policy_id"})
+        self.assertEqual(set(first["passing_case"]), {"evaluation", "response"})
         self.assertTrue(first["passing_case"]["evaluation"]["passed"])
         self.assertFalse(first["failing_case"]["evaluation"]["passed"])
 
