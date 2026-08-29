@@ -133,6 +133,13 @@ class PolicyValidationTests(unittest.TestCase):
             with self.assertRaises(JsonInputError):
                 load_json(path)
 
+    def test_rejects_programmatic_policy_larger_than_the_input_limit(self) -> None:
+        raw = valid_policy()
+        raw["rules"][1]["value"] = "x" * MAX_JSON_INPUT_BYTES
+
+        with self.assertRaisesRegex(PolicyValidationError, "byte limit"):
+            validate_policy(raw)
+
     def test_rejects_response_beyond_the_nesting_limit(self) -> None:
         response: dict = {}
         current = response
