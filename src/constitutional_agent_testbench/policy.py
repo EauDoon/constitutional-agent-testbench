@@ -106,6 +106,13 @@ def validate_policy(raw_policy: Any) -> Policy:
 
     if isinstance(raw_policy, Policy):
         try:
+            for rule in raw_policy.rules:
+                has_irrelevant_value = rule.kind != "equals" and rule.value is not None
+                has_irrelevant_values = rule.kind != "one_of" and rule.values != ()
+                if has_irrelevant_value or has_irrelevant_values:
+                    raise _invalid(
+                        "Policy object contains fields not supported by its rule kind."
+                    )
             raw_policy = policy_to_dict(raw_policy)
         except (AttributeError, RecursionError, TypeError, ValueError) as exc:
             raise _invalid("Policy object is invalid.", exc)

@@ -244,6 +244,17 @@ class PolicyValidationTests(unittest.TestCase):
         with self.assertRaises(PolicyValidationError):
             validate_policy(raw_policy)
 
+    def test_rejects_irrelevant_fields_on_manually_constructed_rules(self) -> None:
+        rules = (
+            Rule(rule_id="false-rule", kind="false", path="value", value="ignored"),
+            Rule(rule_id="false-rule", kind="false", path="value", values=False),
+            Rule(rule_id="equals-rule", kind="equals", path="value", value=1, values=(1,)),
+            Rule(rule_id="one-of-rule", kind="one_of", path="value", value=1, values=(1,)),
+        )
+        for rule in rules:
+            with self.subTest(kind=rule.kind), self.assertRaises(PolicyValidationError):
+                validate_policy(Policy(policy_id="manual-policy", rules=(rule,)))
+
     def test_nested_values_do_not_alias_input_or_export(self) -> None:
         raw_policy = {
             "schema_version": "1.0",
