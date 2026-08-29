@@ -70,8 +70,25 @@ class PolicyValidationTests(unittest.TestCase):
     def test_rejects_unknown_rule_kind(self) -> None:
         raw = valid_policy()
         raw["rules"][0]["kind"] = "undeclared"
-        with self.assertRaises(PolicyValidationError):
+        with self.assertRaises(PolicyValidationError) as raised:
             validate_policy(raw)
+        error = raised.exception
+        self.assertEqual(error.policy_id, "test-policy")
+        self.assertEqual(error.rule_id, "summary-present")
+        self.assertEqual(error.rule_index, 0)
+        self.assertIn("summary-present", str(error))
+        self.assertIn("index 0", str(error))
+        self.assertNotIn("undeclared", str(error))
+        self.assertEqual(
+            error.public_error(),
+            {
+                "code": "INVALID_POLICY",
+                "message": str(error),
+                "policy_id": "test-policy",
+                "rule_id": "summary-present",
+                "rule_index": 0,
+            },
+        )
 
     def test_rejects_unknown_top_level_field(self) -> None:
         raw = valid_policy()
@@ -88,8 +105,13 @@ class PolicyValidationTests(unittest.TestCase):
     def test_rejects_duplicate_rule_identifiers(self) -> None:
         raw = valid_policy()
         raw["rules"][1]["rule_id"] = raw["rules"][0]["rule_id"]
-        with self.assertRaises(PolicyValidationError):
+        with self.assertRaises(PolicyValidationError) as raised:
             validate_policy(raw)
+        error = raised.exception
+        self.assertEqual(error.rule_id, "summary-present")
+        self.assertEqual(error.rule_index, 1)
+        self.assertIn("summary-present", str(error))
+        self.assertIn("repeats a rule_id", str(error))
 
     def test_rejects_empty_and_duplicate_one_of_values(self) -> None:
         raw = valid_policy()
@@ -106,14 +128,20 @@ class PolicyValidationTests(unittest.TestCase):
         raw = valid_policy()
         for path in ("summary..text", ".summary", "summary.", "0summary", "summary[0]"):
             raw["rules"][0]["path"] = path
-            with self.subTest(path=path), self.assertRaises(PolicyValidationError):
+            with self.subTest(path=path), self.assertRaises(PolicyValidationError) as raised:
                 validate_policy(raw)
+            self.assertEqual(raised.exception.rule_id, "summary-present")
+            self.assertIn("summary-present", str(raised.exception))
+            self.assertNotIn(path, str(raised.exception))
 
     def test_rejects_empty_rules_and_non_object_policies(self) -> None:
         raw = valid_policy()
         raw["rules"] = []
-        with self.assertRaises(PolicyValidationError):
+        with self.assertRaises(PolicyValidationError) as raised:
             validate_policy(raw)
+        self.assertEqual(raised.exception.policy_id, "test-policy")
+        self.assertIsNone(raised.exception.rule_id)
+        self.assertIn("test-policy", str(raised.exception))
         for invalid in (None, [], "policy", 1, True):
             with self.subTest(invalid=invalid), self.assertRaises(PolicyValidationError):
                 validate_policy(invalid)
@@ -135,8 +163,12 @@ class PolicyValidationTests(unittest.TestCase):
             with self.subTest(field="rule_id", identifier=identifier):
                 raw = valid_policy()
                 raw["rules"][0]["rule_id"] = identifier
-                with self.assertRaises(PolicyValidationError):
+                with self.assertRaises(PolicyValidationError) as raised:
                     validate_policy(raw)
+                self.assertIsNone(raised.exception.rule_id)
+                self.assertEqual(raised.exception.rule_index, 0)
+                if identifier:
+                    self.assertNotIn(identifier, str(raised.exception))
 
     def test_rejects_missing_required_policy_fields(self) -> None:
         for field in ("schema_version", "policy_id", "rules"):
@@ -266,8 +298,10 @@ class PolicyValidationTests(unittest.TestCase):
                 }
             ],
         }
-        with self.assertRaises(PolicyValidationError):
+        with self.assertRaises(PolicyValidationError) as raised:
             validate_policy(raw)
+        self.assertIsInstance(raised.exception.__cause__, ValueError)
+        self.assertIn("Policy", str(raised.exception))
 
     def test_accepts_the_one_of_limit_and_rejects_one_more(self) -> None:
         raw = valid_policy()
@@ -302,8 +336,15 @@ class PolicyValidationTests(unittest.TestCase):
             Rule(rule_id="one-of-rule", kind="one_of", path="value", value=1, values=(1,)),
         )
         for rule in rules:
-            with self.subTest(kind=rule.kind), self.assertRaises(PolicyValidationError):
+            with self.subTest(kind=rule.kind), self.assertRaises(
+                PolicyValidationError
+            ) as raised:
                 validate_policy(Policy(policy_id="manual-policy", rules=(rule,)))
+            error = raised.exception
+            self.assertEqual(error.policy_id, "manual-policy")
+            self.assertEqual(error.rule_id, rule.rule_id)
+            self.assertEqual(error.rule_index, 0)
+            self.assertIn(rule.rule_id, str(error))
 
     def test_nested_values_do_not_alias_input_or_export(self) -> None:
         raw_policy = {

@@ -99,7 +99,7 @@ example:
 python -m constitutional_agent_testbench.cli evaluate examples/policy.json - < examples/passing-response.json
 ```
 
-Operational results and controlled errors are JSON with sorted object keys. Help output remains plain command-line text. `--help` lists commands and argument conventions; unknown commands, unknown options, extra arguments, and missing arguments return `INVALID_COMMAND` with a usage hint and do not echo the supplied tokens.
+Operational results and controlled errors are JSON with sorted object keys. Help output remains plain command-line text. `--help` lists commands and argument conventions; unknown commands, unknown options, extra arguments, and missing arguments return `INVALID_COMMAND` with a usage hint and do not echo the supplied tokens. Policy validation errors name the failing rule when its identifier is valid, and the JSON error object then includes `policy_id`, `rule_id`, and `rule_index` for those known values. Invalid identifiers and input paths are still omitted.
 
 When `--output` is supplied, `generate-synthetic` writes the complete case bundle and prints a path-free acknowledgement. `--output` writes a file and does not accept `-`. `playground` optional policy and response arguments are file paths and do not read `-` as standard input.
 
@@ -173,11 +173,12 @@ Each rule result contains `rule_id`, `kind`, `path`, `passed`, and `reason_code`
 `evaluate_response` and `generate_synthetic_cases` accept a validated `Policy`
 or a raw policy object and re-validate it. A non-object or structurally invalid
 response raises `EvaluationInputError`. Policy schema failures raise
-`PolicyValidationError`. `generate_synthetic_cases` raises
-`SyntheticGenerationError` when a verified passing and failing pair cannot be
-constructed. `check_order_conformance` raises `PrecedenceTraceError` or
-`OrderCheckTooLargeError` when the check cannot be performed within the public
-bounds.
+`PolicyValidationError`, which names the failing rule when a valid `rule_id` is
+already present and exposes `policy_id`, `rule_id`, and `rule_index` on the
+exception. `generate_synthetic_cases` raises `SyntheticGenerationError` when a
+verified passing and failing pair cannot be constructed. `check_order_conformance`
+raises `PrecedenceTraceError` or `OrderCheckTooLargeError` when the check cannot
+be performed within the public bounds.
 
 `fixtures` contains:
 

@@ -313,7 +313,56 @@ class CliTests(unittest.TestCase):
 
         self.assertEqual(exit_code, 2)
         self.assertEqual(stdout, "")
-        self.assertEqual(json.loads(stderr)["error"]["code"], "INVALID_POLICY")
+        self.assertEqual(
+            json.loads(stderr),
+            {
+                "error": {
+                    "code": "INVALID_POLICY",
+                    "message": "Policy 'empty-rules' rules must be a non-empty JSON array.",
+                    "policy_id": "empty-rules",
+                }
+            },
+        )
+
+    def test_invalid_policy_names_the_failing_rule(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            input_path = Path(temporary_directory) / "bad-rule.json"
+            input_path.write_text(
+                json.dumps(
+                    {
+                        "schema_version": "1.0",
+                        "policy_id": "named-rule-policy",
+                        "rules": [
+                            {
+                                "rule_id": "broken-path",
+                                "kind": "required_field",
+                                "path": "summary..text",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            exit_code, stdout, stderr = run_cli(["validate-policy", str(input_path)])
+
+        self.assertEqual(exit_code, 2)
+        self.assertEqual(stdout, "")
+        self.assertNotIn(str(input_path), stderr)
+        self.assertEqual(
+            json.loads(stderr),
+            {
+                "error": {
+                    "code": "INVALID_POLICY",
+                    "message": (
+                        "Rule 'broken-path' at index 0 path is not a valid "
+                        "object field path."
+                    ),
+                    "policy_id": "named-rule-policy",
+                    "rule_id": "broken-path",
+                    "rule_index": 0,
+                }
+            },
+        )
 
     def test_non_object_response_uses_the_response_error_contract(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
