@@ -207,6 +207,17 @@ class CliTests(unittest.TestCase):
         self.assertEqual(stderr, "")
         self.assertEqual(json.loads(stdout)["export_requires_explicit_action"], True)
 
+    def test_playground_without_tkinter_uses_the_json_error_contract(self) -> None:
+        with patch.dict(sys.modules, {"tkinter": None}):
+            exit_code, stdout, stderr = run_cli(["playground"])
+
+        self.assertEqual(exit_code, 2)
+        self.assertEqual(stdout, "")
+        self.assertEqual(
+            json.loads(stderr)["error"]["code"],
+            "PLAYGROUND_UNAVAILABLE",
+        )
+
     def test_playground_editor_uses_strict_bounded_json(self) -> None:
         policy_text = POLICY.read_text(encoding="utf-8")
         passing_text = PASSING_RESPONSE.read_text(encoding="utf-8")

@@ -9,6 +9,12 @@ from .evaluator import evaluate_response
 from .policy import validate_policy
 
 
+class PlaygroundUnavailableError(TestbenchError):
+    """Raised when the optional Tk playground cannot open."""
+
+    code = "PLAYGROUND_UNAVAILABLE"
+
+
 def _load_optional(path: str | None, fallback: Any) -> Any:
     return load_json(path) if path else fallback
 
@@ -26,8 +32,13 @@ def run_playground(policy_path: str | None, response_path: str | None, *, smoke_
         if policy_path:
             validate_policy(load_json(policy_path))
         return {"playground": "ready", "offline": True, "export_requires_explicit_action": True}
-    import tkinter as tk
-    from tkinter import filedialog, messagebox
+    try:
+        import tkinter as tk
+        from tkinter import filedialog, messagebox
+    except ImportError as exc:
+        raise PlaygroundUnavailableError(
+            "The playground is unavailable because Tkinter is not installed."
+        ) from exc
 
     policy = _load_optional(
         policy_path,
@@ -39,7 +50,12 @@ def run_playground(policy_path: str | None, response_path: str | None, *, smoke_
     )
     response = _load_optional(response_path, {"decision": "demo"})
     validate_policy(policy)
-    root = tk.Tk()
+    try:
+        root = tk.Tk()
+    except tk.TclError as exc:
+        raise PlaygroundUnavailableError(
+            "The playground could not open a window in this environment."
+        ) from exc
     root.title("Constitutional Agent Testbench Playground")
     root.geometry("900x650")
     policy_box = tk.Text(root, height=14, width=100)
@@ -79,5 +95,6 @@ def run_playground(policy_path: str | None, response_path: str | None, *, smoke_
 
 
 def main() -> int:
-    run_playground(None, None)
-    return 0
+    from .cli import main as cli_main
+
+    return cli_main(["playground"])
