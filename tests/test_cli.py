@@ -136,7 +136,142 @@ class CliTests(unittest.TestCase):
             {
                 "error": {
                     "code": "INVALID_COMMAND",
-                    "message": "Command arguments are invalid.",
+                    "message": "Unknown command. Use --help to list available commands.",
+                }
+            },
+        )
+        self.assertNotIn("unknown-command", stderr)
+
+    def test_missing_command_uses_the_json_error_contract(self) -> None:
+        exit_code, stdout, stderr = run_cli([])
+
+        self.assertEqual(exit_code, 2)
+        self.assertEqual(stdout, "")
+        self.assertEqual(
+            json.loads(stderr),
+            {
+                "error": {
+                    "code": "INVALID_COMMAND",
+                    "message": "A command is required. Use --help to list available commands.",
+                }
+            },
+        )
+
+    def test_unknown_option_uses_the_json_error_contract(self) -> None:
+        exit_code, stdout, stderr = run_cli(
+            ["validate-policy", "--bogus", str(POLICY)]
+        )
+
+        self.assertEqual(exit_code, 2)
+        self.assertEqual(stdout, "")
+        self.assertEqual(
+            json.loads(stderr),
+            {
+                "error": {
+                    "code": "INVALID_COMMAND",
+                    "message": (
+                        "Unknown option or extra argument. Use --help to inspect usage."
+                    ),
+                }
+            },
+        )
+        self.assertNotIn("--bogus", stderr)
+        self.assertNotIn(str(POLICY), stderr)
+
+    def test_abbreviated_strict_exit_is_rejected(self) -> None:
+        exit_code, stdout, stderr = run_cli(
+            ["evaluate", str(POLICY), str(FAILING_RESPONSE), "--strict"]
+        )
+
+        self.assertEqual(exit_code, 2)
+        self.assertEqual(stdout, "")
+        self.assertEqual(
+            json.loads(stderr)["error"]["code"],
+            "INVALID_COMMAND",
+        )
+        self.assertIn("Unknown option or extra argument", stderr)
+
+    def test_missing_required_argument_uses_the_json_error_contract(self) -> None:
+        exit_code, stdout, stderr = run_cli(["validate-policy"])
+
+        self.assertEqual(exit_code, 2)
+        self.assertEqual(stdout, "")
+        self.assertEqual(
+            json.loads(stderr),
+            {
+                "error": {
+                    "code": "INVALID_COMMAND",
+                    "message": "Missing required argument. Use --help to inspect usage.",
+                }
+            },
+        )
+
+    def test_help_is_plain_text_and_lists_commands(self) -> None:
+        exit_code, stdout, stderr = run_cli(["--help"])
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(stderr, "")
+        self.assertIn("validate-policy", stdout)
+        self.assertIn("evaluate", stdout)
+        self.assertIn("check-order", stdout)
+        self.assertIn("generate-synthetic", stdout)
+        self.assertIn("playground", stdout)
+        self.assertIn("standard input", stdout)
+        self.assertNotIn('"error"', stdout)
+
+    def test_generate_synthetic_help_documents_output_path(self) -> None:
+        exit_code, stdout, stderr = run_cli(["generate-synthetic", "--help"])
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(stderr, "")
+        self.assertIn("--output PATH", stdout)
+        self.assertIn("does not accept '-'", stdout)
+        self.assertIn("standard input", stdout)
+
+    def test_playground_help_documents_optional_file_paths(self) -> None:
+        exit_code, stdout, stderr = run_cli(["playground", "--help"])
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(stderr, "")
+        self.assertIn("optional policy file path", stdout)
+        self.assertIn("--smoke-test", stdout)
+        self.assertIn("headless playground smoke check", stdout)
+
+    def test_generate_synthetic_rejects_output_dash(self) -> None:
+        exit_code, stdout, stderr = run_cli(
+            ["generate-synthetic", str(POLICY), "--output", "-"]
+        )
+
+        self.assertEqual(exit_code, 2)
+        self.assertEqual(stdout, "")
+        self.assertFalse(Path("-").exists())
+        self.assertEqual(
+            json.loads(stderr),
+            {
+                "error": {
+                    "code": "INVALID_COMMAND",
+                    "message": (
+                        "generate-synthetic --output writes a file and does not "
+                        "accept '-'."
+                    ),
+                }
+            },
+        )
+
+    def test_playground_rejects_standard_input_token(self) -> None:
+        exit_code, stdout, stderr = run_cli(["playground", "-", "--smoke-test"])
+
+        self.assertEqual(exit_code, 2)
+        self.assertEqual(stdout, "")
+        self.assertEqual(
+            json.loads(stderr),
+            {
+                "error": {
+                    "code": "INVALID_COMMAND",
+                    "message": (
+                        "playground does not read policy or response JSON from "
+                        "standard input."
+                    ),
                 }
             },
         )
