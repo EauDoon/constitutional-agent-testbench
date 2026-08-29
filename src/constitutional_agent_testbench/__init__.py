@@ -1,6 +1,11 @@
 """Public API for Constitutional Agent Testbench."""
 
-from .evaluator import evaluate_response
+from .evaluator import (
+    EvaluationInputError,
+    EvaluationResult,
+    RuleResult,
+    evaluate_response,
+)
 from .policy import Policy, PolicyValidationError, Rule, validate_policy
 from .precedence import (
     OrderCheckTooLargeError,
@@ -10,11 +15,14 @@ from .precedence import (
 from .synthetic import SyntheticGenerationError, generate_synthetic_cases
 
 __all__ = [
+    "EvaluationInputError",
+    "EvaluationResult",
+    "OrderCheckTooLargeError",
     "Policy",
     "PolicyValidationError",
     "PrecedenceTraceError",
     "Rule",
-    "OrderCheckTooLargeError",
+    "RuleResult",
     "SyntheticGenerationError",
     "evaluate_response",
     "check_order_conformance",

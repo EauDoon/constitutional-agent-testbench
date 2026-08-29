@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal, TypedDict
 
 from .common import TestbenchError, ensure_json_value, get_field, json_values_equal
 from .policy import Policy, Rule, validate_policy
@@ -21,12 +21,39 @@ REASON_NOT_ALLOWED = "VALUE_NOT_ALLOWED"
 REASON_NOT_FALSE = "VALUE_NOT_FALSE"
 REASON_NOT_EMPTY_LIST = "VALUE_NOT_EMPTY_LIST"
 
+ReasonCode = Literal[
+    "RULE_SATISFIED",
+    "FIELD_MISSING",
+    "VALUE_NOT_EQUAL",
+    "VALUE_NOT_ALLOWED",
+    "VALUE_NOT_FALSE",
+    "VALUE_NOT_EMPTY_LIST",
+]
 
-def _evaluate_rule(rule: Rule, response: dict[str, Any]) -> dict[str, Any]:
+
+class RuleResult(TypedDict):
+    """Public per-rule evaluation record."""
+
+    kind: str
+    passed: bool
+    path: str
+    reason_code: ReasonCode
+    rule_id: str
+
+
+class EvaluationResult(TypedDict):
+    """Public evaluation of one response against every declared rule."""
+
+    passed: bool
+    policy_id: str
+    rule_results: list[RuleResult]
+
+
+def _evaluate_rule(rule: Rule, response: dict[str, Any]) -> RuleResult:
     found, observed = get_field(response, rule.path)
     if not found:
         passed = False
-        reason_code = REASON_MISSING
+        reason_code: ReasonCode = REASON_MISSING
     elif rule.kind == "required_field":
         passed = True
         reason_code = REASON_SATISFIED
@@ -39,9 +66,12 @@ def _evaluate_rule(rule: Rule, response: dict[str, Any]) -> dict[str, Any]:
     elif rule.kind == "false":
         passed = observed is False
         reason_code = REASON_SATISFIED if passed else REASON_NOT_FALSE
-    else:
+    elif rule.kind == "empty_list":
         passed = isinstance(observed, list) and not observed
         reason_code = REASON_SATISFIED if passed else REASON_NOT_EMPTY_LIST
+    else:
+        passed = False
+        reason_code = REASON_MISSING
 
     return {
         "kind": rule.kind,
@@ -54,7 +84,7 @@ def _evaluate_rule(rule: Rule, response: dict[str, Any]) -> dict[str, Any]:
 
 def evaluate_response(
     policy: Policy | dict[str, Any], response: Any
-) -> dict[str, Any]:
+) -> EvaluationResult:
     """Evaluate one JSON response against every rule in a validated policy."""
 
     validated_policy = validate_policy(policy)

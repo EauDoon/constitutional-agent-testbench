@@ -42,11 +42,20 @@ Requirements:
 - Python 3.11 or newer
 - A source checkout of this repository
 
-From the repository root, expose `src` on `PYTHONPATH`. In PowerShell:
+From the repository root, expose `src` on `PYTHONPATH`:
+
+```bash
+export PYTHONPATH=src
+```
+
+In PowerShell:
 
 ```powershell
 $env:PYTHONPATH = "src"
 ```
+
+After `python -m pip install --no-deps .`, the same operations are available as
+the `constitutional-agent-testbench` console command.
 
 Validate the bundled policy, then evaluate the passing example:
 
@@ -109,7 +118,8 @@ save dialog and is the only playground write path.
 
 ## Library use
 
-The public API exposes policy validation, response evaluation, and synthetic case generation:
+The public API exposes policy validation, response evaluation, synthetic case
+generation, and PrecedenceTrace order-conformance checking:
 
 ```python
 from constitutional_agent_testbench import (
@@ -156,7 +166,22 @@ order_report = check_order_conformance(
 - `passed`: `true` only when every rule passes; and
 - `rule_results`: one ordered result per declared rule.
 
-Each rule result contains `rule_id`, `kind`, `path`, `passed`, and `reason_code`. Candidate values are not copied into evaluation results.
+Each rule result contains `rule_id`, `kind`, `path`, `passed`, and `reason_code`. Candidate values are not copied into evaluation results. These fields are the public `EvaluationResult` and `RuleResult` contracts; the package includes a PEP 561 `py.typed` marker so type checkers can use them.
+
+`evaluate_response` and `generate_synthetic_cases` accept a validated `Policy`
+or a raw policy object and re-validate it. A non-object or structurally invalid
+response raises `EvaluationInputError`. Policy schema failures raise
+`PolicyValidationError`. `generate_synthetic_cases` raises
+`SyntheticGenerationError` when a verified passing and failing pair cannot be
+constructed. `check_order_conformance` raises `PrecedenceTraceError` or
+`OrderCheckTooLargeError` when the check cannot be performed within the public
+bounds.
+
+`fixtures` contains:
+
+- `policy_id`: the validated policy identifier;
+- `passing_case`: a `response` plus its `evaluation` result, with `passed` true; and
+- `failing_case`: a `response` plus its `evaluation` result, with `passed` false.
 
 ## PrecedenceTrace
 
@@ -341,9 +366,10 @@ Runtime imports are limited to the Python standard library and local package mod
 | [`src/constitutional_agent_testbench/synthetic.py`](src/constitutional_agent_testbench/synthetic.py) | Deterministic passing and failing fixture generation. |
 | [`src/constitutional_agent_testbench/common.py`](src/constitutional_agent_testbench/common.py) | Strict JSON, canonical equality, path, and output helpers. |
 | [`src/constitutional_agent_testbench/cli.py`](src/constitutional_agent_testbench/cli.py) | Command parsing, JSON results, error handling, and optional output writing. |
-| [`tests/`](tests/) | Unit tests for validation, evaluation, and synthetic generation. |
+| [`src/constitutional_agent_testbench/playground.py`](src/constitutional_agent_testbench/playground.py) | Offline Tk playground with explicit export only. |
+| [`tests/`](tests/) | Unit tests for validation, evaluation, synthetic generation, PrecedenceTrace, and the command-line contract. |
 | [`examples/`](examples/) | A complete policy plus passing and failing response fixtures. |
-| [`pyproject.toml`](pyproject.toml) | Python version, packaging metadata, and console entry point. |
+| [`pyproject.toml`](pyproject.toml) | Python version, packaging metadata, and console entry points. |
 | [`CHANGELOG.md`](CHANGELOG.md) | Version history. |
 | [`SECURITY.md`](SECURITY.md) | Safe-operation boundaries and vulnerability reporting guidance. |
 | [`PROVENANCE.md`](PROVENANCE.md) | Public authorship and review record. |
