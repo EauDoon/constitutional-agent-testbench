@@ -18,6 +18,11 @@ class TestbenchError(Exception):
 
     code = "TESTBENCH_ERROR"
 
+    def public_error(self) -> dict[str, Any]:
+        """Return the stable public JSON error object body."""
+
+        return {"code": self.code, "message": str(self)}
+
 
 class JsonInputError(TestbenchError):
     """Raised when an input file cannot be decoded as strict JSON."""

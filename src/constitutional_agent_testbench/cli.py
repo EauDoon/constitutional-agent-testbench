@@ -225,7 +225,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     except _HelpRequested:
         return 0
     except TestbenchError as exc:
-        error = {"error": {"code": exc.code, "message": str(exc)}}
+        error = {"error": exc.public_error()}
         sys.stderr.write(stable_json(error))
         return 2
     except (OverflowError, RecursionError, TypeError, ValueError):
