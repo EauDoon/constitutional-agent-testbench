@@ -99,6 +99,12 @@ def generate_synthetic_cases(
     passing_response: dict[str, Any] = {}
     ordered_paths = sorted(by_path, key=lambda path: (path.count("."), path))
     for path in ordered_paths:
+        path_policy = Policy(
+            policy_id=validated_policy.policy_id,
+            rules=tuple(by_path[path]),
+        )
+        if evaluate_response(path_policy, passing_response)["passed"]:
+            continue
         _assign_path(passing_response, path, _choose_value(by_path[path]))
 
     passing_evaluation = evaluate_response(validated_policy, passing_response)
