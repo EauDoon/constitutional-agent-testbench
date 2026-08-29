@@ -264,6 +264,7 @@ Validation rejects:
 - empty or duplicate `one_of` values;
 - duplicate JSON object members;
 - non-finite numbers;
+- unpaired Unicode surrogates that cannot be encoded as UTF-8;
 - malformed identifiers and paths; and
 - values that JSON cannot represent.
 
@@ -286,7 +287,8 @@ All rules are evaluated even after one fails. This preserves a complete, inspect
 
 Determinism comes from explicit constraints rather than hidden model behavior:
 
-- Input files are decoded as UTF-8 JSON, with duplicate object members and non-finite numbers rejected.
+- Input files are decoded as UTF-8 JSON, with duplicate object members,
+  non-finite numbers, and unpaired Unicode surrogates rejected.
 - JSON equality uses a canonical, key-sorted representation. Python coercions do not apply, so the JSON boolean `true` is not equal to the JSON number `1`.
 - Rules are evaluated in declared order, while emitted object keys are sorted.
 - Evaluation adds no timestamps, randomness, external data, or model output.
@@ -322,7 +324,8 @@ python -m unittest discover -s tests -v
 
 The test suite covers all supported rule kinds, strict policy validation,
 missing-field failure, stable reason codes, JSON type distinctions, duplicate
-object members, nested-value isolation, input limits, deterministic synthetic
+object members, invalid Unicode isolation, nested-value isolation, input
+limits, deterministic synthetic
 generation, fail-closed handling of conflicting synthetic constraints,
 PrecedenceTrace drift classes and planted counterexamples, and the command-line
 JSON and exit-code contracts.
