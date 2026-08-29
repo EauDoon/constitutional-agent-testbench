@@ -15,6 +15,8 @@ its network or filesystem access, or roll back its side effects.
 - Supply only files that the current operator is permitted to read.
 - Review a policy before relying on its result.
 - Keep JSON input files within the built-in 1,000,000-byte limit.
+- Supply Unicode scalar text; unpaired surrogates are rejected because they
+  cannot be represented in strict UTF-8 output.
 - Keep in-memory JSON values within 32 container levels and 100,000 nodes.
 - Keep policies within 256 rules, 256 values per `one_of` rule, and 32 path segments.
 - Run PrecedenceTrace only on two to seven rules. The public mode refuses larger
@@ -46,4 +48,3 @@ A passing evaluation is a rule-conformance result only. It is not a security cer
 A clean PrecedenceTrace report is likewise bounded to one fixed input and the
 tested evaluator. It does not prove commutativity, equal authority, policy
 correctness, or absence of stateful behavior outside the observation contract.
-
