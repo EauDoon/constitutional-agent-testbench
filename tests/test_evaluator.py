@@ -105,6 +105,33 @@ class EvaluatorTests(unittest.TestCase):
         self.assertTrue(first["passing_case"]["evaluation"]["passed"])
         self.assertFalse(first["failing_case"]["evaluation"]["passed"])
 
+    def test_synthetic_generation_preserves_valid_nested_values(self) -> None:
+        nested_policy = {
+            "schema_version": "1.0",
+            "policy_id": "nested-policy",
+            "rules": [
+                {
+                    "rule_id": "result-equals",
+                    "kind": "equals",
+                    "path": "result",
+                    "value": {"decision": "allow"},
+                },
+                {
+                    "rule_id": "decision-present",
+                    "kind": "required_field",
+                    "path": "result.decision",
+                },
+            ],
+        }
+
+        generated = generate_synthetic_cases(nested_policy)
+
+        self.assertTrue(generated["passing_case"]["evaluation"]["passed"])
+        self.assertEqual(
+            generated["passing_case"]["response"],
+            {"result": {"decision": "allow"}},
+        )
+
     def test_conflicting_synthetic_constraints_fail_closed(self) -> None:
         conflicting = {
             "schema_version": "1.0",
