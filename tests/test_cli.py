@@ -141,6 +141,69 @@ class CliTests(unittest.TestCase):
             },
         )
 
+    def test_malformed_json_uses_the_json_error_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            input_path = Path(temporary_directory) / "broken.json"
+            input_path.write_text("{", encoding="utf-8")
+            exit_code, stdout, stderr = run_cli(["validate-policy", str(input_path)])
+
+        self.assertEqual(exit_code, 2)
+        self.assertEqual(stdout, "")
+        self.assertNotIn(str(input_path), stderr)
+        self.assertEqual(json.loads(stderr)["error"]["code"], "INVALID_JSON_INPUT")
+
+    def test_missing_input_does_not_echo_the_path(self) -> None:
+        missing = ROOT / "examples" / "does-not-exist.json"
+        exit_code, stdout, stderr = run_cli(["validate-policy", str(missing)])
+
+        self.assertEqual(exit_code, 2)
+        self.assertEqual(stdout, "")
+        self.assertNotIn(str(missing), stderr)
+        self.assertEqual(json.loads(stderr)["error"]["code"], "INVALID_JSON_INPUT")
+
+    def test_invalid_policy_uses_the_policy_error_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            input_path = Path(temporary_directory) / "empty-rules.json"
+            input_path.write_text(
+                json.dumps(
+                    {
+                        "schema_version": "1.0",
+                        "policy_id": "empty-rules",
+                        "rules": [],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            exit_code, stdout, stderr = run_cli(["validate-policy", str(input_path)])
+
+        self.assertEqual(exit_code, 2)
+        self.assertEqual(stdout, "")
+        self.assertEqual(json.loads(stderr)["error"]["code"], "INVALID_POLICY")
+
+    def test_non_object_response_uses_the_response_error_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            response_path = Path(temporary_directory) / "list-response.json"
+            response_path.write_text("[]", encoding="utf-8")
+            exit_code, stdout, stderr = run_cli(
+                ["evaluate", str(POLICY), str(response_path)]
+            )
+
+        self.assertEqual(exit_code, 2)
+        self.assertEqual(stdout, "")
+        self.assertEqual(json.loads(stderr)["error"]["code"], "INVALID_RESPONSE")
+
+    def test_strict_exit_keeps_invalid_input_at_two(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            response_path = Path(temporary_directory) / "list-response.json"
+            response_path.write_text("[]", encoding="utf-8")
+            exit_code, stdout, stderr = run_cli(
+                ["evaluate", str(POLICY), str(response_path), "--strict-exit"]
+            )
+
+        self.assertEqual(exit_code, 2)
+        self.assertEqual(stdout, "")
+        self.assertEqual(json.loads(stderr)["error"]["code"], "INVALID_RESPONSE")
+
     def test_oversize_input_uses_the_bounded_json_error_contract(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             input_path = Path(temporary_directory) / "oversize.json"

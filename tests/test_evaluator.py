@@ -94,6 +94,92 @@ class EvaluatorTests(unittest.TestCase):
         result = evaluate_response(typed_policy, {"value": True})
         self.assertFalse(result["passed"])
 
+    def test_required_field_accepts_null_but_rejects_absence(self) -> None:
+        required = {
+            "schema_version": "1.0",
+            "policy_id": "null-policy",
+            "rules": [
+                {
+                    "rule_id": "summary-present",
+                    "kind": "required_field",
+                    "path": "summary",
+                }
+            ],
+        }
+        present = evaluate_response(required, {"summary": None})
+        self.assertTrue(present["passed"])
+        self.assertEqual(present["rule_results"][0]["reason_code"], "RULE_SATISFIED")
+        missing = evaluate_response(required, {})
+        self.assertFalse(missing["passed"])
+        self.assertEqual(missing["rule_results"][0]["reason_code"], "FIELD_MISSING")
+
+    def test_nested_paths_do_not_traverse_arrays_or_scalars(self) -> None:
+        nested = {
+            "schema_version": "1.0",
+            "policy_id": "nested-path-policy",
+            "rules": [
+                {
+                    "rule_id": "decision-equals",
+                    "kind": "equals",
+                    "path": "result.decision",
+                    "value": "allow",
+                }
+            ],
+        }
+        passing = evaluate_response(nested, {"result": {"decision": "allow"}})
+        self.assertTrue(passing["passed"])
+        for response in (
+            {"result": [{"decision": "allow"}]},
+            {"result": ["allow"]},
+            {"result": None},
+            {"result": "allow"},
+            {"result": True},
+        ):
+            with self.subTest(response=response):
+                result = evaluate_response(nested, response)
+                self.assertFalse(result["passed"])
+                self.assertEqual(result["rule_results"][0]["reason_code"], "FIELD_MISSING")
+
+    def test_false_and_empty_list_keep_json_type_distinctions(self) -> None:
+        typed = {
+            "schema_version": "1.0",
+            "policy_id": "typed-false-list",
+            "rules": [
+                {"rule_id": "blocked-false", "kind": "false", "path": "blocked"},
+                {"rule_id": "actions-empty", "kind": "empty_list", "path": "actions"},
+            ],
+        }
+        passing = evaluate_response(typed, {"blocked": False, "actions": []})
+        self.assertTrue(passing["passed"])
+        cases = (
+            ({"blocked": 0, "actions": []}, "blocked-false", "VALUE_NOT_FALSE"),
+            ({"blocked": "false", "actions": []}, "blocked-false", "VALUE_NOT_FALSE"),
+            ({"blocked": None, "actions": []}, "blocked-false", "VALUE_NOT_FALSE"),
+            ({"blocked": False, "actions": {}}, "actions-empty", "VALUE_NOT_EMPTY_LIST"),
+            ({"blocked": False, "actions": [None]}, "actions-empty", "VALUE_NOT_EMPTY_LIST"),
+            ({"blocked": False, "actions": ""}, "actions-empty", "VALUE_NOT_EMPTY_LIST"),
+        )
+        for response, rule_id, reason in cases:
+            with self.subTest(response=response):
+                result = evaluate_response(typed, response)
+                by_rule = {
+                    item["rule_id"]: item["reason_code"] for item in result["rule_results"]
+                }
+                self.assertFalse(result["passed"])
+                self.assertEqual(by_rule[rule_id], reason)
+
+    def test_malformed_response_values_fail_closed(self) -> None:
+        for response in (
+            None,
+            "object",
+            1,
+            True,
+            {"summary": object()},
+            {"summary": float("nan")},
+        ):
+            with self.subTest(response=response), self.assertRaises(EvaluationInputError):
+                evaluate_response(policy(), response)
+
     def test_response_must_be_an_object(self) -> None:
         with self.assertRaises(EvaluationInputError):
             evaluate_response(policy(), [])

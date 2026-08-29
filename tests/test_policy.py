@@ -104,7 +104,50 @@ class PolicyValidationTests(unittest.TestCase):
 
     def test_rejects_malformed_path(self) -> None:
         raw = valid_policy()
-        raw["rules"][0]["path"] = "summary..text"
+        for path in ("summary..text", ".summary", "summary.", "0summary", "summary[0]"):
+            raw["rules"][0]["path"] = path
+            with self.subTest(path=path), self.assertRaises(PolicyValidationError):
+                validate_policy(raw)
+
+    def test_rejects_empty_rules_and_non_object_policies(self) -> None:
+        raw = valid_policy()
+        raw["rules"] = []
+        with self.assertRaises(PolicyValidationError):
+            validate_policy(raw)
+        for invalid in (None, [], "policy", 1, True):
+            with self.subTest(invalid=invalid), self.assertRaises(PolicyValidationError):
+                validate_policy(invalid)
+
+    def test_rejects_unsupported_schema_versions(self) -> None:
+        raw = valid_policy()
+        for version in ("", "1", "1.1", "2.0", 1.0, None):
+            raw["schema_version"] = version
+            with self.subTest(version=version), self.assertRaises(PolicyValidationError):
+                validate_policy(raw)
+
+    def test_rejects_malformed_identifiers(self) -> None:
+        for identifier in ("", "_hidden", "-dash", ".dot", "has space", "x" * 129):
+            with self.subTest(field="policy_id", identifier=identifier):
+                raw = valid_policy()
+                raw["policy_id"] = identifier
+                with self.assertRaises(PolicyValidationError):
+                    validate_policy(raw)
+            with self.subTest(field="rule_id", identifier=identifier):
+                raw = valid_policy()
+                raw["rules"][0]["rule_id"] = identifier
+                with self.assertRaises(PolicyValidationError):
+                    validate_policy(raw)
+
+    def test_rejects_missing_required_policy_fields(self) -> None:
+        for field in ("schema_version", "policy_id", "rules"):
+            raw = valid_policy()
+            del raw[field]
+            with self.subTest(field=field), self.assertRaises(PolicyValidationError):
+                validate_policy(raw)
+
+    def test_rejects_a_rule_that_is_not_an_object(self) -> None:
+        raw = valid_policy()
+        raw["rules"][0] = "required_field"
         with self.assertRaises(PolicyValidationError):
             validate_policy(raw)
 
