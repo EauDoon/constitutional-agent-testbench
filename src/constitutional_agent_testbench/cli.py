@@ -7,7 +7,13 @@ import sys
 from collections.abc import Sequence
 from typing import Any
 
-from .common import TestbenchError, load_json, stable_json, write_json
+from .common import (
+    TestbenchError,
+    load_json,
+    load_json_stream,
+    stable_json,
+    write_json,
+)
 from .evaluator import evaluate_response
 from .policy import validate_policy
 from .precedence import check_order_conformance
@@ -37,27 +43,27 @@ def _build_parser() -> argparse.ArgumentParser:
     validate_parser = subparsers.add_parser(
         "validate-policy", help="Validate a version 1.0 policy."
     )
-    validate_parser.add_argument("policy")
+    validate_parser.add_argument("policy", help="policy path, or - for standard input")
 
     evaluate_parser = subparsers.add_parser(
         "evaluate", help="Evaluate a candidate response."
     )
-    evaluate_parser.add_argument("policy")
-    evaluate_parser.add_argument("response")
+    evaluate_parser.add_argument("policy", help="policy path, or - for standard input")
+    evaluate_parser.add_argument("response", help="response path, or - for standard input")
     evaluate_parser.add_argument("--strict-exit", action="store_true", help="return 1 for valid nonconformance")
 
     order_parser = subparsers.add_parser(
         "check-order",
         help="Exhaustively check peer-rule order conformance.",
     )
-    order_parser.add_argument("policy")
-    order_parser.add_argument("response")
+    order_parser.add_argument("policy", help="policy path, or - for standard input")
+    order_parser.add_argument("response", help="response path, or - for standard input")
     order_parser.add_argument("--strict-exit", action="store_true", help="return 1 for valid drift or nonconformance")
 
     synthetic_parser = subparsers.add_parser(
         "generate-synthetic", help="Generate verified synthetic cases."
     )
-    synthetic_parser.add_argument("policy")
+    synthetic_parser.add_argument("policy", help="policy path, or - for standard input")
     synthetic_parser.add_argument("--output")
     playground_parser = subparsers.add_parser("playground", help="open the offline policy playground")
     playground_parser.add_argument("policy", nargs="?")
@@ -66,11 +72,25 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _load_json_argument(path: str) -> Any:
+    if path != "-":
+        return load_json(path)
+    return load_json_stream(getattr(sys.stdin, "buffer", sys.stdin))
+
+
 def _run_command(arguments: argparse.Namespace) -> dict[str, Any]:
     if arguments.command == "playground":
         from .playground import run_playground
         return run_playground(arguments.policy, arguments.response, smoke_test=arguments.smoke_test)
-    raw_policy = load_json(arguments.policy)
+    input_paths = [arguments.policy]
+    if arguments.command in {"evaluate", "check-order"}:
+        input_paths.append(arguments.response)
+    if input_paths.count("-") > 1:
+        raise CliUsageError(
+            "Only one JSON input may be read from standard input per command."
+        )
+
+    raw_policy = _load_json_argument(arguments.policy)
     policy = validate_policy(raw_policy)
 
     if arguments.command == "validate-policy":
@@ -81,11 +101,11 @@ def _run_command(arguments: argparse.Namespace) -> dict[str, Any]:
         }
 
     if arguments.command == "evaluate":
-        response = load_json(arguments.response)
+        response = _load_json_argument(arguments.response)
         return evaluate_response(policy, response)
 
     if arguments.command == "check-order":
-        response = load_json(arguments.response)
+        response = _load_json_argument(arguments.response)
         return check_order_conformance(policy, response)
 
     bundle = generate_synthetic_cases(policy)

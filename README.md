@@ -80,6 +80,16 @@ python -m constitutional_agent_testbench.cli generate-synthetic examples/policy.
 python -m constitutional_agent_testbench.cli playground --smoke-test
 ```
 
+For `validate-policy`, `evaluate`, `check-order`, and `generate-synthetic`,
+policy and response arguments accept `-` to read bounded strict JSON from
+standard input. At most one argument may use standard input in a command, and
+the same 1,000,000-byte limit and structural checks apply as for files. For
+example:
+
+```text
+python -m constitutional_agent_testbench.cli evaluate examples/policy.json - < examples/passing-response.json
+```
+
 Operational results and controlled errors are JSON with sorted object keys. Help output remains plain command-line text. When `--output` is supplied, `generate-synthetic` writes the complete case bundle and prints a path-free acknowledgement.
 
 An important integration detail: completed `evaluate` and `check-order`

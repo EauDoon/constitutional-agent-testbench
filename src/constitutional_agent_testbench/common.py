@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import math
 from pathlib import Path
-from typing import Any
+from typing import Any, BinaryIO, TextIO
 
 
 MAX_JSON_INPUT_BYTES = 1_000_000
@@ -44,26 +44,45 @@ def _reject_duplicate_members(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return result
 
 
+def load_json_stream(input_file: BinaryIO | TextIO) -> Any:
+    """Load bounded strict JSON from a binary or text input stream."""
+
+    try:
+        data = input_file.read(MAX_JSON_INPUT_BYTES + 1)
+    except (OSError, UnicodeError) as exc:
+        raise JsonInputError("Unable to read the requested JSON input.") from exc
+
+    if isinstance(data, bytes):
+        size = len(data)
+        try:
+            text = data.decode("utf-8")
+        except UnicodeError as exc:
+            raise JsonInputError("Unable to read the requested JSON input.") from exc
+    elif isinstance(data, str):
+        try:
+            size = len(data.encode("utf-8"))
+        except UnicodeError as exc:
+            raise JsonInputError("Unable to read the requested JSON input.") from exc
+        text = data
+    else:
+        raise JsonInputError("Unable to read the requested JSON input.")
+
+    if size > MAX_JSON_INPUT_BYTES:
+        raise JsonInputError(
+            "The requested input exceeds the 1,000,000-byte file-size limit."
+        )
+
+    return parse_json_text(text)
+
+
 def load_json(path: str | Path) -> Any:
     """Load strict UTF-8 JSON without echoing paths or input content in errors."""
 
     try:
         with Path(path).open("rb") as input_file:
-            data = input_file.read(MAX_JSON_INPUT_BYTES + 1)
+            return load_json_stream(input_file)
     except OSError as exc:
         raise JsonInputError("Unable to read the requested JSON input.") from exc
-
-    if len(data) > MAX_JSON_INPUT_BYTES:
-        raise JsonInputError(
-            "The requested input exceeds the 1,000,000-byte file-size limit."
-        )
-
-    try:
-        text = data.decode("utf-8")
-    except UnicodeError as exc:
-        raise JsonInputError("Unable to read the requested JSON input.") from exc
-
-    return parse_json_text(text)
 
 
 def parse_json_text(text: str) -> Any:
