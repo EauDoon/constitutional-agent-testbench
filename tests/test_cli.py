@@ -82,6 +82,38 @@ class CliTests(unittest.TestCase):
         self.assertEqual(stdout, "")
         self.assertEqual(json.loads(stderr)["error"]["code"], "INVALID_JSON_INPUT")
 
+    def test_standard_input_rejects_unpaired_unicode_surrogates(self) -> None:
+        policy_text = json.dumps(
+            {
+                "schema_version": "1.0",
+                "policy_id": "unicode-policy",
+                "rules": [
+                    {
+                        "rule_id": "surrogate-value",
+                        "kind": "equals",
+                        "path": "value",
+                        "value": "\ud800",
+                    }
+                ],
+            }
+        )
+        exit_code, stdout, stderr = run_cli(
+            ["validate-policy", "-"],
+            stdin_text=policy_text,
+        )
+
+        self.assertEqual(exit_code, 2)
+        self.assertEqual(stdout, "")
+        self.assertEqual(
+            json.loads(stderr),
+            {
+                "error": {
+                    "code": "INVALID_JSON_INPUT",
+                    "message": "The requested input is not valid strict UTF-8 JSON.",
+                }
+            },
+        )
+
     def test_command_rejects_two_standard_input_arguments(self) -> None:
         exit_code, stdout, stderr = run_cli(
             ["evaluate", "-", "-"],
