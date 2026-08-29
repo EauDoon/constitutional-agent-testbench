@@ -11,6 +11,7 @@ from constitutional_agent_testbench.common import (
     JsonInputError,
     ensure_json_value,
     load_json,
+    parse_json_text,
 )
 from constitutional_agent_testbench.evaluator import (
     EvaluationInputError,
@@ -113,6 +114,17 @@ class PolicyValidationTests(unittest.TestCase):
             path.write_text('{"value": 1, "value": 2}', encoding="utf-8")
             with self.assertRaises(JsonInputError):
                 load_json(path)
+
+    def test_rejects_lone_unicode_surrogates(self) -> None:
+        with self.assertRaises(JsonInputError):
+            parse_json_text("\ud800")
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "surrogate.json"
+            for payload in (r'{"value": "\ud800"}', r'{"\ud800": "value"}'):
+                with self.subTest(payload=payload):
+                    path.write_text(payload, encoding="utf-8")
+                    with self.assertRaisesRegex(JsonInputError, "not valid strict JSON"):
+                        load_json(path)
 
     def test_rejects_input_larger_than_the_file_size_limit(self) -> None:
         with TemporaryDirectory() as directory:
