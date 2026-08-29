@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 from pathlib import Path
 from typing import Any, BinaryIO, TextIO
 
@@ -11,6 +12,8 @@ from typing import Any, BinaryIO, TextIO
 MAX_JSON_INPUT_BYTES = 1_000_000
 MAX_JSON_NESTING = 32
 MAX_JSON_NODES = 100_000
+
+_UNICODE_SURROGATE_PATTERN = re.compile("[\ud800-\udfff]")
 
 
 class TestbenchError(Exception):
@@ -29,6 +32,10 @@ class JsonOutputError(TestbenchError):
     """Raised when an output file cannot be written."""
 
     code = "JSON_OUTPUT_ERROR"
+
+
+class _InvalidUnicodeTextError(ValueError):
+    """Raised when a string contains a non-scalar Unicode code point."""
 
 
 def _reject_non_finite(token: str) -> None:
@@ -88,7 +95,13 @@ def load_json(path: str | Path) -> Any:
 def parse_json_text(text: str) -> Any:
     """Parse bounded strict JSON supplied directly by a local editor."""
 
-    if len(text.encode("utf-8")) > MAX_JSON_INPUT_BYTES:
+    try:
+        input_size = len(text.encode("utf-8"))
+    except UnicodeError as exc:
+        raise JsonInputError(
+            "The requested input is not valid strict UTF-8 JSON."
+        ) from exc
+    if input_size > MAX_JSON_INPUT_BYTES:
         raise JsonInputError(
             "The requested input exceeds the 1,000,000-byte file-size limit."
         )
@@ -103,6 +116,10 @@ def parse_json_text(text: str) -> Any:
 
     try:
         ensure_json_value(value, label="JSON input")
+    except _InvalidUnicodeTextError as exc:
+        raise JsonInputError(
+            "The requested input is not valid strict UTF-8 JSON."
+        ) from exc
     except ValueError as exc:
         raise JsonInputError(
             "The requested input exceeds supported JSON structural limits."
@@ -144,7 +161,13 @@ def ensure_json_value(value: Any, *, label: str) -> None:
         if nodes > MAX_JSON_NODES:
             raise ValueError(f"{label} exceeds the {MAX_JSON_NODES}-node limit.")
 
-        if current is None or isinstance(current, (bool, str)):
+        if current is None or isinstance(current, bool):
+            continue
+        if isinstance(current, str):
+            if _UNICODE_SURROGATE_PATTERN.search(current):
+                raise _InvalidUnicodeTextError(
+                    f"{label} contains text that cannot be encoded as UTF-8."
+                )
             continue
         if isinstance(current, int) and not isinstance(current, bool):
             continue
@@ -166,6 +189,11 @@ def ensure_json_value(value: Any, *, label: str) -> None:
                 if not isinstance(key, str):
                     raise ValueError(
                         f"{label} contains a non-string object key."
+                    )
+                if _UNICODE_SURROGATE_PATTERN.search(key):
+                    raise _InvalidUnicodeTextError(
+                        f"{label} contains an object key that cannot be encoded "
+                        "as UTF-8."
                     )
                 stack.append((item, next_depth))
             continue
