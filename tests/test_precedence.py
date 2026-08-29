@@ -588,6 +588,19 @@ class PrecedenceTraceTests(unittest.TestCase):
         with self.assertRaises(PrecedenceTraceError):
             check_order_conformance(policy, passing_response())
 
+    def test_non_object_response_fails_closed(self) -> None:
+        for response in ([], None, "object", 1):
+            with self.subTest(response=response), self.assertRaises(
+                PrecedenceTraceError
+            ) as raised:
+                check_order_conformance(three_rule_policy(), response)
+            self.assertEqual(raised.exception.code, "ORDER_CHECK_INVALID")
+
+    def test_non_finite_response_values_fail_closed(self) -> None:
+        with self.assertRaises(PrecedenceTraceError) as raised:
+            check_order_conformance(three_rule_policy(), {"alpha": float("nan")})
+        self.assertEqual(raised.exception.code, "ORDER_CHECK_INVALID")
+
     def assertAdjacentWitness(self, report: dict, dimension: str) -> None:
         witness = next(
             item for item in report["witnesses"] if item["dimension"] == dimension

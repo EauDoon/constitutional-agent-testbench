@@ -36,7 +36,12 @@ jobs:
       - name: Run the complete unit suite
         run: python -m unittest discover -s tests -v
       - name: Verify the installed command
-        run: constitutional-agent-testbench validate-policy examples/policy.json
+        run: |
+          constitutional-agent-testbench validate-policy examples/policy.json
+          constitutional-agent-testbench evaluate examples/policy.json examples/passing-response.json
+          constitutional-agent-testbench evaluate examples/policy.json examples/failing-response.json
+          constitutional-agent-testbench generate-synthetic examples/policy.json
+          constitutional-agent-testbench playground --smoke-test
       - name: Verify PrecedenceTrace conformance mode
         run: constitutional-agent-testbench check-order examples/policy.json examples/passing-response.json
       - name: Install the pinned distribution builder
