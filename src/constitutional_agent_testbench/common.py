@@ -88,7 +88,11 @@ def load_json(path: str | Path) -> Any:
 def parse_json_text(text: str) -> Any:
     """Parse bounded strict JSON supplied directly by a local editor."""
 
-    if len(text.encode("utf-8")) > MAX_JSON_INPUT_BYTES:
+    try:
+        size = len(text.encode("utf-8"))
+    except (AttributeError, UnicodeError) as exc:
+        raise JsonInputError("The requested input is not valid UTF-8 text.") from exc
+    if size > MAX_JSON_INPUT_BYTES:
         raise JsonInputError(
             "The requested input exceeds the 1,000,000-byte file-size limit."
         )
@@ -103,6 +107,8 @@ def parse_json_text(text: str) -> Any:
 
     try:
         ensure_json_value(value, label="JSON input")
+    except UnicodeError as exc:
+        raise JsonInputError("The requested input is not valid strict JSON.") from exc
     except ValueError as exc:
         raise JsonInputError(
             "The requested input exceeds supported JSON structural limits."
@@ -144,7 +150,13 @@ def ensure_json_value(value: Any, *, label: str) -> None:
         if nodes > MAX_JSON_NODES:
             raise ValueError(f"{label} exceeds the {MAX_JSON_NODES}-node limit.")
 
-        if current is None or isinstance(current, (bool, str)):
+        if isinstance(current, str):
+            try:
+                current.encode("utf-8")
+            except UnicodeEncodeError as exc:
+                raise UnicodeError(f"{label} contains invalid Unicode.") from exc
+            continue
+        if current is None or isinstance(current, bool):
             continue
         if isinstance(current, int) and not isinstance(current, bool):
             continue
@@ -167,6 +179,12 @@ def ensure_json_value(value: Any, *, label: str) -> None:
                     raise ValueError(
                         f"{label} contains a non-string object key."
                     )
+                try:
+                    key.encode("utf-8")
+                except UnicodeEncodeError as exc:
+                    raise UnicodeError(
+                        f"{label} contains invalid Unicode."
+                    ) from exc
                 stack.append((item, next_depth))
             continue
         raise ValueError(f"{label} contains a value that JSON cannot represent.")
