@@ -3,7 +3,9 @@ from __future__ import annotations
 import unittest
 
 import constitutional_agent_testbench.precedence as precedence_module
+from constitutional_agent_testbench.common import MAX_JSON_INPUT_BYTES
 from constitutional_agent_testbench.evaluator import evaluate_response
+from constitutional_agent_testbench.policy import Policy, Rule
 from constitutional_agent_testbench.precedence import (
     OrderCheckTooLargeError,
     PrecedenceTraceError,
@@ -559,6 +561,26 @@ class PrecedenceTraceTests(unittest.TestCase):
         ]
         with self.assertRaises(OrderCheckTooLargeError):
             check_order_conformance(policy, {"unused": "x" * 20_000})
+
+    def test_oversized_policies_use_the_order_check_error_contract(self) -> None:
+        oversized = "x" * MAX_JSON_INPUT_BYTES
+        raw_policy = three_rule_policy()
+        raw_policy["rules"][0]["value"] = oversized
+        object_policy = Policy(
+            policy_id="peer-rule-policy",
+            rules=(
+                Rule(rule_id="alpha", kind="equals", path="alpha", value=oversized),
+                Rule(rule_id="beta", kind="equals", path="beta", value="pass"),
+                Rule(rule_id="gamma", kind="equals", path="gamma", value="pass"),
+            ),
+        )
+
+        for policy in (raw_policy, object_policy):
+            with self.subTest(type=type(policy).__name__), self.assertRaises(
+                PrecedenceTraceError
+            ) as raised:
+                check_order_conformance(policy, passing_response())
+            self.assertEqual(raised.exception.code, "ORDER_CHECK_INVALID")
 
     def test_one_rule_is_not_misrepresented_as_an_order_check(self) -> None:
         policy = three_rule_policy()

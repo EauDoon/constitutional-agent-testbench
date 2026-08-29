@@ -18,7 +18,13 @@ from .common import (
     ensure_json_value,
 )
 from .evaluator import evaluate_response
-from .policy import Policy, Rule, policy_to_dict, validate_policy
+from .policy import (
+    Policy,
+    PolicyValidationError,
+    Rule,
+    policy_to_dict,
+    validate_policy,
+)
 
 
 REPORT_SCHEMA_VERSION = "1.0"
@@ -501,17 +507,10 @@ def check_order_conformance(
     not sandbox, time-limit, or roll back that callable.
     """
 
-    if isinstance(policy, dict):
-        try:
-            ensure_json_value(policy, label="Policy")
-            bounded_canonical_json_size(
-                policy,
-                label="Policy",
-                limit=MAX_JSON_INPUT_BYTES,
-            )
-        except (RecursionError, TypeError, ValueError) as exc:
-            raise PrecedenceTraceError(str(exc)) from exc
-    validated_policy = validate_policy(policy)
+    try:
+        validated_policy = validate_policy(policy)
+    except PolicyValidationError as exc:
+        raise PrecedenceTraceError(str(exc)) from exc
     rule_count = len(validated_policy.rules)
     if rule_count < MIN_EXHAUSTIVE_RULES:
         raise PrecedenceTraceError(

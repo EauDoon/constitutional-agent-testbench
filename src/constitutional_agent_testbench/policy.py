@@ -8,8 +8,10 @@ from dataclasses import dataclass
 from typing import Any
 
 from .common import (
+    MAX_JSON_INPUT_BYTES,
     MAX_JSON_NESTING,
     TestbenchError,
+    bounded_canonical_json_size,
     canonical_json,
     ensure_json_value,
 )
@@ -122,6 +124,11 @@ def validate_policy(raw_policy: Any) -> Policy:
 
     try:
         ensure_json_value(raw_policy, label="Policy")
+        bounded_canonical_json_size(
+            raw_policy,
+            label="Policy",
+            limit=MAX_JSON_INPUT_BYTES,
+        )
     except (RecursionError, TypeError, ValueError) as exc:
         raise _invalid(str(exc), exc)
 

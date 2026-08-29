@@ -305,7 +305,7 @@ Keep these boundaries in view:
 - Input authenticity and downstream consequences are outside the evaluator's scope.
 - The built-in evaluator does not inspect prompts, free-form reasoning, model internals, or training data.
 - The rule language does not provide array traversal, regular expressions, numeric ranges, arithmetic, or cross-field logic.
-- JSON input files are limited to 1,000,000 bytes. In-memory JSON values are limited to 32 container levels and 100,000 nodes.
+- JSON input files and validated policies are limited to 1,000,000 bytes. In-memory JSON values are limited to 32 container levels and 100,000 nodes.
 - PrecedenceTrace additionally limits each in-memory policy, response, and returned evaluator result to 1,000,000 serialized UTF-8 bytes.
 - Policies are limited to 256 rules, `one_of` rules are limited to 256 candidate values, and field paths are limited to 32 segments.
 - The command line interface follows explicitly supplied paths. Standard file handling may follow symbolic links.
