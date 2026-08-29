@@ -99,7 +99,9 @@ example:
 python -m constitutional_agent_testbench.cli evaluate examples/policy.json - < examples/passing-response.json
 ```
 
-Operational results and controlled errors are JSON with sorted object keys. Help output remains plain command-line text. When `--output` is supplied, `generate-synthetic` writes the complete case bundle and prints a path-free acknowledgement.
+Operational results and controlled errors are JSON with sorted object keys. Help output remains plain command-line text. `--help` lists commands and argument conventions; unknown commands, unknown options, extra arguments, and missing arguments return `INVALID_COMMAND` with a usage hint and do not echo the supplied tokens.
+
+When `--output` is supplied, `generate-synthetic` writes the complete case bundle and prints a path-free acknowledgement. `--output` writes a file and does not accept `-`. `playground` optional policy and response arguments are file paths and do not read `-` as standard input.
 
 An important integration detail: completed `evaluate` and `check-order`
 commands return process exit code `0` when their JSON result reports a failed
