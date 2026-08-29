@@ -31,6 +31,8 @@ def run_playground(policy_path: str | None, response_path: str | None, *, smoke_
     if smoke_test:
         if policy_path:
             validate_policy(load_json(policy_path))
+        if response_path:
+            load_json(response_path)
         return {"playground": "ready", "offline": True, "export_requires_explicit_action": True}
     try:
         import tkinter as tk

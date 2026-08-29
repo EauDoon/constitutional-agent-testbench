@@ -207,6 +207,18 @@ class CliTests(unittest.TestCase):
         self.assertEqual(stderr, "")
         self.assertEqual(json.loads(stdout)["export_requires_explicit_action"], True)
 
+    def test_playground_smoke_validates_a_supplied_response(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            response = Path(temporary_directory) / "response.json"
+            response.write_text('{"decision":"one","decision":"two"}', encoding="utf-8")
+            exit_code, stdout, stderr = run_cli(
+                ["playground", str(POLICY), str(response), "--smoke-test"]
+            )
+
+        self.assertEqual(exit_code, 2)
+        self.assertEqual(stdout, "")
+        self.assertEqual(json.loads(stderr)["error"]["code"], "INVALID_JSON_INPUT")
+
     def test_playground_without_tkinter_uses_the_json_error_contract(self) -> None:
         with patch.dict(sys.modules, {"tkinter": None}):
             exit_code, stdout, stderr = run_cli(["playground"])
