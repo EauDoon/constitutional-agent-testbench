@@ -2,13 +2,20 @@ from __future__ import annotations
 
 import io
 import json
+import sys
 import tempfile
 import unittest
-from contextlib import redirect_stderr, redirect_stdout
+from contextlib import nullcontext, redirect_stderr, redirect_stdout
 from pathlib import Path
+from unittest.mock import patch
 
 from constitutional_agent_testbench.cli import main
-from constitutional_agent_testbench.common import JsonInputError, MAX_JSON_INPUT_BYTES, load_json
+from constitutional_agent_testbench.common import (
+    JsonInputError,
+    MAX_JSON_INPUT_BYTES,
+    load_json,
+    load_json_stream,
+)
 from constitutional_agent_testbench.playground import evaluate_documents
 from constitutional_agent_testbench.precedence import check_order_conformance
 
@@ -19,15 +26,83 @@ PASSING_RESPONSE = ROOT / "examples" / "passing-response.json"
 FAILING_RESPONSE = ROOT / "examples" / "failing-response.json"
 
 
-def run_cli(arguments: list[str]) -> tuple[int, str, str]:
+def run_cli(
+    arguments: list[str], *, stdin_text: str | None = None
+) -> tuple[int, str, str]:
     stdout = io.StringIO()
     stderr = io.StringIO()
-    with redirect_stdout(stdout), redirect_stderr(stderr):
+    stdin_context = (
+        patch.object(sys, "stdin", io.StringIO(stdin_text))
+        if stdin_text is not None
+        else nullcontext()
+    )
+    with stdin_context, redirect_stdout(stdout), redirect_stderr(stderr):
         exit_code = main(arguments)
     return exit_code, stdout.getvalue(), stderr.getvalue()
 
 
 class CliTests(unittest.TestCase):
+    def test_binary_stream_rejects_invalid_utf8(self) -> None:
+        with self.assertRaises(JsonInputError):
+            load_json_stream(io.BytesIO(b'"\xff"'))
+
+    def test_binary_stream_counts_utf8_bytes(self) -> None:
+        oversized_json = b'"' + "\U0001f4a1".encode("utf-8") * 250_000 + b'"'
+
+        with self.assertRaises(JsonInputError):
+            load_json_stream(io.BytesIO(oversized_json))
+
+    def test_validate_policy_accepts_bounded_standard_input(self) -> None:
+        exit_code, stdout, stderr = run_cli(
+            ["validate-policy", "-"],
+            stdin_text=POLICY.read_text(encoding="utf-8"),
+        )
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(stderr, "")
+        self.assertEqual(json.loads(stdout)["policy_id"], "public-example-policy")
+
+    def test_evaluate_accepts_response_from_standard_input(self) -> None:
+        exit_code, stdout, stderr = run_cli(
+            ["evaluate", str(POLICY), "-"],
+            stdin_text=PASSING_RESPONSE.read_text(encoding="utf-8"),
+        )
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(stderr, "")
+        self.assertTrue(json.loads(stdout)["passed"])
+
+    def test_standard_input_keeps_the_file_size_limit(self) -> None:
+        exit_code, stdout, stderr = run_cli(
+            ["validate-policy", "-"],
+            stdin_text=" " * (MAX_JSON_INPUT_BYTES + 1),
+        )
+
+        self.assertEqual(exit_code, 2)
+        self.assertEqual(stdout, "")
+        self.assertEqual(json.loads(stderr)["error"]["code"], "INVALID_JSON_INPUT")
+
+    def test_command_rejects_two_standard_input_arguments(self) -> None:
+        exit_code, stdout, stderr = run_cli(
+            ["evaluate", "-", "-"],
+            stdin_text=POLICY.read_text(encoding="utf-8"),
+        )
+
+        self.assertEqual(exit_code, 2)
+        self.assertEqual(stdout, "")
+        self.assertEqual(
+            json.loads(stderr),
+            {
+                "error": {
+                    "code": "INVALID_COMMAND",
+                    "message": (
+                        "Only one JSON input may be read from standard input per "
+                        "command."
+                    ),
+                }
+            },
+        )
+
     def test_validate_policy_returns_stable_json(self) -> None:
         exit_code, stdout, stderr = run_cli(["validate-policy", str(POLICY)])
 
