@@ -178,6 +178,10 @@ def _run_command(arguments: argparse.Namespace) -> dict[str, Any]:
             )
         from .playground import run_playground
         return run_playground(arguments.policy, arguments.response, smoke_test=arguments.smoke_test)
+    if arguments.command == "generate-synthetic" and arguments.output == "-":
+        raise CliUsageError(
+            "generate-synthetic --output writes a file and does not accept '-'."
+        )
     input_paths = [arguments.policy]
     if arguments.command in {"evaluate", "check-order"}:
         input_paths.append(arguments.response)
@@ -203,11 +207,6 @@ def _run_command(arguments: argparse.Namespace) -> dict[str, Any]:
     if arguments.command == "check-order":
         response = _load_json_argument(arguments.response)
         return check_order_conformance(policy, response)
-
-    if arguments.output == "-":
-        raise CliUsageError(
-            "generate-synthetic --output writes a file and does not accept '-'."
-        )
 
     bundle = generate_synthetic_cases(policy)
     if arguments.output:
