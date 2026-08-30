@@ -6,8 +6,17 @@ from copy import deepcopy
 from typing import Any, TypedDict
 
 from .common import TestbenchError, canonical_json
-from .evaluator import EvaluationResult, evaluate_response
-from .policy import Policy, Rule, validate_policy
+from .evaluator import EvaluationResult, _evaluate_rule, evaluate_response
+from .policy import (
+    MAX_ONE_OF_VALUES,
+    MAX_POLICY_RULES,
+    Policy,
+    Rule,
+    validate_policy,
+)
+
+
+_MAX_COMPATIBILITY_WORK = MAX_POLICY_RULES * MAX_ONE_OF_VALUES
 
 
 class SyntheticGenerationError(TestbenchError):
@@ -31,7 +40,7 @@ class SyntheticCaseBundle(TypedDict):
     policy_id: str
 
 
-def _choose_value(rules: list[Rule]) -> Any:
+def _candidate_values(rules: list[Rule]) -> list[Any]:
     fixed_values: list[Any] = []
     allowed_groups: list[tuple[Any, ...]] = []
     for rule in rules:
@@ -56,21 +65,41 @@ def _choose_value(rules: list[Rule]) -> Any:
                 raise SyntheticGenerationError(
                     "Policy has conflicting constraints and no synthetic pass can be verified."
                 )
-        return deepcopy(selected)
+        return [selected]
 
     if allowed_groups:
+        if len(allowed_groups) == 1:
+            return list(allowed_groups[0])
+        remaining_markers = [
+            {canonical_json(value) for value in allowed}
+            for allowed in allowed_groups[1:]
+        ]
+        candidates: list[Any] = []
         for candidate in allowed_groups[0]:
             marker = canonical_json(candidate)
-            if all(
-                any(canonical_json(value) == marker for value in allowed)
-                for allowed in allowed_groups[1:]
-            ):
-                return deepcopy(candidate)
+            if all(marker in allowed for allowed in remaining_markers):
+                candidates.append(candidate)
+        if candidates:
+            return candidates
         raise SyntheticGenerationError(
             "Policy has conflicting constraints and no synthetic pass can be verified."
         )
 
-    return None
+    return [None]
+
+
+def _candidate_view(path: str, value: Any) -> dict[str, Any]:
+    """Place a candidate under path without copying its nested value."""
+
+    view: dict[str, Any] = {}
+    current = view
+    segments = path.split(".")
+    for segment in segments[:-1]:
+        child: dict[str, Any] = {}
+        current[segment] = child
+        current = child
+    current[segments[-1]] = value
+    return view
 
 
 def _assign_path(document: dict[str, Any], path: str, value: Any) -> None:
@@ -112,15 +141,51 @@ def generate_synthetic_cases(
         by_path.setdefault(rule.path, []).append(rule)
 
     passing_response: dict[str, Any] = {}
-    ordered_paths = sorted(by_path, key=lambda path: (path.count("."), path))
+    constructed_rules: list[Rule] = []
+    compatibility_work = 0
+    ordered_paths = sorted(by_path, key=lambda path: (-path.count("."), path))
     for path in ordered_paths:
-        path_policy = Policy(
-            policy_id=validated_policy.policy_id,
-            rules=tuple(by_path[path]),
-        )
-        if evaluate_response(path_policy, passing_response)["passed"]:
+        path_rules = by_path[path]
+        if all(
+            _evaluate_rule(rule, passing_response)["passed"]
+            for rule in path_rules
+        ):
+            constructed_rules.extend(path_rules)
             continue
-        _assign_path(passing_response, path, _choose_value(by_path[path]))
+
+        descendant_prefix = f"{path}."
+        descendant_rules = tuple(
+            rule
+            for rule in constructed_rules
+            if rule.path.startswith(descendant_prefix)
+        )
+        selected: Any | None = None
+        selected_found = False
+        for candidate in _candidate_values(path_rules):
+            candidate_view = _candidate_view(path, candidate)
+            compatible = True
+            for rule in descendant_rules or (None,):
+                compatibility_work += 1
+                if compatibility_work > _MAX_COMPATIBILITY_WORK:
+                    raise SyntheticGenerationError(
+                        "Synthetic compatibility work exceeds the bounded limit."
+                    )
+                if (
+                    rule is not None
+                    and not _evaluate_rule(rule, candidate_view)["passed"]
+                ):
+                    compatible = False
+                    break
+            if compatible:
+                selected = candidate
+                selected_found = True
+                break
+        if not selected_found:
+            raise SyntheticGenerationError(
+                "Policy constraints could not produce a verified synthetic passing case."
+            )
+        _assign_path(passing_response, path, selected)
+        constructed_rules.extend(path_rules)
 
     passing_evaluation = evaluate_response(validated_policy, passing_response)
     if not passing_evaluation["passed"]:
