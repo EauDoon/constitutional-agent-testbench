@@ -161,6 +161,42 @@ class SyntheticGenerationTests(unittest.TestCase):
 
         self.assertEqual(full_evaluation.call_count, 0)
 
+    def test_compatibility_budget_charges_inner_one_of_comparisons(self) -> None:
+        policy = {
+            "schema_version": "1.0",
+            "policy_id": "nested-one-of-work-policy",
+            "rules": [
+                {
+                    "rule_id": "config-choice",
+                    "kind": "one_of",
+                    "path": "config",
+                    "values": [{"label": "approved", "mode": "safe"}],
+                },
+                {
+                    "rule_id": "mode-choice",
+                    "kind": "one_of",
+                    "path": "config.mode",
+                    "values": ["safe", "review", "blocked"],
+                },
+            ],
+        }
+
+        with (
+            patch.object(synthetic, "_MAX_COMPATIBILITY_WORK", 3),
+            patch.object(
+                synthetic,
+                "evaluate_response",
+                wraps=synthetic.evaluate_response,
+            ) as full_evaluation,
+            self.assertRaisesRegex(
+                SyntheticGenerationError,
+                "compatibility work exceeds",
+            ),
+        ):
+            generate_synthetic_cases(policy)
+
+        self.assertEqual(full_evaluation.call_count, 0)
+
 
 if __name__ == "__main__":
     unittest.main()
