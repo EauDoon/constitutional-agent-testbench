@@ -14,7 +14,7 @@ its network or filesystem access, or roll back its side effects.
 - Treat policies and responses as untrusted data, not executable instructions.
 - Supply only files that the current operator is permitted to read.
 - Review a policy before relying on its result.
-- Keep JSON input files within the built-in 1,000,000-byte limit.
+- Keep JSON input files, policies, and candidate responses within the built-in 1,000,000-byte limit.
 - Keep in-memory JSON values within 32 container levels and 100,000 nodes.
 - Keep policies within 256 rules, 256 values per `one_of` rule, and 32 path segments.
 - Run PrecedenceTrace only on two to seven rules. The public mode refuses larger

@@ -171,8 +171,8 @@ order_report = check_order_conformance(
 Each rule result contains `rule_id`, `kind`, `path`, `passed`, and `reason_code`. Candidate values are not copied into evaluation results. These fields are the public `EvaluationResult` and `RuleResult` contracts; the package includes a PEP 561 `py.typed` marker so type checkers can use them.
 
 `evaluate_response` and `generate_synthetic_cases` accept a validated `Policy`
-or a raw policy object and re-validate it. A non-object or structurally invalid
-response raises `EvaluationInputError`. Policy schema failures raise
+or a raw policy object and re-validate it. A non-object, oversized, or
+structurally invalid response raises `EvaluationInputError`. Policy schema failures raise
 `PolicyValidationError`, which names the failing rule when a valid `rule_id` is
 already present and exposes `policy_id`, `rule_id`, and `rule_index` on the
 exception. `generate_synthetic_cases` raises `SyntheticGenerationError` when a
@@ -333,7 +333,7 @@ Keep these boundaries in view:
 - Input authenticity and downstream consequences are outside the evaluator's scope.
 - The built-in evaluator does not inspect prompts, free-form reasoning, model internals, or training data.
 - The rule language does not provide array traversal, regular expressions, numeric ranges, arithmetic, or cross-field logic.
-- JSON input files and validated policies are limited to 1,000,000 bytes. In-memory JSON values are limited to 32 container levels and 100,000 nodes.
+- JSON input files, validated policies, and candidate responses are limited to 1,000,000 bytes. In-memory JSON values are limited to 32 container levels and 100,000 nodes.
 - PrecedenceTrace additionally limits each in-memory policy, response, and returned evaluator result to 1,000,000 serialized UTF-8 bytes.
 - Policies are limited to 256 rules, `one_of` rules are limited to 256 candidate values, and field paths are limited to 32 segments.
 - The command line interface follows explicitly supplied paths. Standard file handling may follow symbolic links.
