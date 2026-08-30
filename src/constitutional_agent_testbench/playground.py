@@ -30,11 +30,17 @@ def evaluate_documents(policy_text: str, response_text: str) -> dict[str, Any]:
 
 
 def run_playground(policy_path: str | None, response_path: str | None, *, smoke_test: bool = False) -> dict[str, Any]:
+    default_policy = {
+        "schema_version": "1.0",
+        "policy_id": "playground",
+        "rules": [{"rule_id": "decision-present", "kind": "required_field", "path": "decision"}],
+    }
+    default_response = {"decision": "demo"}
     if smoke_test:
-        if policy_path:
-            validate_policy(load_json(policy_path))
-        if response_path:
-            load_json(response_path)
+        evaluate_response(
+            _load_optional(policy_path, default_policy),
+            _load_optional(response_path, default_response),
+        )
         return {"playground": "ready", "offline": True, "export_requires_explicit_action": True}
     try:
         import tkinter as tk
@@ -46,13 +52,9 @@ def run_playground(policy_path: str | None, response_path: str | None, *, smoke_
 
     policy = _load_optional(
         policy_path,
-        {
-            "schema_version": "1.0",
-            "policy_id": "playground",
-            "rules": [{"rule_id": "decision-present", "kind": "required_field", "path": "decision"}],
-        },
+        default_policy,
     )
-    response = _load_optional(response_path, {"decision": "demo"})
+    response = _load_optional(response_path, default_response)
     validate_policy(policy)
     try:
         root = tk.Tk()
