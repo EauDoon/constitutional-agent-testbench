@@ -16,7 +16,10 @@ from constitutional_agent_testbench.common import (
     load_json,
     load_json_stream,
 )
-from constitutional_agent_testbench.playground import evaluate_documents
+from constitutional_agent_testbench.playground import (
+    evaluate_documents,
+    main as playground_main,
+)
 from constitutional_agent_testbench.precedence import check_order_conformance
 
 
@@ -453,6 +456,54 @@ class CliTests(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         self.assertEqual(stderr, "")
         self.assertEqual(json.loads(stdout)["export_requires_explicit_action"], True)
+
+    def test_playground_console_forwards_smoke_test_from_argv(self) -> None:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with (
+            patch.object(
+                sys,
+                "argv",
+                ["constitutional-agent-testbench-playground", "--smoke-test"],
+            ),
+            redirect_stdout(stdout),
+            redirect_stderr(stderr),
+        ):
+            exit_code = playground_main()
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(stderr.getvalue(), "")
+        self.assertEqual(
+            json.loads(stdout.getvalue()),
+            {
+                "export_requires_explicit_action": True,
+                "offline": True,
+                "playground": "ready",
+            },
+        )
+
+    def test_playground_console_forwards_optional_paths(self) -> None:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            exit_code = playground_main(
+                [str(POLICY), str(PASSING_RESPONSE), "--smoke-test"]
+            )
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(stderr.getvalue(), "")
+        self.assertEqual(json.loads(stdout.getvalue())["playground"], "ready")
+
+    def test_playground_console_forwards_help(self) -> None:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            exit_code = playground_main(["--help"])
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(stderr.getvalue(), "")
+        self.assertIn("--smoke-test", stdout.getvalue())
+        self.assertIn("optional policy file path", stdout.getvalue())
 
     def test_playground_smoke_validates_a_supplied_response(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
