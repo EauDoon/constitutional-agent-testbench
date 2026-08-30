@@ -56,6 +56,9 @@ $env:PYTHONPATH = "src"
 
 After `python -m pip install --no-deps .`, the same operations are available as
 the `constitutional-agent-testbench` console command.
+`constitutional-agent-testbench-playground` is equivalent to
+`constitutional-agent-testbench playground` and forwards the same optional
+policy path, response path, and `--smoke-test` flag.
 
 Validate the bundled policy, then evaluate the passing example:
 

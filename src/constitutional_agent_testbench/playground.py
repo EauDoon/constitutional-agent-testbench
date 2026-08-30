@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import sys
+from collections.abc import Sequence
 from typing import Any
 
 from .common import TestbenchError, load_json, parse_json_text, stable_json, write_json
@@ -96,7 +98,14 @@ def run_playground(policy_path: str | None, response_path: str | None, *, smoke_
     return {"playground": "closed", "offline": True}
 
 
-def main() -> int:
+def main(argv: Sequence[str] | None = None) -> int:
+    """Run the playground console command and return a process exit code."""
+
     from .cli import main as cli_main
 
-    return cli_main(["playground"])
+    arguments = list(sys.argv[1:] if argv is None else argv)
+    return cli_main(["playground", *arguments])
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
