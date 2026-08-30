@@ -40,6 +40,14 @@ class SyntheticCaseBundle(TypedDict):
     policy_id: str
 
 
+def _compatibility_cost(rule: Rule | None) -> int:
+    """Charge the maximum JSON comparisons made by one compatibility check."""
+
+    if rule is not None and rule.kind == "one_of":
+        return len(rule.values)
+    return 1
+
+
 def _candidate_values(rules: list[Rule]) -> list[Any]:
     fixed_values: list[Any] = []
     allowed_groups: list[tuple[Any, ...]] = []
@@ -165,7 +173,7 @@ def generate_synthetic_cases(
             candidate_view = _candidate_view(path, candidate)
             compatible = True
             for rule in descendant_rules or (None,):
-                compatibility_work += 1
+                compatibility_work += _compatibility_cost(rule)
                 if compatibility_work > _MAX_COMPATIBILITY_WORK:
                     raise SyntheticGenerationError(
                         "Synthetic compatibility work exceeds the bounded limit."
