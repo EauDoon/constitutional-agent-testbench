@@ -4,6 +4,7 @@ import unittest
 from importlib.resources import files
 
 import constitutional_agent_testbench as cat
+from constitutional_agent_testbench.common import MAX_JSON_INPUT_BYTES
 from constitutional_agent_testbench.evaluator import (
     EvaluationInputError,
     evaluate_response,
@@ -198,9 +199,18 @@ class EvaluatorTests(unittest.TestCase):
             True,
             {"summary": object()},
             {"summary": float("nan")},
+            {"summary": float("inf")},
+            {"summary": float("-inf")},
         ):
             with self.subTest(response=response), self.assertRaises(EvaluationInputError):
                 evaluate_response(policy(), response)
+
+    def test_rejects_programmatic_response_larger_than_the_input_limit(self) -> None:
+        response = passing_response()
+        response["summary"] = "x" * MAX_JSON_INPUT_BYTES
+
+        with self.assertRaisesRegex(EvaluationInputError, "byte limit"):
+            evaluate_response(policy(), response)
 
     def test_response_must_be_an_object(self) -> None:
         with self.assertRaises(EvaluationInputError):

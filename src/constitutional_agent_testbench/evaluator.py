@@ -4,12 +4,19 @@ from __future__ import annotations
 
 from typing import Any, Literal, TypedDict
 
-from .common import TestbenchError, ensure_json_value, get_field, json_values_equal
+from .common import (
+    MAX_JSON_INPUT_BYTES,
+    TestbenchError,
+    bounded_canonical_json_size,
+    ensure_json_value,
+    get_field,
+    json_values_equal,
+)
 from .policy import Policy, Rule, validate_policy
 
 
 class EvaluationInputError(TestbenchError):
-    """Raised when a candidate response is not a JSON object."""
+    """Raised when a candidate response is not valid strict JSON object input."""
 
     code = "INVALID_RESPONSE"
 
@@ -92,7 +99,12 @@ def evaluate_response(
         raise EvaluationInputError("Candidate response must be a JSON object.")
     try:
         ensure_json_value(response, label="Candidate response")
-    except (RecursionError, ValueError) as exc:
+        bounded_canonical_json_size(
+            response,
+            label="Candidate response",
+            limit=MAX_JSON_INPUT_BYTES,
+        )
+    except (RecursionError, TypeError, ValueError) as exc:
         raise EvaluationInputError(str(exc)) from exc
 
     rule_results = [
