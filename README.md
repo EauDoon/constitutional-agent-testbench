@@ -117,9 +117,12 @@ Add `--strict-exit` to `evaluate` or `check-order` when automation should use
 the process status as a gate. Conformance returns `0`, valid nonconformance or
 drift returns `1`, and invalid or unresolved input returns `2`.
 
-`playground` is offline and reuses the library evaluator. It writes nothing
-during editing or evaluation. The **Export result** button opens an explicit
-save dialog and is the only playground write path.
+`playground` is offline and reuses the library evaluator. Labeled policy and
+response editors sit above a live pass/fail verdict and the same JSON result
+the CLI emits. The verdict line uses rule identifiers and reason codes only;
+candidate values stay out of that summary. It writes nothing during editing or
+evaluation. The **Export result** button opens an explicit save dialog and is
+the only playground write path.
 
 ## Library use
 
@@ -372,7 +375,7 @@ Runtime imports are limited to the Python standard library and local package mod
 | [`src/constitutional_agent_testbench/synthetic.py`](src/constitutional_agent_testbench/synthetic.py) | Deterministic passing and failing fixture generation. |
 | [`src/constitutional_agent_testbench/common.py`](src/constitutional_agent_testbench/common.py) | Strict JSON, canonical equality, path, and output helpers. |
 | [`src/constitutional_agent_testbench/cli.py`](src/constitutional_agent_testbench/cli.py) | Command parsing, JSON results, error handling, and optional output writing. |
-| [`src/constitutional_agent_testbench/playground.py`](src/constitutional_agent_testbench/playground.py) | Offline Tk playground with explicit export only. |
+| [`src/constitutional_agent_testbench/playground.py`](src/constitutional_agent_testbench/playground.py) | Offline Tk playground with a live verdict and explicit export only. |
 | [`tests/`](tests/) | Unit tests for validation, evaluation, synthetic generation, PrecedenceTrace, and the command-line contract. |
 | [`examples/`](examples/) | A complete policy plus passing and failing response fixtures. |
 | [`pyproject.toml`](pyproject.toml) | Python version, packaging metadata, and console entry points. |
