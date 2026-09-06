@@ -265,6 +265,82 @@ class EvaluatorTests(unittest.TestCase):
             generate_synthetic_cases(conflicting)
 
 
+
+
+    def test_one_of_canonicalizes_the_observed_value_once_per_rule(self) -> None:
+        from constitutional_agent_testbench import evaluator
+        from constitutional_agent_testbench.common import canonical_json
+
+        observed = {"blob": "x" * 4000, "nested": {"a": [1, 2, 3]}}
+        document = {
+            "schema_version": "1.0",
+            "policy_id": "work-bound",
+            "rules": [
+                {
+                    "rule_id": "level-allowed",
+                    "kind": "one_of",
+                    "path": "level",
+                    "values": [f"candidate-{index}" for index in range(64)],
+                },
+                {
+                    "rule_id": "other-allowed",
+                    "kind": "one_of",
+                    "path": "other",
+                    "values": [f"candidate-{index}" for index in range(64)],
+                },
+            ],
+        }
+        response = {"level": observed, "other": observed}
+        seen: list[object] = []
+        original = evaluator.canonical_json
+
+        def counting(value):
+            seen.append(value)
+            return canonical_json(value)
+
+        evaluator.canonical_json = counting
+        try:
+            result = evaluate_response(document, response)
+        finally:
+            evaluator.canonical_json = original
+
+        self.assertFalse(result["passed"])
+        self.assertEqual(sum(1 for value in seen if value is observed), 2)
+
+    def test_one_of_keeps_strict_json_equality(self) -> None:
+        document = {
+            "schema_version": "1.0",
+            "policy_id": "one-of-strict",
+            "rules": [
+                {
+                    "rule_id": "flag-allowed",
+                    "kind": "one_of",
+                    "path": "flag",
+                    "values": [True, 1, 1.0, "1", {"a": 1}, [1, 2], None],
+                }
+            ],
+        }
+        for observed, expected in (
+            (True, True),
+            (1, True),
+            (1.0, True),
+            ("1", True),
+            ({"a": 1}, True),
+            ([1, 2], True),
+            (None, True),
+            (False, False),
+            (0, False),
+            ("true", False),
+            ([2, 1], False),
+        ):
+            with self.subTest(observed=observed):
+                result = evaluate_response(document, {"flag": observed})
+                self.assertEqual(result["passed"], expected)
+                self.assertEqual(
+                    result["rule_results"][0]["reason_code"],
+                    "RULE_SATISFIED" if expected else "VALUE_NOT_ALLOWED",
+                )
+
+
 if __name__ == "__main__":
     unittest.main()
-

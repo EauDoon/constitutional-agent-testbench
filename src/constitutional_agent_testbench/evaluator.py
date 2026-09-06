@@ -8,6 +8,7 @@ from .common import (
     MAX_JSON_INPUT_BYTES,
     TestbenchError,
     bounded_canonical_json_size,
+    canonical_json,
     ensure_json_value,
     get_field,
     json_values_equal,
@@ -56,6 +57,26 @@ class EvaluationResult(TypedDict):
     rule_results: list[RuleResult]
 
 
+def _canonical_marker(value: Any) -> str | None:
+    try:
+        return canonical_json(value)
+    except (OverflowError, RecursionError, TypeError, ValueError):
+        return None
+
+
+def _one_of_matches(observed: Any, values: tuple[Any, ...]) -> bool:
+    """Match an allowed set without re-serializing the observed value per candidate."""
+
+    observed_marker = _canonical_marker(observed)
+    if observed_marker is None:
+        return False
+    for value in values:
+        value_marker = _canonical_marker(value)
+        if value_marker is not None and value_marker == observed_marker:
+            return True
+    return False
+
+
 def _evaluate_rule(rule: Rule, response: dict[str, Any]) -> RuleResult:
     found, observed = get_field(response, rule.path)
     if not found:
@@ -68,7 +89,7 @@ def _evaluate_rule(rule: Rule, response: dict[str, Any]) -> RuleResult:
         passed = json_values_equal(observed, rule.value)
         reason_code = REASON_SATISFIED if passed else REASON_NOT_EQUAL
     elif rule.kind == "one_of":
-        passed = any(json_values_equal(observed, value) for value in rule.values)
+        passed = _one_of_matches(observed, rule.values)
         reason_code = REASON_SATISFIED if passed else REASON_NOT_ALLOWED
     elif rule.kind == "false":
         passed = observed is False
