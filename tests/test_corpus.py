@@ -4,7 +4,8 @@ import unittest
 
 from constitutional_agent_testbench.inspection import inspect_policy
 from constitutional_agent_testbench.inspection import inspect_suite
-from constitutional_agent_testbench.curation import merge_suites
+from constitutional_agent_testbench.curation import merge_suites, select_suite
+from constitutional_agent_testbench.workflow import WorkflowInputError
 from constitutional_agent_testbench.suite import SuiteInputError
 
 
@@ -45,6 +46,13 @@ class InspectionTests(unittest.TestCase):
 
 
 class CurationTests(unittest.TestCase):
+    def test_selection_is_exact_and_preserves_original_order(self):
+        result = select_suite(suite(), ["wrong", "pass"])
+        self.assertEqual([c["case_id"] for c in result["cases"]], ["pass", "wrong"])
+        for selection in ([], ["missing-id"], ["pass", "pass"], "pass", [True]):
+            with self.assertRaises(WorkflowInputError):
+                select_suite(suite(), selection)
+
     def test_merge_preserves_order_and_rejects_collisions(self):
         left, right = suite(), suite()
         for case in right["cases"]:

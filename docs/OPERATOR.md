@@ -2,6 +2,11 @@
 
 ## Inspect declared policy structure
 
+`select-suite SUITE SELECTION` creates a focused executable corpus from a JSON
+array of exact case IDs. It preserves source order and rejects unknown IDs,
+duplicates, or an empty selection. The result includes selected response values.
+Use this to reproduce a named case without editing the original fixture file.
+
 `merge-suites LEFT RIGHT` appends same-version suites in input order, returning a
 directly executable suite. Duplicate case IDs, even with identical contents, and
 combined size/case-limit violations fail closed. It never renames or drops cases.
