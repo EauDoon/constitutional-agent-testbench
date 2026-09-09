@@ -18,6 +18,9 @@ from .evaluator import evaluate_response
 from .policy import validate_policy
 from .precedence import check_order_conformance
 from .synthetic import generate_synthetic_cases
+from .authoring import lint_policy
+from .explain import explain_response
+from .probes import generate_rule_probes
 
 
 class CliUsageError(TestbenchError):
@@ -73,6 +76,20 @@ def _build_parser() -> argparse.ArgumentParser:
         allow_abbrev=False,
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
+
+    for name, help_text in (
+        ("lint-policy", "Find conservative policy conflicts and duplicate constraints."),
+        ("explain", "Explain response failures without displaying candidate values."),
+        ("generate-probes", "Generate verified targeted mutations and a regression suite."),
+    ):
+        command_parser = subparsers.add_parser(name, help=help_text,
+                                               description=help_text, allow_abbrev=False)
+        command_parser.add_argument("policy", help="policy path, or - for standard input")
+        if name == "explain":
+            command_parser.add_argument("response", help="response path, or - for standard input")
+        if name != "generate-probes":
+            command_parser.add_argument("--strict-exit", action="store_true",
+                                        help="return 1 for a conflict or failed evaluation")
 
     validate_parser = subparsers.add_parser(
         "validate-policy",
@@ -183,7 +200,7 @@ def _run_command(arguments: argparse.Namespace) -> dict[str, Any]:
             "generate-synthetic --output writes a file and does not accept '-'."
         )
     input_paths = [arguments.policy]
-    if arguments.command in {"evaluate", "check-order"}:
+    if arguments.command in {"evaluate", "check-order", "explain"}:
         input_paths.append(arguments.response)
     if input_paths.count("-") > 1:
         raise CliUsageError(
@@ -192,6 +209,13 @@ def _run_command(arguments: argparse.Namespace) -> dict[str, Any]:
 
     raw_policy = _load_json_argument(arguments.policy)
     policy = validate_policy(raw_policy)
+
+    if arguments.command == "lint-policy":
+        return lint_policy(policy)
+    if arguments.command == "explain":
+        return explain_response(policy, _load_json_argument(arguments.response))
+    if arguments.command == "generate-probes":
+        return generate_rule_probes(policy)
 
     if arguments.command == "validate-policy":
         return {
@@ -239,6 +263,10 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     sys.stdout.write(stable_json(result))
     if getattr(arguments, "strict_exit", False):
+        if arguments.command == "lint-policy":
+            return 1 if result["has_conflicts"] else 0
+        if arguments.command == "explain":
+            return 0 if result["evaluation"]["passed"] else 1
         if arguments.command == "evaluate":
             return 0 if result.get("passed") is True else 1
         if arguments.command == "check-order":
