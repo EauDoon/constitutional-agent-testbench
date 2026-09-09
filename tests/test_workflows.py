@@ -5,6 +5,7 @@ from constitutional_agent_testbench.authoring import lint_policy
 from constitutional_agent_testbench.explain import explain_response
 from constitutional_agent_testbench.evaluator import EvaluationInputError
 from constitutional_agent_testbench.suite import evaluate_suite, validate_suite, SuiteInputError
+from constitutional_agent_testbench.coverage import suite_coverage
 
 
 def policy(*rules):
@@ -47,6 +48,20 @@ class SuiteTests(unittest.TestCase):
         owned["cases"].clear()
         self.assertEqual(len(raw["cases"]), 2)
         self.assertNotIn("private-string", str(evaluate_suite(policy(rule()), raw)))
+
+
+class CoverageTests(unittest.TestCase):
+    def test_counts_and_gaps(self):
+        raw = policy(rule(), rule("always-missing", "required_field", "other"))
+        report = suite_coverage(raw, suite())
+        self.assertEqual(report["rules_with_both_outcomes"], 1)
+        self.assertEqual(report["unexercised_passes"], ["always-missing"])
+        self.assertEqual(report["rules"][1]["reason_counts"],
+                         {"RULE_SATISFIED": 1, "FIELD_MISSING": 1})
+
+    def test_invalid_suite_fails_closed(self):
+        with self.assertRaises(SuiteInputError):
+            suite_coverage(policy(rule()), {"suite_version": "1.0", "cases": []})
 
 
 class AuthoringTests(unittest.TestCase):
