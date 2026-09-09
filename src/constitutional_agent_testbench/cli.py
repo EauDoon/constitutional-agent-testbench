@@ -25,6 +25,7 @@ from .suite import evaluate_suite
 from .coverage import suite_coverage
 from .compare import compare_policies
 from .receipt import create_receipt, verify_receipt
+from .operations import COMMANDS, add_operation_parsers, run_operation
 
 
 class CliUsageError(TestbenchError):
@@ -80,6 +81,7 @@ def _build_parser() -> argparse.ArgumentParser:
         allow_abbrev=False,
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
+    add_operation_parsers(subparsers)
 
     for name, inputs, help_text in (
         ("run-suite", ("suite",), "Run explicit fixture expectations; strict exit fails on mismatches."),
@@ -218,6 +220,11 @@ def _run_command(arguments: argparse.Namespace) -> dict[str, Any]:
         raise CliUsageError(
             "generate-synthetic --output writes a file and does not accept '-'."
         )
+    if arguments.command in COMMANDS:
+        fields = COMMANDS[arguments.command][0]
+        if sum(getattr(arguments, field) == "-" for field in fields) > 1:
+            raise CliUsageError("Only one JSON input may be read from standard input per command.")
+        return run_operation(arguments, _load_json_argument)
     input_paths = [getattr(arguments, field) for field in
                    ("policy", "response", "candidate", "suite", "receipt")
                    if hasattr(arguments, field)]
@@ -295,6 +302,8 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     sys.stdout.write(stable_json(result))
     if getattr(arguments, "strict_exit", False):
+        if arguments.command in COMMANDS:
+            return 0 if result[COMMANDS[arguments.command][2]] else 1
         if arguments.command == "run-suite":
             return 0 if result["matches_expectations"] else 1
         if arguments.command == "suite-coverage":

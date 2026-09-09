@@ -1,5 +1,12 @@
 # Local policy operator workflow
 
+## Inspect declared policy structure
+
+`inspect-policy POLICY` inventories rule kinds, exact paths, and declared ancestor
+relationships without displaying constraint values. The library equivalent is
+`inspect_policy`. Inspection supports up to 256 rules and a 1,000,000-byte
+formatted report; exceeding a workflow bound fails closed with `INVALID_WORKFLOW`.
+
 Package 0.3.0 adds authoring and regression tools around the existing schema 1.0
 evaluator. All rules still participate. Input content never selects authority,
 executes an action, or overrides another policy. Runtime dependencies remain
