@@ -10,6 +10,7 @@ from constitutional_agent_testbench.triage import triage_suite
 from constitutional_agent_testbench.curation import reduce_suite
 from constitutional_agent_testbench.coverage import suite_coverage
 from constitutional_agent_testbench.corpus_receipt import create_suite_receipt, verify_suite_receipt
+from constitutional_agent_testbench.replay import create_replay_bundle, replay_bundle
 from constitutional_agent_testbench.suite import SuiteInputError, evaluate_suite, validate_suite
 
 
@@ -174,3 +175,25 @@ class CorpusReceiptTests(unittest.TestCase):
         with patch("constitutional_agent_testbench.workflow.MAX_JSON_INPUT_BYTES", 10):
             with self.assertRaises(WorkflowInputError):
                 create_suite_receipt(policy(), suite())
+
+
+class ReplayTests(unittest.TestCase):
+    def test_portable_bundle_recomputes_instead_of_trusting_claims(self):
+        bundle = create_replay_bundle(policy(), suite())
+        self.assertTrue(replay_bundle(bundle)["replay_passed"])
+        bundle["suite"]["cases"][0]["response"]["private"] = "SYNTHETIC_PRIVATE"
+        result = replay_bundle(bundle)
+        self.assertFalse(result["verified"])
+        self.assertIsNone(result["matches_expectations"])
+        self.assertNotIn("SYNTHETIC_PRIVATE", str(result))
+        bundle["command"] = "never-execute"
+        with self.assertRaises(WorkflowInputError):
+            replay_bundle(bundle)
+
+    def test_consistent_failing_regression_is_not_a_passing_replay(self):
+        raw = suite()
+        raw["cases"][0]["expected_passed"] = False
+        result = replay_bundle(create_replay_bundle(policy(), raw))
+        self.assertTrue(result["verified"])
+        self.assertFalse(result["matches_expectations"])
+        self.assertFalse(result["replay_passed"])

@@ -94,6 +94,16 @@ which policy should govern a real workflow.
 
 ## Create and verify a receipt
 
+`create-replay POLICY SUITE` produces one self-contained JSON bundle with policy,
+fixtures and their receipt. **Bundles contain original policy and response values.**
+`replay BUNDLE --strict-exit` recomputes evidence using the installed evaluator.
+Exit 0 requires both valid bindings and matching fixture expectations; exit 1
+means a valid inconsistency or regression, and malformed artifacts return 2.
+When bindings fail, `matches_expectations` is null rather than a trusted claim.
+Replay never loads a module, follows a path, calls a model, or executes a command
+from bundle contents. All fields are strict, versioned data. Combined bundles
+must fit the existing JSON nesting/node and 1,000,000-byte formatted limits.
+
 `create-suite-receipt POLICY SUITE` and `verify-suite-receipt POLICY SUITE RECEIPT
 --strict-exit` extend receipt consistency checking to entire corpora. They bind
 case order, responses, expected verdicts, optional rule assertions, and all actual

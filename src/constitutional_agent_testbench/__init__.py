@@ -25,6 +25,7 @@ from .workflow import WorkflowInputError
 from .curation import merge_suites, select_suite, reduce_suite
 from .triage import triage_suite
 from .corpus_receipt import create_suite_receipt, verify_suite_receipt
+from .replay import create_replay_bundle, replay_bundle
 
 __all__ = [
     "inspect_policy",
@@ -35,6 +36,8 @@ __all__ = [
     "reduce_suite",
     "create_suite_receipt",
     "verify_suite_receipt",
+    "create_replay_bundle",
+    "replay_bundle",
     "WorkflowInputError",
     "AuthoringLimitError",
     "SuiteInputError",
