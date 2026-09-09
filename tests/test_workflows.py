@@ -7,6 +7,8 @@ from constitutional_agent_testbench.evaluator import EvaluationInputError
 from constitutional_agent_testbench.suite import evaluate_suite, validate_suite, SuiteInputError
 from constitutional_agent_testbench.coverage import suite_coverage
 from constitutional_agent_testbench.compare import compare_policies
+from constitutional_agent_testbench.probes import generate_rule_probes
+from constitutional_agent_testbench.synthetic import SyntheticGenerationError
 
 
 def policy(*rules):
@@ -86,6 +88,29 @@ class ComparisonTests(unittest.TestCase):
         report = compare_policies(policy(rule()), policy(rule("new")), suite())
         self.assertEqual(report["rule_changes"]["removed"], ["r"])
         self.assertEqual(report["rule_changes"]["added"], ["new"])
+
+
+class ProbeTests(unittest.TestCase):
+    def test_verified_round_trip_and_collateral(self):
+        raw = policy(rule(), rule("present", "required_field"))
+        report = generate_rule_probes(raw)
+        self.assertTrue(evaluate_suite(raw, report["suite"])["matches_expectations"])
+        self.assertEqual(report["probes"][0]["failed_rule_ids"], ["present", "r"])
+        self.assertEqual(report["probes"][1]["failed_rule_ids"], ["r"])
+
+    def test_all_rule_kinds(self):
+        raw = policy(rule("equal", "equals", "a", value=None),
+                     rule("allowed", "one_of", "b", values=["synthetic-probe-0"]),
+                     rule("empty", "empty_list", "c"))
+        report = generate_rule_probes(raw)
+        self.assertEqual(len(report["probes"]), 6)
+        self.assertTrue(evaluate_suite(raw, report["suite"])["matches_expectations"])
+
+    def test_rule_limit_and_conflict(self):
+        for raw in (policy(*(rule(str(i), path=f"field{i}") for i in range(65))),
+                    policy(rule(), rule("conflict", "equals", value=True))):
+            with self.assertRaises(SyntheticGenerationError):
+                generate_rule_probes(raw)
 
 
 class AuthoringTests(unittest.TestCase):
