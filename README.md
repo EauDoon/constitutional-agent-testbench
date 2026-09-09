@@ -415,3 +415,5 @@ the complete statement.
 ## License
 
 Released under the MIT License. See [`LICENSE`](LICENSE).
+
+Atomic exports preserve an existing regular file's POSIX read/write/execute permission bits; special bits are cleared. New exports remain private (0600 on POSIX). Destination symlinks are replaced without reading or changing their targets. Ownership and ACL preservation are outside this local export interface; platform filesystem rules still apply.

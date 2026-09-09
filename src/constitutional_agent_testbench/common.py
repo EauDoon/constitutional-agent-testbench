@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import math
 import os
+import stat
 import tempfile
 from pathlib import Path
 from typing import Any, BinaryIO, TextIO
@@ -142,12 +143,22 @@ def write_json(path: str | Path, value: Any) -> None:
     temporary = None
     try:
         serialized = stable_json(value)
+        permissions = 0o600
+        try:
+            existing = destination.lstat()
+        except FileNotFoundError:
+            pass
+        else:
+            if stat.S_ISREG(existing.st_mode):
+                permissions = existing.st_mode & 0o777
         destination.parent.mkdir(parents=True, exist_ok=True)
         with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", newline="\n",
                                          dir=destination.parent, prefix=".cat-", delete=False) as output:
             temporary = Path(output.name)
             output.write(serialized)
             output.flush()
+            if hasattr(os, "fchmod"):
+                os.fchmod(output.fileno(), permissions)
             os.fsync(output.fileno())
         os.replace(temporary, destination)
         temporary = None

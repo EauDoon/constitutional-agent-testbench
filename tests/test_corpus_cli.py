@@ -2,6 +2,7 @@
 import io
 import json
 import os
+import stat
 from contextlib import redirect_stdout, redirect_stderr
 from pathlib import Path
 import tempfile
@@ -81,3 +82,35 @@ class CorpusCliTests(unittest.TestCase):
         code, selected = self.call("select-suite", self.suite, "-", stdin='["pass"]')
         self.assertEqual(code, 0)
         self.assertEqual(len(selected["cases"]), 1)
+
+
+class AtomicExportPermissionsTests(unittest.TestCase):
+    @unittest.skipUnless(os.name == "posix" and hasattr(os, "fchmod"), "POSIX file modes unavailable")
+    def test_existing_regular_mode_preserved_without_special_bits(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "shared.json"
+            output.write_text("previous")
+            output.chmod(0o2640)
+            if stat.S_IMODE(output.stat().st_mode) != 0o2640:
+                self.skipTest("filesystem cannot retain requested mode")
+            write_json(output, {"complete": True})
+            self.assertEqual(stat.S_IMODE(output.stat().st_mode), 0o640)
+            self.assertEqual(json.loads(output.read_text()), {"complete": True})
+
+    @unittest.skipUnless(os.name == "posix" and hasattr(os, "fchmod"), "POSIX file modes unavailable")
+    def test_new_file_is_private_and_symlink_target_is_untouched(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output = root / "private.json"
+            write_json(output, {})
+            self.assertEqual(stat.S_IMODE(output.stat().st_mode), 0o600)
+            target = root / "target.json"
+            target.write_text("unchanged")
+            target.chmod(0o644)
+            link = root / "link.json"
+            link.symlink_to(target)
+            write_json(link, {"new": True})
+            self.assertFalse(link.is_symlink())
+            self.assertEqual(stat.S_IMODE(link.stat().st_mode), 0o600)
+            self.assertEqual(target.read_text(), "unchanged")
+            self.assertEqual(stat.S_IMODE(target.stat().st_mode), 0o644)
