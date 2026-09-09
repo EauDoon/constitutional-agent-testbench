@@ -6,7 +6,7 @@ from constitutional_agent_testbench.inspection import inspect_policy
 from constitutional_agent_testbench.inspection import inspect_suite
 from constitutional_agent_testbench.curation import merge_suites, select_suite
 from constitutional_agent_testbench.workflow import WorkflowInputError
-from constitutional_agent_testbench.suite import SuiteInputError
+from constitutional_agent_testbench.suite import SuiteInputError, evaluate_suite, validate_suite
 
 
 def policy():
@@ -69,3 +69,45 @@ class CurationTests(unittest.TestCase):
         left["cases"] = [{"case_id": str(i), "response": {}, "expected_passed": False} for i in range(256)]
         with self.assertRaises(SuiteInputError):
             merge_suites(left, suite())
+
+
+class AssertionTests(unittest.TestCase):
+    def test_duplicate_partial_assertions_can_be_compatible(self):
+        raw = suite()
+        raw["suite_version"] = "1.1"
+        duplicate = copy.deepcopy(raw["cases"][0])
+        duplicate["case_id"] = "duplicate"
+        duplicate["expected_rules"] = {"r": {"passed": True, "reason_code": "RULE_SATISFIED"}}
+        raw["cases"].append(duplicate)
+        self.assertTrue(inspect_suite(raw)["consistent_expectations"])
+
+    def test_wrong_failure_reason_is_a_regression(self):
+        raw = suite()
+        raw["suite_version"] = "1.1"
+        raw["cases"][1]["expected_rules"] = {"r": {"passed": False, "reason_code": "VALUE_NOT_FALSE"}}
+        result = evaluate_suite(policy(), raw)
+        self.assertFalse(result["matches_expectations"])
+        self.assertEqual(result["cases"][1]["rule_assertion_mismatches"], ["r"])
+        raw["cases"][1]["expected_rules"]["r"]["reason_code"] = "FIELD_MISSING"
+        self.assertTrue(evaluate_suite(policy(), raw)["matches_expectations"])
+        raw["cases"][1]["expected_rules"]["removed"] = {"passed": False, "reason_code": "FIELD_MISSING"}
+        self.assertFalse(evaluate_suite(policy(), raw)["matches_expectations"])
+
+    def test_v10_report_shape_and_rejection_remain_unchanged(self):
+        raw = suite()
+        result = evaluate_suite(policy(), raw)
+        self.assertEqual(set(result["cases"][0]), {"case_id", "expected_passed", "matches_expectation", "evaluation"})
+        raw["cases"][0]["expected_rules"] = {}
+        with self.assertRaises(SuiteInputError):
+            validate_suite(raw)
+
+    def test_v11_rejects_malformed_assertions(self):
+        for expected in ({"r": {"passed": 1, "reason_code": "RULE_SATISFIED"}},
+                         {"r": {"passed": False, "reason_code": "RULE_SATISFIED"}},
+                         {"r": {"passed": False, "reason_code": "invented"}},
+                         {"bad id": {"passed": False, "reason_code": "FIELD_MISSING"}}):
+            raw = suite()
+            raw["suite_version"] = "1.1"
+            raw["cases"][0]["expected_rules"] = expected
+            with self.assertRaises(SuiteInputError):
+                validate_suite(raw)

@@ -32,10 +32,15 @@ def inspect_suite(suite):
     duplicates = []
     for cases in groups.values():
         if len(cases) > 1:
-            expectations = {canonical_json({k: v for k, v in case.items()
-                                           if k not in {"case_id", "response"}}) for case in cases}
+            conflict = len({case["expected_passed"] for case in cases}) > 1
+            asserted = {}
+            for case in cases:
+                for identifier, assertion in case.get("expected_rules", {}).items():
+                    if identifier in asserted and asserted[identifier] != assertion:
+                        conflict = True
+                    asserted[identifier] = assertion
             duplicates.append({"case_ids": [case["case_id"] for case in cases],
-                               "conflicting_expectations": len(expectations) > 1})
+                               "conflicting_expectations": conflict})
     return bounded_artifact({"suite_version": fixtures["suite_version"],
         "case_count": len(fixtures["cases"]), "unique_response_count": len(groups),
         "expected_pass_count": sum(case["expected_passed"] for case in fixtures["cases"]),

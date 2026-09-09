@@ -50,6 +50,16 @@ fixtures, not evidence of model behavior, independent rule isolation, or safety.
 
 ## Run regression fixtures and inspect gaps
 
+Suite version `1.1` optionally adds `expected_rules` to each case, mapping rule IDs
+to `{"passed": false, "reason_code": "FIELD_MISSING"}` assertions. Each assertion
+requires both fields and a consistent public reason code. Omitted rules are not
+asserted. `run-suite` reports `rule_assertion_mismatches` and fails the expectation
+when an asserted rule disappears or its outcome/reason differs, even when the
+overall expected failure still occurs. This also participates in strict exit and
+migration expectation reports. Version 1.0 inputs and result shapes are unchanged.
+An empty assertion map asserts only the overall verdict. Same-version curation
+preserves assertions; changing suite versions is an explicit authoring decision.
+
 ```text
 constitutional-agent-testbench run-suite examples/policy.json examples/regression-suite.json --strict-exit
 constitutional-agent-testbench suite-coverage examples/policy.json examples/regression-suite.json --strict-exit
