@@ -4,6 +4,7 @@ import unittest
 from constitutional_agent_testbench.authoring import lint_policy
 from constitutional_agent_testbench.explain import explain_response
 from constitutional_agent_testbench.evaluator import EvaluationInputError
+from constitutional_agent_testbench.suite import evaluate_suite, validate_suite, SuiteInputError
 
 
 def policy(*rules):
@@ -12,6 +13,40 @@ def policy(*rules):
 
 def rule(identifier="r", kind="false", path="action", **fields):
     return {"rule_id": identifier, "kind": kind, "path": path, **fields}
+
+
+def suite():
+    return {"suite_version": "1.0", "cases": [
+        {"case_id": "pass", "response": {"action": False}, "expected_passed": True},
+        {"case_id": "fail", "response": {}, "expected_passed": False}]}
+
+
+class SuiteTests(unittest.TestCase):
+    def test_expected_failure_is_success(self):
+        report = evaluate_suite(policy(rule()), suite())
+        self.assertTrue(report["matches_expectations"])
+        changed = suite()
+        changed["cases"][0]["response"]["action"] = 0
+        self.assertEqual(evaluate_suite(policy(rule()), changed)["mismatch_count"], 1)
+
+    def test_rejects_duplicates_unknowns_and_truthy_expectations(self):
+        for mutate in (lambda s: s["cases"].append(s["cases"][0]),
+                       lambda s: s.update(extra=True),
+                       lambda s: s["cases"][0].update(expected_passed=1),
+                       lambda s: s.update(cases=[]),
+                       lambda s: s.update(cases=s["cases"] * 129)):
+            raw = suite()
+            mutate(raw)
+            with self.assertRaises(SuiteInputError):
+                validate_suite(raw)
+
+    def test_owns_copy_and_hides_response_values(self):
+        raw = suite()
+        raw["cases"][0]["response"]["secret"] = "private-string"
+        owned = validate_suite(raw)
+        owned["cases"].clear()
+        self.assertEqual(len(raw["cases"]), 2)
+        self.assertNotIn("private-string", str(evaluate_suite(policy(rule()), raw)))
 
 
 class AuthoringTests(unittest.TestCase):
