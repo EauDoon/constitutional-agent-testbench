@@ -2,6 +2,8 @@ import copy
 import unittest
 
 from constitutional_agent_testbench.authoring import lint_policy
+from constitutional_agent_testbench.explain import explain_response
+from constitutional_agent_testbench.evaluator import EvaluationInputError
 
 
 def policy(*rules):
@@ -18,6 +20,22 @@ class AuthoringTests(unittest.TestCase):
         before = copy.deepcopy(raw)
         self.assertTrue(lint_policy(raw)["has_conflicts"])
         self.assertEqual(raw, before)
+
+
+class ExplanationTests(unittest.TestCase):
+    def test_absent_member_and_scalar_parent(self):
+        raw = policy(rule(path="action.name"))
+        absent = explain_response(raw, {})["explanations"][0]
+        self.assertEqual((absent["resolution"], absent["at"]), ("member_absent", "action"))
+        scalar = explain_response(raw, {"action": "sensitive-value"})
+        self.assertEqual(scalar["explanations"][0]["resolution"], "parent_not_object")
+        self.assertNotIn("sensitive-value", str(scalar))
+
+    def test_null_is_present_and_invalid_input_rejected(self):
+        raw = policy(rule(kind="required_field"))
+        self.assertTrue(explain_response(raw, {"action": None})["evaluation"]["passed"])
+        with self.assertRaises(EvaluationInputError):
+            explain_response(raw, [])
 
     def test_ancestor_and_duplicates(self):
         raw = policy(rule(), rule("other"), rule("child", "required_field", "action.name"))
