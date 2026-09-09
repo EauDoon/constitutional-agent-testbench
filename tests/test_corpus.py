@@ -6,6 +6,7 @@ from constitutional_agent_testbench.inspection import inspect_policy
 from constitutional_agent_testbench.inspection import inspect_suite
 from constitutional_agent_testbench.curation import merge_suites, select_suite
 from constitutional_agent_testbench.workflow import WorkflowInputError
+from constitutional_agent_testbench.triage import triage_suite
 from constitutional_agent_testbench.suite import SuiteInputError, evaluate_suite, validate_suite
 
 
@@ -111,3 +112,22 @@ class AssertionTests(unittest.TestCase):
             raw["cases"][0]["expected_rules"] = expected
             with self.assertRaises(SuiteInputError):
                 validate_suite(raw)
+
+
+class TriageTests(unittest.TestCase):
+    def test_reports_only_regressions_and_never_candidate_values(self):
+        raw = suite()
+        raw["cases"][0]["response"] = {"action": "SYNTHETIC_PRIVATE"}
+        raw["cases"][1]["expected_passed"] = True
+        result = triage_suite(policy(), raw)
+        self.assertEqual([c["case_id"] for c in result["mismatches"]], ["pass", "missing"])
+        self.assertFalse(result["matches_expectations"])
+        self.assertNotIn("SYNTHETIC_PRIVATE", str(result))
+        self.assertEqual(len(result["failure_groups"]), 2)
+
+    def test_unexpected_pass_remains_visible_without_failed_rules(self):
+        raw = suite()
+        raw["cases"][0]["expected_passed"] = False
+        mismatch = triage_suite(policy(), raw)["mismatches"][0]
+        self.assertTrue(mismatch["actual_passed"])
+        self.assertEqual(mismatch["failed_rule_ids"], [])

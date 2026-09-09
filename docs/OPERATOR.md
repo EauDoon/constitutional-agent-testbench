@@ -2,6 +2,11 @@
 
 ## Inspect declared policy structure
 
+`triage-suite POLICY SUITE --strict-exit` reports only cases whose explicit
+expectations failed, groups their actual failures by rule/path/reason, and retains
+unexpected passes and rule-assertion mismatches. It omits response values. Strict
+exit follows regression expectations, not whether all responses passed policy.
+
 `select-suite SUITE SELECTION` creates a focused executable corpus from a JSON
 array of exact case IDs. It preserves source order and rejects unknown IDs,
 duplicates, or an empty selection. The result includes selected response values.

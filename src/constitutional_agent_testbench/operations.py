@@ -2,6 +2,7 @@
 
 from .inspection import inspect_policy, inspect_suite
 from .curation import merge_suites, select_suite
+from .triage import triage_suite
 
 
 # Command: (ordered JSON inputs, library function, strict success field).
@@ -9,6 +10,7 @@ COMMANDS = {"inspect-policy": (("policy",), inspect_policy, None)}
 COMMANDS["inspect-suite"] = (("suite",), inspect_suite, "consistent_expectations")
 COMMANDS["merge-suites"] = (("suite", "incoming"), merge_suites, None)
 COMMANDS["select-suite"] = (("suite", "selection"), select_suite, None)
+COMMANDS["triage-suite"] = (("policy", "suite"), triage_suite, "matches_expectations")
 
 
 def add_operation_parsers(subparsers):

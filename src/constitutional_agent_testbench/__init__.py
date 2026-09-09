@@ -23,12 +23,14 @@ from .receipt import ReceiptInputError, create_receipt, verify_receipt
 from .inspection import inspect_policy, inspect_suite
 from .workflow import WorkflowInputError
 from .curation import merge_suites, select_suite
+from .triage import triage_suite
 
 __all__ = [
     "inspect_policy",
     "inspect_suite",
     "merge_suites",
     "select_suite",
+    "triage_suite",
     "WorkflowInputError",
     "AuthoringLimitError",
     "SuiteInputError",
