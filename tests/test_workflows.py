@@ -6,6 +6,7 @@ from constitutional_agent_testbench.explain import explain_response
 from constitutional_agent_testbench.evaluator import EvaluationInputError
 from constitutional_agent_testbench.suite import evaluate_suite, validate_suite, SuiteInputError
 from constitutional_agent_testbench.coverage import suite_coverage
+from constitutional_agent_testbench.compare import compare_policies
 
 
 def policy(*rules):
@@ -62,6 +63,29 @@ class CoverageTests(unittest.TestCase):
     def test_invalid_suite_fails_closed(self):
         with self.assertRaises(SuiteInputError):
             suite_coverage(policy(rule()), {"suite_version": "1.0", "cases": []})
+
+
+class ComparisonTests(unittest.TestCase):
+    def test_migration_and_definition_changes(self):
+        report = compare_policies(policy(rule()), policy(rule(kind="equals", value=True)), suite())
+        self.assertEqual(report["rule_changes"]["modified"], ["r"])
+        self.assertEqual(report["newly_failing"], ["pass"])
+        self.assertEqual(report["newly_passing"], [])
+        self.assertFalse(report["after_matches_expectations"])
+
+    def test_reorder_is_visible_without_verdict_drift(self):
+        old = policy(rule(), rule("present", "required_field"))
+        new = copy.deepcopy(old)
+        new["rules"].reverse()
+        report = compare_policies(old, new, suite())
+        self.assertTrue(report["rule_changes"]["order_changed"])
+        self.assertEqual(report["verdict_change_count"], 0)
+        self.assertEqual(report["cases"][0]["changed_rule_results"], [])
+
+    def test_added_and_removed_rules(self):
+        report = compare_policies(policy(rule()), policy(rule("new")), suite())
+        self.assertEqual(report["rule_changes"]["removed"], ["r"])
+        self.assertEqual(report["rule_changes"]["added"], ["new"])
 
 
 class AuthoringTests(unittest.TestCase):
