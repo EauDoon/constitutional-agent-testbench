@@ -3,6 +3,7 @@
 from .inspection import inspect_policy, inspect_suite
 from .curation import merge_suites, select_suite, reduce_suite
 from .triage import triage_suite
+from .corpus_receipt import create_suite_receipt, verify_suite_receipt
 
 
 # Command: (ordered JSON inputs, library function, strict success field).
@@ -12,6 +13,8 @@ COMMANDS["merge-suites"] = (("suite", "incoming"), merge_suites, None)
 COMMANDS["select-suite"] = (("suite", "selection"), select_suite, None)
 COMMANDS["triage-suite"] = (("policy", "suite"), triage_suite, "matches_expectations")
 COMMANDS["reduce-suite"] = (("policy", "suite"), reduce_suite, None)
+COMMANDS["create-suite-receipt"] = (("policy", "suite"), create_suite_receipt, None)
+COMMANDS["verify-suite-receipt"] = (("policy", "suite", "receipt"), verify_suite_receipt, "verified")
 
 
 def add_operation_parsers(subparsers):

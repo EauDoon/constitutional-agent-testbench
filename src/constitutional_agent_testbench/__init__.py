@@ -24,6 +24,7 @@ from .inspection import inspect_policy, inspect_suite
 from .workflow import WorkflowInputError
 from .curation import merge_suites, select_suite, reduce_suite
 from .triage import triage_suite
+from .corpus_receipt import create_suite_receipt, verify_suite_receipt
 
 __all__ = [
     "inspect_policy",
@@ -32,6 +33,8 @@ __all__ = [
     "select_suite",
     "triage_suite",
     "reduce_suite",
+    "create_suite_receipt",
+    "verify_suite_receipt",
     "WorkflowInputError",
     "AuthoringLimitError",
     "SuiteInputError",

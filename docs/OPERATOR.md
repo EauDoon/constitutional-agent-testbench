@@ -94,6 +94,14 @@ which policy should govern a real workflow.
 
 ## Create and verify a receipt
 
+`create-suite-receipt POLICY SUITE` and `verify-suite-receipt POLICY SUITE RECEIPT
+--strict-exit` extend receipt consistency checking to entire corpora. They bind
+case order, responses, expected verdicts, optional rule assertions, and all actual
+rule results. Receipts omit raw responses. Verification independently recomputes
+the complete report; changing a boolean to a number fails consistency checking.
+These are separate versioned artifacts, preserving existing single-response
+receipts. Anyone with the inputs can recreate them; they are not signatures.
+
 ```text
 constitutional-agent-testbench create-receipt examples/policy.json examples/passing-response.json > receipt.json
 constitutional-agent-testbench verify-receipt examples/policy.json examples/passing-response.json receipt.json --strict-exit

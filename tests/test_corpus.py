@@ -9,6 +9,7 @@ from constitutional_agent_testbench.workflow import WorkflowInputError
 from constitutional_agent_testbench.triage import triage_suite
 from constitutional_agent_testbench.curation import reduce_suite
 from constitutional_agent_testbench.coverage import suite_coverage
+from constitutional_agent_testbench.corpus_receipt import create_suite_receipt, verify_suite_receipt
 from constitutional_agent_testbench.suite import SuiteInputError, evaluate_suite, validate_suite
 
 
@@ -148,3 +149,28 @@ class TriageTests(unittest.TestCase):
         mismatch = triage_suite(policy(), raw)["mismatches"][0]
         self.assertTrue(mismatch["actual_passed"])
         self.assertEqual(mismatch["failed_rule_ids"], [])
+
+
+class CorpusReceiptTests(unittest.TestCase):
+    def test_receipt_binds_case_order_assertions_and_all_results(self):
+        raw = suite()
+        receipt = create_suite_receipt(policy(), raw)
+        self.assertTrue(verify_suite_receipt(policy(), raw, receipt)["verified"])
+        self.assertNotIn("response", str(receipt))
+        raw["cases"].reverse()
+        self.assertFalse(verify_suite_receipt(policy(), raw, receipt)["verified"])
+        raw = suite()
+        raw["cases"][0]["expected_passed"] = False
+        self.assertFalse(verify_suite_receipt(policy(), raw, receipt)["verified"])
+        receipt["evaluation"]["matches_expectations"] = 1
+        self.assertFalse(verify_suite_receipt(policy(), suite(), receipt)["verified"])
+
+    def test_malformed_receipt_and_size_limits_fail_closed(self):
+        from unittest.mock import patch
+        receipt = create_suite_receipt(policy(), suite())
+        receipt["suite_digest"] = "bad"
+        with self.assertRaises(WorkflowInputError):
+            verify_suite_receipt(policy(), suite(), receipt)
+        with patch("constitutional_agent_testbench.workflow.MAX_JSON_INPUT_BYTES", 10):
+            with self.assertRaises(WorkflowInputError):
+                create_suite_receipt(policy(), suite())
