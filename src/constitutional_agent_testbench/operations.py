@@ -1,10 +1,11 @@
 """CLI adapter for inspection and corpus workflows; all inputs are strict JSON."""
 
-from .inspection import inspect_policy
+from .inspection import inspect_policy, inspect_suite
 
 
 # Command: (ordered JSON inputs, library function, strict success field).
 COMMANDS = {"inspect-policy": (("policy",), inspect_policy, None)}
+COMMANDS["inspect-suite"] = (("suite",), inspect_suite, "consistent_expectations")
 
 
 def add_operation_parsers(subparsers):

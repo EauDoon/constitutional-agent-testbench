@@ -2,6 +2,11 @@
 
 ## Inspect declared policy structure
 
+`inspect-suite SUITE --strict-exit` identifies repeated canonical responses and
+conflicting expectations without exposing response content or hashes. Strict exit
+is 1 for conflicting expectations. JSON booleans and numbers remain distinct.
+Duplicates with identical assertions are informational, not a failing gate.
+
 `inspect-policy POLICY` inventories rule kinds, exact paths, and declared ancestor
 relationships without displaying constraint values. The library equivalent is
 `inspect_policy`. Inspection supports up to 256 rules and a 1,000,000-byte

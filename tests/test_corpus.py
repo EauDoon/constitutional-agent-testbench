@@ -3,6 +3,7 @@ import copy
 import unittest
 
 from constitutional_agent_testbench.inspection import inspect_policy
+from constitutional_agent_testbench.inspection import inspect_suite
 
 
 def policy():
@@ -18,6 +19,18 @@ def suite():
 
 
 class InspectionTests(unittest.TestCase):
+    def test_duplicate_responses_and_conflicting_expectations(self):
+        raw = suite()
+        duplicate = copy.deepcopy(raw["cases"][0])
+        duplicate.update(case_id="contradiction", expected_passed=False)
+        raw["cases"].append(duplicate)
+        result = inspect_suite(raw)
+        self.assertFalse(result["consistent_expectations"])
+        self.assertEqual(result["duplicate_responses"][0]["case_ids"], ["pass", "contradiction"])
+        self.assertNotIn("response", result["duplicate_responses"][0])
+        duplicate["response"]["action"] = 0
+        self.assertTrue(inspect_suite(raw)["consistent_expectations"])
+
     def test_policy_inventory_does_not_copy_values(self):
         raw = policy()
         raw["rules"].append({"rule_id": "child", "kind": "equals", "path": "action.name", "value": "SYNTHETIC_PRIVATE"})

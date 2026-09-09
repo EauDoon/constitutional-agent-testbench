@@ -20,11 +20,12 @@ from .coverage import suite_coverage
 from .compare import compare_policies
 from .probes import generate_rule_probes
 from .receipt import ReceiptInputError, create_receipt, verify_receipt
-from .inspection import inspect_policy
+from .inspection import inspect_policy, inspect_suite
 from .workflow import WorkflowInputError
 
 __all__ = [
     "inspect_policy",
+    "inspect_suite",
     "WorkflowInputError",
     "AuthoringLimitError",
     "SuiteInputError",
