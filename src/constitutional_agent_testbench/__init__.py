@@ -20,8 +20,25 @@ from .coverage import suite_coverage
 from .compare import compare_policies
 from .probes import generate_rule_probes
 from .receipt import ReceiptInputError, create_receipt, verify_receipt
+from .inspection import inspect_policy, inspect_suite
+from .workflow import WorkflowInputError
+from .curation import merge_suites, select_suite, reduce_suite
+from .triage import triage_suite
+from .corpus_receipt import create_suite_receipt, verify_suite_receipt
+from .replay import create_replay_bundle, replay_bundle
 
 __all__ = [
+    "inspect_policy",
+    "inspect_suite",
+    "merge_suites",
+    "select_suite",
+    "triage_suite",
+    "reduce_suite",
+    "create_suite_receipt",
+    "verify_suite_receipt",
+    "create_replay_bundle",
+    "replay_bundle",
+    "WorkflowInputError",
     "AuthoringLimitError",
     "SuiteInputError",
     "ReceiptInputError",
@@ -49,5 +66,5 @@ __all__ = [
     "validate_policy",
 ]
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 

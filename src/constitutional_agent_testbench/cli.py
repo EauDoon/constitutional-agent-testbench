@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from pathlib import Path
 from collections.abc import Sequence
 from typing import Any
 
@@ -25,6 +26,7 @@ from .suite import evaluate_suite
 from .coverage import suite_coverage
 from .compare import compare_policies
 from .receipt import create_receipt, verify_receipt
+from .operations import COMMANDS, add_operation_parsers, run_operation
 
 
 class CliUsageError(TestbenchError):
@@ -80,6 +82,7 @@ def _build_parser() -> argparse.ArgumentParser:
         allow_abbrev=False,
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
+    add_operation_parsers(subparsers)
 
     for name, inputs, help_text in (
         ("run-suite", ("suite",), "Run explicit fixture expectations; strict exit fails on mismatches."),
@@ -197,7 +200,34 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="run the headless playground smoke check without opening a window",
     )
+    for name, command_parser in subparsers.choices.items():
+        if name not in COMMANDS and name not in {"playground", "generate-synthetic"}:
+            command_parser.add_argument("--output", metavar="PATH", help="atomically export JSON; never overwrite an input")
     return parser
+
+
+def _guard_output(arguments):
+    output = getattr(arguments, "output", None)
+    if output is None:
+        return
+    if arguments.command == "generate-synthetic" and output == "-":
+        raise CliUsageError("generate-synthetic --output writes a file and does not accept '-'.")
+    if not output or output == "-":
+        raise CliUsageError("--output writes a file and does not accept an empty path or '-'.")
+    fields = (COMMANDS[arguments.command][0] if arguments.command in COMMANDS
+              else ("policy", "response", "candidate", "suite", "receipt"))
+    try:
+        destination = Path(output)
+        for field in fields:
+            raw = getattr(arguments, field, None)
+            if raw and raw != "-":
+                source = Path(raw)
+                if destination.resolve() == source.resolve() or (
+                    destination.exists() and source.exists() and destination.samefile(source)
+                ):
+                    raise CliUsageError("Output must not overwrite a command input.")
+    except (OSError, ValueError, RuntimeError) as exc:
+        raise CliUsageError("Output destination could not be safely resolved.") from exc
 
 
 def _load_json_argument(path: str) -> Any:
@@ -218,6 +248,11 @@ def _run_command(arguments: argparse.Namespace) -> dict[str, Any]:
         raise CliUsageError(
             "generate-synthetic --output writes a file and does not accept '-'."
         )
+    if arguments.command in COMMANDS:
+        fields = COMMANDS[arguments.command][0]
+        if sum(getattr(arguments, field) == "-" for field in fields) > 1:
+            raise CliUsageError("Only one JSON input may be read from standard input per command.")
+        return run_operation(arguments, _load_json_argument)
     input_paths = [getattr(arguments, field) for field in
                    ("policy", "response", "candidate", "suite", "receipt")
                    if hasattr(arguments, field)]
@@ -265,9 +300,6 @@ def _run_command(arguments: argparse.Namespace) -> dict[str, Any]:
         return check_order_conformance(policy, response)
 
     bundle = generate_synthetic_cases(policy)
-    if arguments.output:
-        write_json(arguments.output, bundle)
-        return {"output_written": True, "policy_id": policy.policy_id}
     return bundle
 
 
@@ -276,7 +308,14 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     try:
         arguments = _build_parser().parse_args(argv)
+        _guard_output(arguments)
         result = _run_command(arguments)
+        display = result
+        if getattr(arguments, "output", None) is not None:
+            write_json(arguments.output, result)
+            display = {"output_written": True}
+            if arguments.command == "generate-synthetic":
+                display["policy_id"] = result["policy_id"]
     except _HelpRequested:
         return 0
     except TestbenchError as exc:
@@ -293,8 +332,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         sys.stderr.write(stable_json(error))
         return 2
 
-    sys.stdout.write(stable_json(result))
+    sys.stdout.write(stable_json(display))
     if getattr(arguments, "strict_exit", False):
+        if arguments.command in COMMANDS:
+            return 0 if result[COMMANDS[arguments.command][2]] else 1
         if arguments.command == "run-suite":
             return 0 if result["matches_expectations"] else 1
         if arguments.command == "suite-coverage":

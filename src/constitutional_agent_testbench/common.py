@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import json
 import math
+import os
+import stat
+import tempfile
 from pathlib import Path
 from typing import Any, BinaryIO, TextIO
 
@@ -137,11 +140,36 @@ def write_json(path: str | Path, value: Any) -> None:
     """Write stable UTF-8 JSON to an explicitly requested destination."""
 
     destination = Path(path)
+    temporary = None
     try:
+        serialized = stable_json(value)
+        permissions = 0o600
+        try:
+            existing = destination.lstat()
+        except FileNotFoundError:
+            pass
+        else:
+            if stat.S_ISREG(existing.st_mode):
+                permissions = existing.st_mode & 0o777
         destination.parent.mkdir(parents=True, exist_ok=True)
-        destination.write_text(stable_json(value), encoding="utf-8", newline="\n")
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", newline="\n",
+                                         dir=destination.parent, prefix=".cat-", delete=False) as output:
+            temporary = Path(output.name)
+            output.write(serialized)
+            output.flush()
+            if hasattr(os, "fchmod"):
+                os.fchmod(output.fileno(), permissions)
+            os.fsync(output.fileno())
+        os.replace(temporary, destination)
+        temporary = None
     except (OSError, OverflowError, RecursionError, TypeError, ValueError) as exc:
         raise JsonOutputError("Unable to write the requested JSON output.") from exc
+    finally:
+        if temporary is not None:
+            try:
+                temporary.unlink(missing_ok=True)
+            except OSError:
+                pass
 
 
 def ensure_json_value(value: Any, *, label: str) -> None:

@@ -91,10 +91,18 @@ The command line interface supports these operations:
 | `compare-policies` | Show definition changes and fixture impact between two independently evaluated policies. |
 | `create-receipt` | Bind policy and response digests to their deterministic evaluation. |
 | `verify-receipt` | Recompute and compare the complete receipt against supplied inputs. |
+| `inspect-policy` / `inspect-suite` | Inventory paths or detect duplicate inputs and conflicting assertions without values. |
+| `merge-suites` / `select-suite` | Combine corpora safely or select exact case IDs. |
+| `triage-suite` / `reduce-suite` | Diagnose regressions or retain a deterministic subset preserving observed evidence. |
+| `create-suite-receipt` / `verify-suite-receipt` | Bind and recompute whole-corpus evidence. |
+| `create-replay` / `replay` | Create and independently check portable JSON replay bundles. |
 
 See the [operator guide](docs/OPERATOR.md) for a complete authoring, regression,
 migration, and receipt workflow, including command-specific strict exit rules.
-Policy schema 1.0 and existing evaluation outputs remain unchanged in package 0.3.0.
+Policy schema 1.0 and existing evaluation outputs remain unchanged in package 0.4.0.
+Optional suite 1.1 adds per-rule assertions. See the [corpus and replay guide](docs/CORPUS.md)
+for a complete command sequence. All JSON commands accept guarded atomic `--output`
+exports; existing default stdout and strict-exit behavior remain intact.
 
 Run directly from a source checkout after adding `src` to `PYTHONPATH`:
 
@@ -407,3 +415,5 @@ the complete statement.
 ## License
 
 Released under the MIT License. See [`LICENSE`](LICENSE).
+
+Atomic exports preserve an existing regular file's POSIX read/write/execute permission bits; special bits are cleared. New exports remain private (0600 on POSIX). Destination symlinks are replaced without reading or changing their targets. Ownership and ACL preservation are outside this local export interface; platform filesystem rules still apply.

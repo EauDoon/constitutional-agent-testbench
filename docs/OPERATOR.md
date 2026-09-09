@@ -1,5 +1,41 @@
 # Local policy operator workflow
 
+See the [0.4.0 corpus guide](CORPUS.md) for a complete executable curation,
+assertion, receipt, replay, and atomic-export workflow.
+
+## Corpus inspection and curation
+
+`reduce-suite POLICY SUITE` returns an executable subset, retaining every observed
+rule/pass/reason combination, verdict/expectation category, and every mismatching
+fixture. A greedy algorithm breaks ties by original order; final cases retain
+source order. It supports up to 256 rules. It is deterministic, not a globally
+minimal suite or a guarantee about unobserved inputs. Responses are included.
+
+`triage-suite POLICY SUITE --strict-exit` reports only cases whose explicit
+expectations failed, groups their actual failures by rule/path/reason, and retains
+unexpected passes and rule-assertion mismatches. It omits response values. Strict
+exit follows regression expectations, not whether all responses passed policy.
+
+`select-suite SUITE SELECTION` creates a focused executable corpus from a JSON
+array of exact case IDs. It preserves source order and rejects unknown IDs,
+duplicates, or an empty selection. The result includes selected response values.
+Use this to reproduce a named case without editing the original fixture file.
+
+`merge-suites LEFT RIGHT` appends same-version suites in input order, returning a
+directly executable suite. Duplicate case IDs, even with identical contents, and
+combined size/case-limit violations fail closed. It never renames or drops cases.
+This output includes original responses, so export only to an intended destination.
+
+`inspect-suite SUITE --strict-exit` identifies repeated canonical responses and
+conflicting expectations without exposing response content or hashes. Strict exit
+is 1 for conflicting expectations. JSON booleans and numbers remain distinct.
+Duplicates with identical assertions are informational, not a failing gate.
+
+`inspect-policy POLICY` inventories rule kinds, exact paths, and declared ancestor
+relationships without displaying constraint values. The library equivalent is
+`inspect_policy`. Inspection supports up to 256 rules and a 1,000,000-byte
+formatted report; exceeding a workflow bound fails closed with `INVALID_WORKFLOW`.
+
 Package 0.3.0 adds authoring and regression tools around the existing schema 1.0
 evaluator. All rules still participate. Input content never selects authority,
 executes an action, or overrides another policy. Runtime dependencies remain
@@ -28,6 +64,16 @@ fixtures, not evidence of model behavior, independent rule isolation, or safety.
 
 ## Run regression fixtures and inspect gaps
 
+Suite version `1.1` optionally adds `expected_rules` to each case, mapping rule IDs
+to `{"passed": false, "reason_code": "FIELD_MISSING"}` assertions. Each assertion
+requires both fields and a consistent public reason code. Omitted rules are not
+asserted. `run-suite` reports `rule_assertion_mismatches` and fails the expectation
+when an asserted rule disappears or its outcome/reason differs, even when the
+overall expected failure still occurs. This also participates in strict exit and
+migration expectation reports. Version 1.0 inputs and result shapes are unchanged.
+An empty assertion map asserts only the overall verdict. Same-version curation
+preserves assertions; changing suite versions is an explicit authoring decision.
+
 ```text
 constitutional-agent-testbench run-suite examples/policy.json examples/regression-suite.json --strict-exit
 constitutional-agent-testbench suite-coverage examples/policy.json examples/regression-suite.json --strict-exit
@@ -50,6 +96,24 @@ A result on the supplied corpus does not establish general equivalence or decide
 which policy should govern a real workflow.
 
 ## Create and verify a receipt
+
+`create-replay POLICY SUITE` produces one self-contained JSON bundle with policy,
+fixtures and their receipt. **Bundles contain original policy and response values.**
+`replay BUNDLE --strict-exit` recomputes evidence using the installed evaluator.
+Exit 0 requires both valid bindings and matching fixture expectations; exit 1
+means a valid inconsistency or regression, and malformed artifacts return 2.
+When bindings fail, `matches_expectations` is null rather than a trusted claim.
+Replay never loads a module, follows a path, calls a model, or executes a command
+from bundle contents. All fields are strict, versioned data. Combined bundles
+must fit the existing JSON nesting/node and 1,000,000-byte formatted limits.
+
+`create-suite-receipt POLICY SUITE` and `verify-suite-receipt POLICY SUITE RECEIPT
+--strict-exit` extend receipt consistency checking to entire corpora. They bind
+case order, responses, expected verdicts, optional rule assertions, and all actual
+rule results. Receipts omit raw responses. Verification independently recomputes
+the complete report; changing a boolean to a number fails consistency checking.
+These are separate versioned artifacts, preserving existing single-response
+receipts. Anyone with the inputs can recreate them; they are not signatures.
 
 ```text
 constitutional-agent-testbench create-receipt examples/policy.json examples/passing-response.json > receipt.json
