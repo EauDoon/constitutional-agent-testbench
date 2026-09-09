@@ -1,7 +1,11 @@
 import copy
 import unittest
+from unittest.mock import patch
+from pathlib import Path
 
 from constitutional_agent_testbench.authoring import lint_policy
+from constitutional_agent_testbench.authoring import AuthoringLimitError
+from constitutional_agent_testbench.common import load_json, parse_json_text, stable_json
 from constitutional_agent_testbench.explain import explain_response
 from constitutional_agent_testbench.evaluator import EvaluationInputError
 from constitutional_agent_testbench.suite import evaluate_suite, validate_suite, SuiteInputError
@@ -98,6 +102,8 @@ class ProbeTests(unittest.TestCase):
         self.assertTrue(evaluate_suite(raw, report["suite"])["matches_expectations"])
         self.assertEqual(report["probes"][0]["failed_rule_ids"], ["present", "r"])
         self.assertEqual(report["probes"][1]["failed_rule_ids"], ["r"])
+        reloaded = parse_json_text(stable_json(report))
+        self.assertTrue(evaluate_suite(raw, reloaded["suite"])["matches_expectations"])
 
     def test_all_rule_kinds(self):
         raw = policy(rule("equal", "equals", "a", value=None),
@@ -139,6 +145,57 @@ class ReceiptTests(unittest.TestCase):
             with self.assertRaises(ReceiptInputError):
                 verify_receipt(raw, {}, receipt)
 
+    def test_policy_identity_and_rule_order_are_bound(self):
+        raw = policy(rule(), rule("present", "required_field"))
+        receipt = parse_json_text(stable_json(create_receipt(raw, {"action": False})))
+        changed = copy.deepcopy(raw)
+        changed["rules"].reverse()
+        self.assertEqual(verify_receipt(changed, {"action": False}, receipt)["mismatched_fields"],
+                         ["evaluation", "policy_digest"])
+        changed = copy.deepcopy(raw)
+        changed["policy_id"] = "new-policy"
+        self.assertFalse(verify_receipt(changed, {"action": False}, receipt)["verified"])
+
+
+class OperatorBoundaryTests(unittest.TestCase):
+    def test_authoring_work_limit(self):
+        raw = policy(rule("parent", "equals", "action", value={"name": False}),
+                     rule("child", "false", "action.name"))
+        with patch("constitutional_agent_testbench.authoring.MAX_AUTHORING_WORK_BYTES", 1):
+            with self.assertRaises(AuthoringLimitError):
+                lint_policy(raw)
+
+    def test_suite_work_limit(self):
+        with patch("constitutional_agent_testbench.suite.MAX_SUITE_POLICY_BYTES", 1):
+            with self.assertRaises(SuiteInputError):
+                evaluate_suite(policy(rule()), suite())
+
+    def test_probe_output_limit(self):
+        with patch("constitutional_agent_testbench.probes.MAX_JSON_INPUT_BYTES", 300):
+            with self.assertRaises(SyntheticGenerationError):
+                generate_rule_probes(policy(rule()))
+
+    def test_receipt_output_limit(self):
+        with patch("constitutional_agent_testbench.receipt.MAX_JSON_INPUT_BYTES", 10):
+            with self.assertRaises(ReceiptInputError):
+                create_receipt(policy(rule()), {})
+
+    def test_bundled_operator_fixtures(self):
+        root = Path(__file__).resolve().parents[1] / "examples"
+        raw = load_json(root / "policy.json")
+        fixtures = load_json(root / "regression-suite.json")
+        self.assertTrue(evaluate_suite(raw, fixtures)["matches_expectations"])
+        self.assertEqual(suite_coverage(raw, fixtures)["rules_with_both_outcomes"], 5)
+        migration = compare_policies(raw, load_json(root / "migration-policy.json"), fixtures)
+        self.assertEqual(migration["newly_failing"], ["passing"])
+
+    def test_public_api_and_version(self):
+        import constitutional_agent_testbench as package
+        self.assertEqual(package.__version__, "0.3.0")
+        for name in ("lint_policy", "explain_response", "evaluate_suite", "suite_coverage",
+                     "compare_policies", "generate_rule_probes", "create_receipt", "verify_receipt"):
+            self.assertTrue(callable(getattr(package, name)))
+
 
 class AuthoringTests(unittest.TestCase):
     def test_strict_types_and_no_mutation(self):
@@ -146,6 +203,21 @@ class AuthoringTests(unittest.TestCase):
         before = copy.deepcopy(raw)
         self.assertTrue(lint_policy(raw)["has_conflicts"])
         self.assertEqual(raw, before)
+
+    def test_ancestor_and_duplicates(self):
+        raw = policy(rule(), rule("other"), rule("child", "required_field", "action.name"))
+        codes = {item["code"] for item in lint_policy(raw)["findings"]}
+        self.assertEqual(codes, {"DUPLICATE_CONSTRAINT", "INCOMPATIBLE_DESCENDANTS"})
+
+    def test_valid_nested_domain_and_null_presence(self):
+        raw = policy(rule("parent", "one_of", "action", values=[{}, {"name": None}]),
+                     rule("child", "required_field", "action.name"))
+        self.assertFalse(lint_policy(raw)["has_conflicts"])
+
+    def test_three_way_empty_intersection(self):
+        raw = policy(*(rule(str(i), "one_of", values=v) for i, v in
+                       enumerate(([1, 2], [2, 3], [1, 3]))))
+        self.assertTrue(lint_policy(raw)["has_conflicts"])
 
 
 class ExplanationTests(unittest.TestCase):
@@ -162,18 +234,3 @@ class ExplanationTests(unittest.TestCase):
         self.assertTrue(explain_response(raw, {"action": None})["evaluation"]["passed"])
         with self.assertRaises(EvaluationInputError):
             explain_response(raw, [])
-
-    def test_ancestor_and_duplicates(self):
-        raw = policy(rule(), rule("other"), rule("child", "required_field", "action.name"))
-        codes = {item["code"] for item in lint_policy(raw)["findings"]}
-        self.assertEqual(codes, {"DUPLICATE_CONSTRAINT", "INCOMPATIBLE_DESCENDANTS"})
-
-    def test_valid_nested_domain_and_null_presence(self):
-        raw = policy(rule("parent", "one_of", "action", values=[{}, {"name": None}]),
-                     rule("child", "required_field", "action.name"))
-        self.assertFalse(lint_policy(raw)["has_conflicts"])
-
-    def test_three_way_empty_intersection(self):
-        raw = policy(*(rule(str(i), "one_of", values=v) for i, v in
-                       enumerate(([1, 2], [2, 3], [1, 3]))))
-        self.assertTrue(lint_policy(raw)["has_conflicts"])

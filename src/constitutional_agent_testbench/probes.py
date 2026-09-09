@@ -3,11 +3,13 @@
 from copy import deepcopy
 from typing import Any
 
-from .common import MAX_JSON_INPUT_BYTES, bounded_canonical_json_size, canonical_json
+from .common import (MAX_JSON_INPUT_BYTES, bounded_canonical_json_size, canonical_json,
+                     ensure_json_value, stable_json)
 from .evaluator import evaluate_response
-from .policy import Policy, validate_policy
+from .policy import Policy, policy_to_dict, validate_policy
 from .synthetic import (SyntheticGenerationError, _assign_path, _delete_path,
                         generate_synthetic_cases)
+from .suite import SuiteInputError, validate_suite
 
 MAX_PROBE_RULES = 64
 
@@ -21,6 +23,9 @@ def generate_rule_probes(policy: Policy | dict[str, Any]) -> dict[str, Any]:
     current = validate_policy(policy)
     if len(current.rules) > MAX_PROBE_RULES:
         raise SyntheticGenerationError("Targeted probes support at most 64 rules.")
+    policy_bytes = bounded_canonical_json_size(policy_to_dict(current), label="Policy", limit=MAX_JSON_INPUT_BYTES)
+    if policy_bytes * (1 + 2 * len(current.rules)) > 32_000_000:
+        raise SyntheticGenerationError("Probe policy evaluation work exceeds the 32,000,000-byte limit.")
     passing = generate_synthetic_cases(current)["passing_case"]["response"]
     cases = [{"case_id": "baseline", "response": passing, "expected_passed": True}]
     probes = []
@@ -57,7 +62,11 @@ def generate_rule_probes(policy: Policy | dict[str, Any]) -> dict[str, Any]:
     result = {"policy_id": current.policy_id, "suite": {"suite_version": "1.0", "cases": cases},
               "probes": probes, "coverage_scope": "verified synthetic mutations only"}
     try:
+        validate_suite(result["suite"])
+        ensure_json_value(result, label="Probe output")
         bounded_canonical_json_size(result, label="Probe output", limit=MAX_JSON_INPUT_BYTES)
-    except ValueError as exc:
-        raise SyntheticGenerationError("Probe output exceeds the 1,000,000-byte limit.") from exc
+        if len(stable_json(result).encode("utf-8")) > MAX_JSON_INPUT_BYTES:
+            raise ValueError("Formatted probe output is too large.")
+    except (ValueError, SuiteInputError) as exc:
+        raise SyntheticGenerationError("Probe output exceeds strict JSON or suite limits.") from exc
     return result

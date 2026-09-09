@@ -5,7 +5,7 @@ import re
 from typing import Any
 
 from .common import (MAX_JSON_INPUT_BYTES, TestbenchError, bounded_canonical_json_size,
-                     canonical_json, ensure_json_value)
+                     canonical_json, ensure_json_value, stable_json)
 from .evaluator import evaluate_response
 from .policy import Policy, policy_to_dict, validate_policy
 
@@ -22,9 +22,16 @@ def create_receipt(policy: Policy | dict[str, Any], response: Any) -> dict[str, 
     """Bind a validated policy and response to their recomputable evaluation."""
     current = validate_policy(policy)
     evaluation = evaluate_response(current, response)
-    return {"receipt_version": "1.0", "digest_algorithm": "sha256-canonical-json-v1",
+    result = {"receipt_version": "1.0", "digest_algorithm": "sha256-canonical-json-v1",
             "policy_digest": _digest(policy_to_dict(current)), "response_digest": _digest(response),
             "evaluation": evaluation}
+    try:
+        bounded_canonical_json_size(result, label="Receipt", limit=MAX_JSON_INPUT_BYTES)
+        if len(stable_json(result).encode("utf-8")) > MAX_JSON_INPUT_BYTES:
+            raise ValueError("Formatted receipt is too large.")
+    except ValueError as exc:
+        raise ReceiptInputError("Receipt output exceeds the 1,000,000-byte limit.") from exc
+    return result
 
 
 def verify_receipt(policy: Policy | dict[str, Any], response: Any, receipt: Any) -> dict[str, Any]:

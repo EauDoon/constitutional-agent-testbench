@@ -4,9 +4,15 @@ from __future__ import annotations
 
 from typing import Any
 
-from .common import canonical_json, get_field
+from .common import TestbenchError, canonical_json
 from .evaluator import _evaluate_rule
 from .policy import Policy, Rule, validate_policy
+
+MAX_AUTHORING_WORK_BYTES = 32_000_000
+
+
+class AuthoringLimitError(TestbenchError):
+    code = "AUTHORING_LIMIT_EXCEEDED"
 
 
 def _domain(rule: Rule) -> list[Any] | None:
@@ -28,6 +34,7 @@ def lint_policy(policy: Policy | dict[str, Any]) -> dict[str, Any]:
     examines each finite domain once per related rule, not a Cartesian search.
     """
     current = validate_policy(policy)
+    work_bytes = 0
     findings = []
     groups: dict[str, list[Rule]] = {}
     for rule in current.rules:
@@ -56,6 +63,15 @@ def lint_policy(policy: Policy | dict[str, Any]) -> dict[str, Any]:
                 continue
             descendants = [child for child in current.rules
                            if child.path.startswith(path + ".")]
+            # Charge both compared values and every allowed candidate before work.
+            domain_bytes = sum(len(canonical_json(v).encode("utf-8")) for v in domain)
+            child_bytes = sum(len(canonical_json(_domain(child)).encode("utf-8"))
+                              for child in descendants)
+            comparisons = sum(len(child.values) if child.kind == "one_of" else 1
+                              for child in descendants)
+            work_bytes += domain_bytes * comparisons + child_bytes * len(domain)
+            if work_bytes > MAX_AUTHORING_WORK_BYTES:
+                raise AuthoringLimitError("Authoring comparison work exceeds the 32,000,000-byte limit.")
             if descendants and not any(
                 isinstance(value, dict) and all(
                     _evaluate_rule(Rule(child.rule_id, child.kind,

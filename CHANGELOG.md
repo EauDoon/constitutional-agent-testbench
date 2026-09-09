@@ -1,5 +1,15 @@
 # Changelog
 
+## Version 0.3.0 - 09-09-2026
+
+- Added conservative authoring diagnostics and value-free traversal explanations.
+- Added strict, bounded fixture suites, observed outcome coverage, and policy migration comparisons.
+- Added verified missing-field and wrong-value probes with collateral failures reported explicitly.
+- Added SHA-256 digest-bound evaluation receipts and full recomputation verification.
+- Added eight CLI commands and public library APIs for the operator workflow.
+- Preserved policy schema 1.0, existing evaluation results, and PrecedenceTrace semantics.
+- Added executable synthetic fixtures and documented limits, strict exits, and receipt trust boundaries.
+
 ## Version 0.2.0 - 27 July 2026
 
 - Added PrecedenceTrace as an exhaustive peer-rule order-conformance mode.

@@ -1,0 +1,34 @@
+{
+  "cases": [
+    {
+      "case_id": "passing",
+      "expected_passed": true,
+      "response": {
+        "actions": [],
+        "blocked": false,
+        "decision": "accept",
+        "risk_level": "low",
+        "summary": "Synthetic example."
+      }
+    },
+    {
+      "case_id": "failing",
+      "expected_passed": false,
+      "response": {
+        "actions": [
+          "synthetic-item"
+        ],
+        "blocked": true,
+        "decision": "decline",
+        "risk_level": "high",
+        "summary": "Synthetic example."
+      }
+    },
+    {
+      "case_id": "missing-fields",
+      "expected_passed": false,
+      "response": {}
+    }
+  ],
+  "suite_version": "1.0"
+}
