@@ -2,6 +2,11 @@
 
 ## Inspect declared policy structure
 
+`merge-suites LEFT RIGHT` appends same-version suites in input order, returning a
+directly executable suite. Duplicate case IDs, even with identical contents, and
+combined size/case-limit violations fail closed. It never renames or drops cases.
+This output includes original responses, so export only to an intended destination.
+
 `inspect-suite SUITE --strict-exit` identifies repeated canonical responses and
 conflicting expectations without exposing response content or hashes. Strict exit
 is 1 for conflicting expectations. JSON booleans and numbers remain distinct.

@@ -4,6 +4,8 @@ import unittest
 
 from constitutional_agent_testbench.inspection import inspect_policy
 from constitutional_agent_testbench.inspection import inspect_suite
+from constitutional_agent_testbench.curation import merge_suites
+from constitutional_agent_testbench.suite import SuiteInputError
 
 
 def policy():
@@ -40,3 +42,22 @@ class InspectionTests(unittest.TestCase):
         self.assertEqual(result["rule_count"], 2)
         self.assertNotIn("SYNTHETIC_PRIVATE", str(result))
         self.assertEqual(raw, before)
+
+
+class CurationTests(unittest.TestCase):
+    def test_merge_preserves_order_and_rejects_collisions(self):
+        left, right = suite(), suite()
+        for case in right["cases"]:
+            case["case_id"] += "-new"
+        merged = merge_suites(left, right)
+        self.assertEqual(len(merged["cases"]), 6)
+        merged["cases"][0]["response"].clear()
+        self.assertTrue(left["cases"][0]["response"])
+        with self.assertRaises(SuiteInputError):
+            merge_suites(left, left)
+
+    def test_merge_enforces_combined_case_limit(self):
+        left = suite()
+        left["cases"] = [{"case_id": str(i), "response": {}, "expected_passed": False} for i in range(256)]
+        with self.assertRaises(SuiteInputError):
+            merge_suites(left, suite())

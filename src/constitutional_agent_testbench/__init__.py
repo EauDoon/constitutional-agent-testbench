@@ -22,10 +22,12 @@ from .probes import generate_rule_probes
 from .receipt import ReceiptInputError, create_receipt, verify_receipt
 from .inspection import inspect_policy, inspect_suite
 from .workflow import WorkflowInputError
+from .curation import merge_suites
 
 __all__ = [
     "inspect_policy",
     "inspect_suite",
+    "merge_suites",
     "WorkflowInputError",
     "AuthoringLimitError",
     "SuiteInputError",
