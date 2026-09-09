@@ -1,6 +1,8 @@
 """Explicit corpus edits that preserve response content and assertion intent."""
 from .suite import validate_suite, SuiteInputError
 from .workflow import bounded_artifact, WorkflowInputError
+from .policy import validate_policy
+from .suite import evaluate_suite
 
 
 def merge_suites(suite, incoming):
@@ -25,3 +27,31 @@ def select_suite(suite, selection):
         raise WorkflowInputError("Selection contains unknown case identifiers.")
     fixtures["cases"] = [case for case in fixtures["cases"] if case["case_id"] in identifiers]
     return bounded_artifact(fixtures)
+
+
+def reduce_suite(policy, suite):
+    """Greedily retain observed rule/reason coverage and every mismatching fixture."""
+    current = validate_policy(policy)
+    if len(current.rules) > 256:
+        raise WorkflowInputError("Suite reduction supports at most 256 rules.")
+    fixtures = validate_suite(suite)
+    report = evaluate_suite(current, fixtures)
+    signatures = []
+    retained = set()
+    for index, case in enumerate(report["cases"]):
+        signature = {(row["rule_id"], row["passed"], row["reason_code"])
+                     for row in case["evaluation"]["rule_results"]}
+        # Keep observed verdict/expectation categories as well as rule evidence.
+        signature.add(("verdict", case["evaluation"]["passed"], case["expected_passed"]))
+        signatures.append(signature)
+        if not case["matches_expectation"]:
+            retained.add(index)
+    uncovered = set().union(*signatures)
+    for index in retained:
+        uncovered -= signatures[index]
+    while uncovered:
+        chosen = max(range(len(signatures)), key=lambda index: len(signatures[index] & uncovered))
+        retained.add(chosen)
+        uncovered -= signatures[chosen]
+    fixtures["cases"] = [case for index, case in enumerate(fixtures["cases"]) if index in retained]
+    return bounded_artifact(validate_suite(fixtures))

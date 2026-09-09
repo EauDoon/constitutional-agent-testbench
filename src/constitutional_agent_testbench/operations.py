@@ -1,7 +1,7 @@
 """CLI adapter for inspection and corpus workflows; all inputs are strict JSON."""
 
 from .inspection import inspect_policy, inspect_suite
-from .curation import merge_suites, select_suite
+from .curation import merge_suites, select_suite, reduce_suite
 from .triage import triage_suite
 
 
@@ -11,6 +11,7 @@ COMMANDS["inspect-suite"] = (("suite",), inspect_suite, "consistent_expectations
 COMMANDS["merge-suites"] = (("suite", "incoming"), merge_suites, None)
 COMMANDS["select-suite"] = (("suite", "selection"), select_suite, None)
 COMMANDS["triage-suite"] = (("policy", "suite"), triage_suite, "matches_expectations")
+COMMANDS["reduce-suite"] = (("policy", "suite"), reduce_suite, None)
 
 
 def add_operation_parsers(subparsers):

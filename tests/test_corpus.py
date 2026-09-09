@@ -7,6 +7,8 @@ from constitutional_agent_testbench.inspection import inspect_suite
 from constitutional_agent_testbench.curation import merge_suites, select_suite
 from constitutional_agent_testbench.workflow import WorkflowInputError
 from constitutional_agent_testbench.triage import triage_suite
+from constitutional_agent_testbench.curation import reduce_suite
+from constitutional_agent_testbench.coverage import suite_coverage
 from constitutional_agent_testbench.suite import SuiteInputError, evaluate_suite, validate_suite
 
 
@@ -47,6 +49,21 @@ class InspectionTests(unittest.TestCase):
 
 
 class CurationTests(unittest.TestCase):
+    def test_reduction_keeps_reason_coverage_and_all_regressions(self):
+        raw = suite()
+        duplicate = copy.deepcopy(raw["cases"][0])
+        duplicate["case_id"] = "redundant"
+        raw["cases"].append(duplicate)
+        result = reduce_suite(policy(), raw)
+        self.assertEqual(result, suite())
+        self.assertEqual(reduce_suite(policy(), raw), result)
+        self.assertEqual(suite_coverage(policy(), raw)["rules"][0]["reason_counts"].keys(),
+                         suite_coverage(policy(), result)["rules"][0]["reason_counts"].keys())
+        raw["cases"][3]["expected_passed"] = False
+        reduced = reduce_suite(policy(), raw)
+        self.assertIn("redundant", [case["case_id"] for case in reduced["cases"]])
+        self.assertFalse(evaluate_suite(policy(), reduced)["matches_expectations"])
+
     def test_selection_is_exact_and_preserves_original_order(self):
         result = select_suite(suite(), ["wrong", "pass"])
         self.assertEqual([c["case_id"] for c in result["cases"]], ["pass", "wrong"])

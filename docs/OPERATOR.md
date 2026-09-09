@@ -2,6 +2,12 @@
 
 ## Inspect declared policy structure
 
+`reduce-suite POLICY SUITE` returns an executable subset, retaining every observed
+rule/pass/reason combination, verdict/expectation category, and every mismatching
+fixture. A greedy algorithm breaks ties by original order; final cases retain
+source order. It supports up to 256 rules. It is deterministic, not a globally
+minimal suite or a guarantee about unobserved inputs. Responses are included.
+
 `triage-suite POLICY SUITE --strict-exit` reports only cases whose explicit
 expectations failed, groups their actual failures by rule/path/reason, and retains
 unexpected passes and rule-assertion mismatches. It omits response values. Strict

@@ -22,7 +22,7 @@ from .probes import generate_rule_probes
 from .receipt import ReceiptInputError, create_receipt, verify_receipt
 from .inspection import inspect_policy, inspect_suite
 from .workflow import WorkflowInputError
-from .curation import merge_suites, select_suite
+from .curation import merge_suites, select_suite, reduce_suite
 from .triage import triage_suite
 
 __all__ = [
@@ -31,6 +31,7 @@ __all__ = [
     "merge_suites",
     "select_suite",
     "triage_suite",
+    "reduce_suite",
     "WorkflowInputError",
     "AuthoringLimitError",
     "SuiteInputError",
