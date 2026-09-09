@@ -9,6 +9,7 @@ from constitutional_agent_testbench.coverage import suite_coverage
 from constitutional_agent_testbench.compare import compare_policies
 from constitutional_agent_testbench.probes import generate_rule_probes
 from constitutional_agent_testbench.synthetic import SyntheticGenerationError
+from constitutional_agent_testbench.receipt import create_receipt, verify_receipt, ReceiptInputError
 
 
 def policy(*rules):
@@ -111,6 +112,32 @@ class ProbeTests(unittest.TestCase):
                     policy(rule(), rule("conflict", "equals", value=True))):
             with self.assertRaises(SyntheticGenerationError):
                 generate_rule_probes(raw)
+
+
+class ReceiptTests(unittest.TestCase):
+    def test_round_trip_and_key_order(self):
+        raw = policy(rule())
+        response = {"z": 1, "action": False}
+        receipt = create_receipt(raw, response)
+        self.assertTrue(verify_receipt(raw, {"action": False, "z": 1}, receipt)["verified"])
+        self.assertNotIn("response", receipt)
+
+    def test_tamper_wrong_inputs_and_bool_integer(self):
+        raw = policy(rule())
+        receipt = create_receipt(raw, {"action": False})
+        receipt["evaluation"]["passed"] = 1
+        self.assertEqual(verify_receipt(raw, {"action": False}, receipt)["mismatched_fields"], ["evaluation"])
+        fresh = create_receipt(raw, {"action": False})
+        report = verify_receipt(raw, {"action": True}, fresh)
+        self.assertEqual(report["mismatched_fields"], ["evaluation", "response_digest"])
+
+    def test_rejects_unknown_fields_and_bad_digests(self):
+        for mutate in (lambda r: r.update(extra=True), lambda r: r.update(policy_digest="wrong")):
+            raw = policy(rule())
+            receipt = create_receipt(raw, {})
+            mutate(receipt)
+            with self.assertRaises(ReceiptInputError):
+                verify_receipt(raw, {}, receipt)
 
 
 class AuthoringTests(unittest.TestCase):
