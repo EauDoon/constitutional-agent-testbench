@@ -51,6 +51,15 @@ class InspectionTests(unittest.TestCase):
 
 
 class CurationTests(unittest.TestCase):
+    def test_reduction_retains_explicit_assertion_coverage(self):
+        raw = suite()
+        raw["suite_version"] = "1.1"
+        asserted = copy.deepcopy(raw["cases"][0])
+        asserted["case_id"] = "asserted"
+        asserted["expected_rules"] = {"r": {"passed": True, "reason_code": "RULE_SATISFIED"}}
+        raw["cases"].append(asserted)
+        self.assertIn("asserted", [c["case_id"] for c in reduce_suite(policy(), raw)["cases"]])
+
     def test_reduction_keeps_reason_coverage_and_all_regressions(self):
         raw = suite()
         duplicate = copy.deepcopy(raw["cases"][0])

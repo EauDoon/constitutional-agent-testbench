@@ -43,6 +43,8 @@ def reduce_suite(policy, suite):
                      for row in case["evaluation"]["rule_results"]}
         # Keep observed verdict/expectation categories as well as rule evidence.
         signature.add(("verdict", case["evaluation"]["passed"], case["expected_passed"]))
+        for identifier, assertion in fixtures["cases"][index].get("expected_rules", {}).items():
+            signature.add(("assertion", identifier, assertion["passed"], assertion["reason_code"]))
         signatures.append(signature)
         if not case["matches_expectation"]:
             retained.add(index)

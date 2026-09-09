@@ -25,6 +25,7 @@ def add_operation_parsers(subparsers):
         parser = subparsers.add_parser(name, help=f"Run {name} locally.", allow_abbrev=False)
         for field in fields:
             parser.add_argument(field, help=f"{field} JSON path, or - for stdin")
+        parser.add_argument("--output", metavar="PATH", help="atomically export JSON; never overwrite an input")
         if strict_field:
             parser.add_argument("--strict-exit", action="store_true")
 

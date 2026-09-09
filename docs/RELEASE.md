@@ -1,7 +1,7 @@
-# Constitutional Agent Testbench v0.3.0 release assets
+# Constitutional Agent Testbench v0.4.0 release assets
 
-The v0.3.0 package metadata is recorded in
-`release/v0.3.0-manifest.json`. The pinned release workflow builds a wheel and
+The v0.4.0 package metadata is recorded in
+`release/v0.4.0-manifest.json`. The pinned release workflow builds a wheel and
 source distribution, lists both archives, writes SHA-256 files, and retains the
 assets for 14 days. It does not create or publish a remote release.
 

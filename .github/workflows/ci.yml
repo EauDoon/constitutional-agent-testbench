@@ -50,6 +50,13 @@ jobs:
           constitutional-agent-testbench compare-policies examples/policy.json examples/migration-policy.json examples/regression-suite.json
           constitutional-agent-testbench create-receipt examples/policy.json examples/passing-response.json > receipt.json
           constitutional-agent-testbench verify-receipt examples/policy.json examples/passing-response.json receipt.json --strict-exit
+          constitutional-agent-testbench inspect-policy examples/policy.json
+          constitutional-agent-testbench inspect-suite examples/assertion-suite.json --strict-exit
+          constitutional-agent-testbench run-suite examples/policy.json examples/assertion-suite.json --strict-exit
+          constitutional-agent-testbench triage-suite examples/policy.json examples/assertion-suite.json --strict-exit
+          constitutional-agent-testbench reduce-suite examples/policy.json examples/assertion-suite.json --output reduced.json
+          constitutional-agent-testbench create-replay examples/policy.json reduced.json --output replay.json
+          constitutional-agent-testbench replay replay.json --strict-exit
       - name: Verify PrecedenceTrace conformance mode
         run: constitutional-agent-testbench check-order examples/policy.json examples/passing-response.json
       - name: Install the pinned distribution builder
@@ -67,13 +74,13 @@ jobs:
           python -m pip install --force-reinstall --no-deps dist/*.tar.gz
           sdist_smoke_dir="$(mktemp -d)"
           cd "$sdist_smoke_dir"
-          python -c "import constitutional_agent_testbench as c; assert c.__version__ == '0.3.0'; assert callable(c.check_order_conformance)"
+          python -c "import constitutional_agent_testbench as c; assert c.__version__ == '0.4.0'; assert callable(c.check_order_conformance)"
           constitutional-agent-testbench check-order "${GITHUB_WORKSPACE}/examples/policy.json" "${GITHUB_WORKSPACE}/examples/passing-response.json" | python -c "import json, sys; report=json.load(sys.stdin); assert report['coverage']['orders_evaluated'] == 120; assert report['coverage']['evaluations_performed'] == 360; assert report['conforms_within_coverage'] is True"
           cd "$GITHUB_WORKSPACE"
           python -m pip install --force-reinstall --no-deps dist/*.whl
           smoke_dir="$(mktemp -d)"
           cd "$smoke_dir"
-          python -c "import constitutional_agent_testbench as c; assert c.__version__ == '0.3.0'; assert callable(c.check_order_conformance)"
+          python -c "import constitutional_agent_testbench as c; assert c.__version__ == '0.4.0'; assert callable(c.check_order_conformance)"
           constitutional-agent-testbench check-order "${GITHUB_WORKSPACE}/examples/policy.json" "${GITHUB_WORKSPACE}/examples/passing-response.json" | python -c "import json, sys; report=json.load(sys.stdin); assert report['coverage']['orders_evaluated'] == 120; assert report['coverage']['evaluations_performed'] == 360; assert report['conforms_within_coverage'] is True"
 
   windows-installed-wheel:
@@ -94,7 +101,7 @@ jobs:
         run: |
           python -m pip install --disable-pip-version-check --no-cache-dir "setuptools==83.0.0"
           python -m pip wheel --disable-pip-version-check --no-cache-dir --no-deps --no-build-isolation --wheel-dir "$env:RUNNER_TEMP" .
-          $wheel = Get-ChildItem -LiteralPath $env:RUNNER_TEMP -Filter "constitutional_agent_testbench-0.3.0-*.whl" | Select-Object -First 1
+          $wheel = Get-ChildItem -LiteralPath $env:RUNNER_TEMP -Filter "constitutional_agent_testbench-0.4.0-*.whl" | Select-Object -First 1
           if ($null -eq $wheel) { throw "Expected wheel was not built." }
           python -m pip install --disable-pip-version-check --no-cache-dir --force-reinstall --no-deps $wheel.FullName
       - name: Run installed-wheel contract checks

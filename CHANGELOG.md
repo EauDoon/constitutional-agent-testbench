@@ -1,5 +1,14 @@
 # Changelog
 
+## Version 0.4.0 - 10-09-2026
+
+- Inspect policy structure and fixture duplication without candidate values.
+- Merge, select, triage, and deterministically reduce regression corpora.
+- Assert exact rule outcomes and reasons in opt-in suite 1.1, preserving 1.0 reports.
+- Bind full corpora to recomputable receipts and portable replay bundles.
+- Export JSON atomically while rejecting input-path aliases before reading inputs.
+- Preserve policy/evaluator semantics, standard-library runtime, and offline operation.
+
 ## Version 0.3.0 - 09-09-2026
 
 - Added conservative authoring diagnostics and value-free traversal explanations.

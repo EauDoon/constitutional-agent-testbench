@@ -191,7 +191,7 @@ class OperatorBoundaryTests(unittest.TestCase):
 
     def test_public_api_and_version(self):
         import constitutional_agent_testbench as package
-        self.assertEqual(package.__version__, "0.3.0")
+        self.assertEqual(package.__version__, "0.4.0")
         for name in ("lint_policy", "explain_response", "evaluate_suite", "suite_coverage",
                      "compare_policies", "generate_rule_probes", "create_receipt", "verify_receipt"):
             self.assertTrue(callable(getattr(package, name)))

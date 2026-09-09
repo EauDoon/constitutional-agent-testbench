@@ -1,6 +1,9 @@
 # Local policy operator workflow
 
-## Inspect declared policy structure
+See the [0.4.0 corpus guide](CORPUS.md) for a complete executable curation,
+assertion, receipt, replay, and atomic-export workflow.
+
+## Corpus inspection and curation
 
 `reduce-suite POLICY SUITE` returns an executable subset, retaining every observed
 rule/pass/reason combination, verdict/expectation category, and every mismatching
