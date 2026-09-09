@@ -18,6 +18,9 @@ The package is deliberately narrow. It does not call models, use a network, exec
 - Evaluate every declared rule and receive a clear pass state plus a stable reason code for each result.
 - Fail closed when an expected path is absent.
 - Generate verified passing and failing fixtures from the same policy.
+- Diagnose conflicting constraints and explain exactly where field traversal failed.
+- Run explicit regression fixtures, inspect outcome coverage, and compare policy migrations.
+- Recompute digest-bound evaluation receipts without retaining response values in reports.
 - Keep evaluation local, dependency-free at runtime, and separate from model execution.
 
 This is useful for development checks, regression suites, demonstrations, and pre-action validation of structured responses. It is not a safety certification and does not judge free-form reasoning.
@@ -71,7 +74,7 @@ The first command reports that the policy is valid. The second reports `"passed"
 
 ## Command line interface
 
-The command line interface supports five operations:
+The command line interface supports these operations:
 
 | Command | Purpose |
 | --- | --- |
@@ -80,6 +83,18 @@ The command line interface supports five operations:
 | `check-order` | Run PrecedenceTrace against one fixed response and two to seven declared peer rules. |
 | `generate-synthetic` | Produce a verified passing and failing case, either on standard output or in an explicitly selected file. |
 | `playground` | Open the offline policy playground, or run its headless smoke check. |
+| `lint-policy` | Identify exact-path conflicts, incompatible descendants, and duplicate constraints. |
+| `explain` | Show absent members and non-object parents without copying candidate values. |
+| `generate-probes` | Produce verified per-rule mutations and an executable fixture suite. |
+| `run-suite` | Compare every fixture result with its explicit expected pass state. |
+| `suite-coverage` | Count observed pass/fail outcomes and reason codes for each rule. |
+| `compare-policies` | Show definition changes and fixture impact between two independently evaluated policies. |
+| `create-receipt` | Bind policy and response digests to their deterministic evaluation. |
+| `verify-receipt` | Recompute and compare the complete receipt against supplied inputs. |
+
+See the [operator guide](docs/OPERATOR.md) for a complete authoring, regression,
+migration, and receipt workflow, including command-specific strict exit rules.
+Policy schema 1.0 and existing evaluation outputs remain unchanged in package 0.3.0.
 
 Run directly from a source checkout after adding `src` to `PYTHONPATH`:
 

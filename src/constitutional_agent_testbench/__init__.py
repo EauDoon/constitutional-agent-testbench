@@ -13,8 +13,27 @@ from .precedence import (
     check_order_conformance,
 )
 from .synthetic import SyntheticGenerationError, generate_synthetic_cases
+from .authoring import AuthoringLimitError, lint_policy
+from .explain import explain_response
+from .suite import SuiteInputError, evaluate_suite, validate_suite
+from .coverage import suite_coverage
+from .compare import compare_policies
+from .probes import generate_rule_probes
+from .receipt import ReceiptInputError, create_receipt, verify_receipt
 
 __all__ = [
+    "AuthoringLimitError",
+    "SuiteInputError",
+    "ReceiptInputError",
+    "lint_policy",
+    "explain_response",
+    "evaluate_suite",
+    "validate_suite",
+    "suite_coverage",
+    "compare_policies",
+    "generate_rule_probes",
+    "create_receipt",
+    "verify_receipt",
     "EvaluationInputError",
     "EvaluationResult",
     "OrderCheckTooLargeError",
@@ -30,5 +49,5 @@ __all__ = [
     "validate_policy",
 ]
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
