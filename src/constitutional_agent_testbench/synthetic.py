@@ -15,7 +15,6 @@ from .policy import (
     validate_policy,
 )
 
-
 _MAX_COMPATIBILITY_WORK = MAX_POLICY_RULES * MAX_ONE_OF_VALUES
 
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
-import constitutional_agent_testbench.synthetic as synthetic
+from constitutional_agent_testbench import synthetic
 from constitutional_agent_testbench.evaluator import evaluate_response
 from constitutional_agent_testbench.policy import (
     MAX_ONE_OF_VALUES,

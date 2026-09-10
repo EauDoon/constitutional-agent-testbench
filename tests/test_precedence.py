@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import itertools
 import unittest
 
 import constitutional_agent_testbench.precedence as precedence_module
@@ -11,6 +12,8 @@ from constitutional_agent_testbench.precedence import (
     PrecedenceTraceError,
     check_order_conformance,
 )
+
+ALTERNATING_HIT_COUNT = 2
 
 
 def three_rule_policy() -> dict:
@@ -154,7 +157,7 @@ class PrecedenceTraceTests(unittest.TestCase):
             result = evaluate_response(policy, response)
             order = tuple(rule.rule_id for rule in policy.rules)
             calls_by_order[order] = calls_by_order.get(order, 0) + 1
-            if order != ("alpha", "beta", "gamma") and calls_by_order[order] == 2:
+            if order != ("alpha", "beta", "gamma") and calls_by_order[order] == ALTERNATING_HIT_COUNT:
                 result["rule_results"][0]["passed"] = False
                 result["rule_results"][0]["reason_code"] = "ALTERNATING_RESULT"
                 result["passed"] = all(
@@ -331,7 +334,7 @@ class PrecedenceTraceTests(unittest.TestCase):
         self.assertEndpointPathWitness(report, "reason_evidence")
 
     def test_stable_incomplete_results_never_conform(self) -> None:
-        def empty_failure(policy, response):
+        def empty_failure(policy, _response):
             return {
                 "passed": False,
                 "policy_id": policy.policy_id,
@@ -374,7 +377,7 @@ class PrecedenceTraceTests(unittest.TestCase):
         self.assertEqual(report["coverage"]["incomplete_orders"], 6)
 
     def test_incomplete_passing_result_fails_closed(self) -> None:
-        def empty_pass(policy, response):
+        def empty_pass(policy, _response):
             return {
                 "passed": True,
                 "policy_id": policy.policy_id,
@@ -409,9 +412,9 @@ class PrecedenceTraceTests(unittest.TestCase):
         )
         for mutate in mutations:
             with self.subTest(mutate=mutate):
-                def invalid(policy, response):
+                def invalid(policy, response, _mutate=mutate):
                     result = evaluate_response(policy, response)
-                    mutate(result["rule_results"])
+                    _mutate(result["rule_results"])
                     return result
 
                 with self.assertRaises(PrecedenceTraceError):
@@ -620,7 +623,7 @@ class PrecedenceTraceTests(unittest.TestCase):
         path = witness["adjacent_swap_path"]
         self.assertEqual(path[0], witness["left_order"])
         self.assertEqual(path[-1], witness["right_order"])
-        for left, right in zip(path, path[1:]):
+        for left, right in itertools.pairwise(path):
             differing = [
                 index
                 for index, pair in enumerate(zip(left, right))

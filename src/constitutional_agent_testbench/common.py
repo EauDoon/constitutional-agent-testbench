@@ -10,7 +10,6 @@ import tempfile
 from pathlib import Path
 from typing import Any, BinaryIO, TextIO
 
-
 MAX_JSON_INPUT_BYTES = 1_000_000
 MAX_JSON_NESTING = 32
 MAX_JSON_NODES = 100_000
@@ -39,7 +38,7 @@ class JsonOutputError(TestbenchError):
     code = "JSON_OUTPUT_ERROR"
 
 
-def _reject_non_finite(token: str) -> None:
+def _reject_non_finite(_token: str) -> None:
     raise ValueError("Non-finite JSON number is not supported.")
 
 
@@ -209,7 +208,7 @@ def ensure_json_value(value: Any, *, label: str) -> None:
         if isinstance(current, dict):
             for key, item in current.items():
                 if not isinstance(key, str):
-                    raise ValueError(
+                    raise TypeError(
                         f"{label} contains a non-string object key."
                     )
                 try:
