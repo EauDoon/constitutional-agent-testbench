@@ -334,7 +334,7 @@ class PrecedenceTraceTests(unittest.TestCase):
         self.assertEndpointPathWitness(report, "reason_evidence")
 
     def test_stable_incomplete_results_never_conform(self) -> None:
-        def empty_failure(policy, response):
+        def empty_failure(policy, _response):
             return {
                 "passed": False,
                 "policy_id": policy.policy_id,
@@ -377,7 +377,7 @@ class PrecedenceTraceTests(unittest.TestCase):
         self.assertEqual(report["coverage"]["incomplete_orders"], 6)
 
     def test_incomplete_passing_result_fails_closed(self) -> None:
-        def empty_pass(policy, response):
+        def empty_pass(policy, _response):
             return {
                 "passed": True,
                 "policy_id": policy.policy_id,
