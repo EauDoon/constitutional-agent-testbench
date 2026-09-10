@@ -35,7 +35,7 @@ class JsonOutputError(TestbenchError):
     code = "JSON_OUTPUT_ERROR"
 
 
-def _reject_non_finite(token: str) -> None:
+def _reject_non_finite(_token: str) -> None:
     raise ValueError("Non-finite JSON number is not supported.")
 
 
