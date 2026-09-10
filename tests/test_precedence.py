@@ -13,6 +13,8 @@ from constitutional_agent_testbench.precedence import (
     check_order_conformance,
 )
 
+ALTERNATING_HIT_COUNT = 2
+
 
 def three_rule_policy() -> dict:
     return {
@@ -155,7 +157,7 @@ class PrecedenceTraceTests(unittest.TestCase):
             result = evaluate_response(policy, response)
             order = tuple(rule.rule_id for rule in policy.rules)
             calls_by_order[order] = calls_by_order.get(order, 0) + 1
-            if order != ("alpha", "beta", "gamma") and calls_by_order[order] == 2:
+            if order != ("alpha", "beta", "gamma") and calls_by_order[order] == ALTERNATING_HIT_COUNT:
                 result["rule_results"][0]["passed"] = False
                 result["rule_results"][0]["reason_code"] = "ALTERNATING_RESULT"
                 result["passed"] = all(
