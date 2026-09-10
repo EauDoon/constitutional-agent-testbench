@@ -21,11 +21,9 @@ from .evaluator import evaluate_response
 from .policy import (
     Policy,
     PolicyValidationError,
-    Rule,
     policy_to_dict,
     validate_policy,
 )
-
 
 REPORT_SCHEMA_VERSION = "1.0"
 BASELINE_REPEATS = 3
@@ -35,6 +33,8 @@ MAX_EXHAUSTIVE_RULES = 7
 MAX_EXHAUSTIVE_WORK_BYTES = 100_000_000
 MAX_EVALUATOR_RESULT_BYTES = 1_000_000
 MAX_REPORT_BYTES = 1_000_000
+MIN_REASON_CODE_LENGTH = 1
+MAX_REASON_CODE_LENGTH = 128
 
 Evaluator = Callable[[Policy, Any], dict[str, Any]]
 
@@ -89,9 +89,9 @@ def _validate_evaluation(result: Any, policy: Policy) -> tuple[dict[str, Any], i
                 raise PrecedenceTraceError(
                     f"Every rule result must contain string field {field}."
                 )
-        if not 1 <= len(item["reason_code"]) <= 128:
+        if not MIN_REASON_CODE_LENGTH <= len(item["reason_code"]) <= MAX_REASON_CODE_LENGTH:
             raise PrecedenceTraceError(
-                "Every rule result reason_code must contain 1 to 128 characters."
+                f"Every rule result reason_code must contain {MIN_REASON_CODE_LENGTH} to {MAX_REASON_CODE_LENGTH} characters."
             )
         rule_id = item["rule_id"]
         if rule_id not in declared_rules:
