@@ -16,7 +16,6 @@ from .common import (
     ensure_json_value,
 )
 
-
 SCHEMA_VERSION = "1.0"
 MAX_POLICY_RULES = 256
 MAX_ONE_OF_VALUES = 256
