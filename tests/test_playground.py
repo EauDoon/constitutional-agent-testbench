@@ -11,7 +11,6 @@ from constitutional_agent_testbench.playground import (
     run_playground,
 )
 
-
 ROOT = Path(__file__).resolve().parents[1]
 POLICY = ROOT / "examples" / "policy.json"
 PASSING = ROOT / "examples" / "passing-response.json"
