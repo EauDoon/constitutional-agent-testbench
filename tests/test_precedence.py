@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import itertools
 import unittest
 
 import constitutional_agent_testbench.precedence as precedence_module
@@ -409,9 +410,9 @@ class PrecedenceTraceTests(unittest.TestCase):
         )
         for mutate in mutations:
             with self.subTest(mutate=mutate):
-                def invalid(policy, response):
+                def invalid(policy, response, _mutate=mutate):
                     result = evaluate_response(policy, response)
-                    mutate(result["rule_results"])
+                    _mutate(result["rule_results"])
                     return result
 
                 with self.assertRaises(PrecedenceTraceError):
@@ -620,7 +621,7 @@ class PrecedenceTraceTests(unittest.TestCase):
         path = witness["adjacent_swap_path"]
         self.assertEqual(path[0], witness["left_order"])
         self.assertEqual(path[-1], witness["right_order"])
-        for left, right in zip(path, path[1:]):
+        for left, right in itertools.pairwise(path):
             differing = [
                 index
                 for index, pair in enumerate(zip(left, right))
