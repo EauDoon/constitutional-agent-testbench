@@ -11,17 +11,18 @@ from unittest.mock import patch
 
 from constitutional_agent_testbench.cli import main
 from constitutional_agent_testbench.common import (
-    JsonInputError,
     MAX_JSON_INPUT_BYTES,
+    JsonInputError,
     load_json,
     load_json_stream,
 )
 from constitutional_agent_testbench.playground import (
     evaluate_documents,
+)
+from constitutional_agent_testbench.playground import (
     main as playground_main,
 )
 from constitutional_agent_testbench.precedence import check_order_conformance
-
 
 ROOT = Path(__file__).resolve().parents[1]
 POLICY = ROOT / "examples" / "policy.json"
