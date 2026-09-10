@@ -24,8 +24,8 @@ __all__ = [
     "Rule",
     "RuleResult",
     "SyntheticGenerationError",
-    "evaluate_response",
     "check_order_conformance",
+    "evaluate_response",
     "generate_synthetic_cases",
     "validate_policy",
 ]
