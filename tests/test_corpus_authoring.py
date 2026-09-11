@@ -111,3 +111,18 @@ class CorpusAuthoringTests(unittest.TestCase):
         self.assertEqual(result["cases"][2]["unknown_rule_ids"], ["stale"])
         self.assertTrue(audit_assertions(policy(), suite())["assertions_compatible"])
         self.assertFalse(audit_assertions(policy(), suite())["fully_asserted"])
+
+    def test_migration_detects_assertion_regression_without_verdict_change(self):
+        from constitutional_agent_testbench import migration_expectations, capture_assertions
+        raw = capture_assertions(policy(), suite())
+        changed = policy()
+        changed["rules"][0]["kind"] = "equals"
+        changed["rules"][0]["value"] = False
+        result = migration_expectations(policy(), changed, raw)
+        self.assertEqual(result["regressions"], ["wrong"])
+        self.assertFalse(result["no_regressions"])
+        inverse = migration_expectations(changed, policy(), raw)
+        self.assertEqual(inverse["recoveries"], ["wrong"])
+        self.assertTrue(inverse["no_regressions"])
+        raw["cases"][0]["expected_passed"] = False
+        self.assertEqual(migration_expectations(policy(), policy(), raw)["still_mismatched"], ["pass"])

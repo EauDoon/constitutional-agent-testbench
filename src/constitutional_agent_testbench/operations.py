@@ -21,6 +21,8 @@ from .curation import deduplicate_suite
 
 from .inspection import audit_assertions
 
+from .compare import migration_expectations
+
 # Command: (ordered JSON inputs, library function, strict success field).
 COMMANDS = {"inspect-policy": (("policy",), inspect_policy, None)}
 COMMANDS["inspect-suite"] = (("suite",), inspect_suite, "consistent_expectations")
@@ -46,6 +48,8 @@ COMMANDS["select-outcomes"] = (('policy', 'suite', 'selection'), select_outcomes
 COMMANDS["deduplicate-suite"] = (('suite',), deduplicate_suite, None)
 
 COMMANDS["audit-assertions"] = (('policy', 'suite'), audit_assertions, 'assertions_compatible')
+
+COMMANDS["migration-expectations"] = (('policy', 'candidate', 'suite'), migration_expectations, 'no_regressions')
 
 
 def add_operation_parsers(subparsers):

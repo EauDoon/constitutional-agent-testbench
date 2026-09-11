@@ -41,7 +41,10 @@ from .curation import deduplicate_suite
 
 from .inspection import audit_assertions
 
+from .compare import migration_expectations
+
 __all__ = [
+    "migration_expectations",
     "audit_assertions",
     "deduplicate_suite",
     "select_outcomes",

@@ -155,3 +155,14 @@ contradictions between explicit rule assertions and the overall expected verdict
 It also lists unasserted rule IDs. Partial assertions are valid; strict exit 1
 means incompatible assertions, not merely incomplete assertion coverage. This
 checks declared intent without reading response values into the report.
+
+
+## Gate expectation regressions during policy migration
+
+`migration-expectations policy.json candidate.json suite.json --strict-exit`
+groups case IDs into regressions, recoveries, still matched, and still mismatched.
+It detects reason-code assertion changes even when both policies return the same
+overall verdict. Strict exit 1 means a newly mismatching case; existing failures
+remain visible in `still_mismatched` and `candidate_matches_expectations`.
+Use `run-suite candidate.json suite.json --strict-exit` to require every candidate
+expectation to pass, and `compare-policies` for definition and verdict details.
