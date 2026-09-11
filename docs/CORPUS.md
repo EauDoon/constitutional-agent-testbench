@@ -91,3 +91,11 @@ requires consistent expectations; `triage-suite` requires matching expectations;
 `verify-suite-receipt` requires consistent bindings; `replay` requires both.
 Valid negative results return 1 and malformed inputs or exceeded bounds return 2.
 Existing commands preserve their prior strict-exit semantics.
+
+
+## Validate a corpus before choosing a policy
+
+`validate-suite suite.json` validates versions 1.0 and 1.1, case identifiers,
+response objects, assertions, and existing size limits without evaluating a policy.
+The value-free acknowledgement gives the version and case count. Invalid suites
+return exit 2. `inspect-suite` remains the separate expectation-consistency check.

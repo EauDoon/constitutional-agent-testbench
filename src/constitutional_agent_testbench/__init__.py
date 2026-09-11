@@ -27,7 +27,10 @@ from .triage import triage_suite
 from .corpus_receipt import create_suite_receipt, verify_suite_receipt
 from .replay import create_replay_bundle, replay_bundle
 
+from .suite import validate_suite_report
+
 __all__ = [
+    "validate_suite_report",
     "inspect_policy",
     "inspect_suite",
     "merge_suites",

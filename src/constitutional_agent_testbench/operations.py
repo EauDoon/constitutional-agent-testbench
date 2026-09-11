@@ -7,6 +7,8 @@ from .corpus_receipt import create_suite_receipt, verify_suite_receipt
 from .replay import create_replay_bundle, replay_bundle
 
 
+from .suite import validate_suite_report
+
 # Command: (ordered JSON inputs, library function, strict success field).
 COMMANDS = {"inspect-policy": (("policy",), inspect_policy, None)}
 COMMANDS["inspect-suite"] = (("suite",), inspect_suite, "consistent_expectations")
@@ -18,6 +20,8 @@ COMMANDS["create-suite-receipt"] = (("policy", "suite"), create_suite_receipt, N
 COMMANDS["verify-suite-receipt"] = (("policy", "suite", "receipt"), verify_suite_receipt, "verified")
 COMMANDS["create-replay"] = (("policy", "suite"), create_replay_bundle, None)
 COMMANDS["replay"] = (("bundle",), replay_bundle, "replay_passed")
+
+COMMANDS["validate-suite"] = (('suite',), validate_suite_report, None)
 
 
 def add_operation_parsers(subparsers):

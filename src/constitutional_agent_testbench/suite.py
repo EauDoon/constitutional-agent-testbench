@@ -87,3 +87,10 @@ def evaluate_suite(policy: Policy | dict[str, Any], suite: Any) -> dict[str, Any
             "matches_expectations": all(case["matches_expectation"] for case in cases),
             "case_count": len(cases), "mismatch_count": sum(not case["matches_expectation"] for case in cases),
             "cases": cases}
+
+
+def validate_suite_report(suite):
+    """Validate fixture syntax without requiring or evaluating a policy."""
+    fixtures = validate_suite(suite)
+    return {"valid": True, "suite_version": fixtures["suite_version"],
+            "case_count": len(fixtures["cases"])}
