@@ -28,24 +28,10 @@ from .corpus_receipt import create_suite_receipt, verify_suite_receipt
 from .replay import create_replay_bundle, replay_bundle
 
 from .suite import validate_suite_report
-
-from .curation import capture_assertions
-
-from .inspection import diff_suites
-
-from .curation import shard_suite
-
-from .curation import select_outcomes
-
-from .curation import deduplicate_suite
-
-from .inspection import audit_assertions
-
+from .curation import capture_assertions, shard_suite, select_outcomes, deduplicate_suite, import_responses
+from .inspection import diff_suites, audit_assertions
 from .compare import migration_expectations
-
 from .triage import check_suite
-
-from .curation import import_responses
 
 __all__ = [
     "import_responses",
@@ -96,5 +82,5 @@ __all__ = [
     "validate_policy",
 ]
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 

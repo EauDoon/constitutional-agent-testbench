@@ -3,7 +3,7 @@ name: release assets
 on:
   workflow_dispatch:
   push:
-    tags: ["v0.4.*"]
+    tags: ["v0.5.*"]
 
 permissions:
   contents: read
@@ -25,13 +25,13 @@ jobs:
         run: python -m build
       - name: Verify archive contents and hashes
         run: |
-          python -m zipfile -l dist/constitutional_agent_testbench-0.4.0-py3-none-any.whl
-          python -m tarfile -l dist/constitutional_agent_testbench-0.4.0.tar.gz
+          python -m zipfile -l dist/constitutional_agent_testbench-0.5.0-py3-none-any.whl
+          python -m tarfile -l dist/constitutional_agent_testbench-0.5.0.tar.gz
           sha256sum dist/* > dist/SHA256SUMS
       - name: Retain reviewed release assets
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
-          name: constitutional-agent-testbench-v0.4.0
+          name: constitutional-agent-testbench-v0.5.0
           path: dist/*
           if-no-files-found: error
           retention-days: 14

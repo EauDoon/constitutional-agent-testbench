@@ -1,6 +1,6 @@
 # Local policy operator workflow
 
-See the [0.4.0 corpus guide](CORPUS.md) for a complete executable curation,
+See the [0.5.0 corpus guide](CORPUS.md) for a complete executable curation,
 assertion, receipt, replay, and atomic-export workflow.
 
 ## Corpus inspection and curation
