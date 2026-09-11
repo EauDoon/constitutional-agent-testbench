@@ -29,7 +29,10 @@ from .replay import create_replay_bundle, replay_bundle
 
 from .suite import validate_suite_report
 
+from .curation import capture_assertions
+
 __all__ = [
+    "capture_assertions",
     "validate_suite_report",
     "inspect_policy",
     "inspect_suite",

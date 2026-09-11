@@ -21,3 +21,18 @@ class CorpusAuthoringTests(unittest.TestCase):
             result = json.loads(out.getvalue() or err.getvalue())
             if expected == 0:
                 self.assertEqual(result, {"valid": True, "suite_version": "1.0", "case_count": 3})
+
+    def test_capture_assertions_is_owned_and_refuses_regressions(self):
+        from constitutional_agent_testbench import capture_assertions, evaluate_suite
+        raw = suite()
+        captured = capture_assertions(policy(), raw)
+        self.assertEqual(captured["suite_version"], "1.1")
+        self.assertEqual(captured["cases"][1]["expected_rules"]["r"]["reason_code"], "FIELD_MISSING")
+        self.assertTrue(evaluate_suite(policy(), captured)["matches_expectations"])
+        self.assertNotIn("expected_rules", raw["cases"][0])
+        captured["cases"][1]["expected_rules"]["r"]["reason_code"] = "VALUE_NOT_FALSE"
+        with self.assertRaises(WorkflowInputError):
+            capture_assertions(policy(), captured)
+        raw["cases"][0]["expected_passed"] = False
+        with self.assertRaises(WorkflowInputError):
+            capture_assertions(policy(), raw)

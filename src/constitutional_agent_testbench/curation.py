@@ -57,3 +57,16 @@ def reduce_suite(policy, suite):
         uncovered -= signatures[chosen]
     fixtures["cases"] = [case for index, case in enumerate(fixtures["cases"]) if index in retained]
     return bounded_artifact(validate_suite(fixtures))
+
+
+def capture_assertions(policy, suite):
+    """Fill rule assertions only after all existing expectations pass."""
+    fixtures = validate_suite(suite)
+    report = evaluate_suite(policy, fixtures)
+    if not report["matches_expectations"]:
+        raise WorkflowInputError("Assertion capture requires matching existing expectations.")
+    fixtures["suite_version"] = "1.1"
+    for case, observed in zip(fixtures["cases"], report["cases"], strict=True):
+        case["expected_rules"] = {row["rule_id"]: {"passed": row["passed"], "reason_code": row["reason_code"]}
+                                  for row in observed["evaluation"]["rule_results"]}
+    return bounded_artifact(validate_suite(fixtures))

@@ -99,3 +99,13 @@ Existing commands preserve their prior strict-exit semantics.
 response objects, assertions, and existing size limits without evaluating a policy.
 The value-free acknowledgement gives the version and case count. Invalid suites
 return exit 2. `inspect-suite` remains the separate expectation-consistency check.
+
+
+## Capture reason-code regression assertions
+
+`capture-assertions policy.json suite.json --output asserted.json` upgrades a
+suite to 1.1 and records every observed rule result. Capture first requires all
+existing verdict and rule assertions to match, so it cannot silently bless a
+regression. It preserves responses and case order and leaves inputs untouched.
+Review the captured baseline before relying on it; observed behavior is not an
+independent correctness oracle.
