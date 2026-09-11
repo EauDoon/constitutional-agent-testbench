@@ -96,3 +96,18 @@ class CorpusAuthoringTests(unittest.TestCase):
         self.assertEqual([c["case_id"] for c in result["cases"]], ["pass", "missing", "wrong", "contradiction", "numeric", "asserted"])
         self.assertEqual(result, deduplicate_suite(result))
         self.assertEqual(len(raw["cases"]), 7)
+
+    def test_assertion_audit_finds_stale_ids_wrong_kinds_and_impossible_verdicts(self):
+        from constitutional_agent_testbench import audit_assertions, capture_assertions
+        raw = capture_assertions(policy(), suite())
+        self.assertTrue(audit_assertions(policy(), raw)["fully_asserted"])
+        raw["cases"][0]["expected_passed"] = False
+        raw["cases"][1]["expected_rules"]["r"]["reason_code"] = "VALUE_NOT_EQUAL"
+        raw["cases"][2]["expected_rules"]["stale"] = {"passed": False, "reason_code": "FIELD_MISSING"}
+        result = audit_assertions(policy(), raw)
+        self.assertFalse(result["assertions_compatible"])
+        self.assertTrue(result["cases"][0]["contradictory_verdict"])
+        self.assertEqual(result["cases"][1]["incompatible_reason_rule_ids"], ["r"])
+        self.assertEqual(result["cases"][2]["unknown_rule_ids"], ["stale"])
+        self.assertTrue(audit_assertions(policy(), suite())["assertions_compatible"])
+        self.assertFalse(audit_assertions(policy(), suite())["fully_asserted"])

@@ -39,7 +39,10 @@ from .curation import select_outcomes
 
 from .curation import deduplicate_suite
 
+from .inspection import audit_assertions
+
 __all__ = [
+    "audit_assertions",
     "deduplicate_suite",
     "select_outcomes",
     "shard_suite",

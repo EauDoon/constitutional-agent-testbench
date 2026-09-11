@@ -145,3 +145,13 @@ each identical response plus expectation payload. Different verdict assertions,
 partial rule assertions, and JSON booleans versus numbers are preserved. This
 never resolves contradictory fixtures automatically. Use `diff-suites` to review
 which case IDs were removed and `inspect-suite` to check remaining conflicts.
+
+
+## Audit assertion intent before evaluation
+
+`audit-assertions policy.json suite.json --strict-exit` finds removed or
+misspelled rule IDs, reason codes impossible for the declared rule kind, and
+contradictions between explicit rule assertions and the overall expected verdict.
+It also lists unasserted rule IDs. Partial assertions are valid; strict exit 1
+means incompatible assertions, not merely incomplete assertion coverage. This
+checks declared intent without reading response values into the report.

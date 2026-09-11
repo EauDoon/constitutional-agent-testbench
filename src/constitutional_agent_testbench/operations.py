@@ -19,6 +19,8 @@ from .curation import select_outcomes
 
 from .curation import deduplicate_suite
 
+from .inspection import audit_assertions
+
 # Command: (ordered JSON inputs, library function, strict success field).
 COMMANDS = {"inspect-policy": (("policy",), inspect_policy, None)}
 COMMANDS["inspect-suite"] = (("suite",), inspect_suite, "consistent_expectations")
@@ -42,6 +44,8 @@ COMMANDS["shard-suite"] = (('suite', 'partition'), shard_suite, None)
 COMMANDS["select-outcomes"] = (('policy', 'suite', 'selection'), select_outcomes, None)
 
 COMMANDS["deduplicate-suite"] = (('suite',), deduplicate_suite, None)
+
+COMMANDS["audit-assertions"] = (('policy', 'suite'), audit_assertions, 'assertions_compatible')
 
 
 def add_operation_parsers(subparsers):
