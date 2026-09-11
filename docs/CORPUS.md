@@ -109,3 +109,11 @@ existing verdict and rule assertions to match, so it cannot silently bless a
 regression. It preserves responses and case order and leaves inputs untouched.
 Review the captured baseline before relying on it; observed behavior is not an
 independent correctness oracle.
+
+
+## Review fixture changes
+
+`diff-suites before.json after.json --strict-exit` reports added/removed IDs,
+changed field names, order changes, and version changes without response or
+assertion values. JSON booleans and numbers remain distinct. Strict exit is 1
+for any difference, including order alone, and 0 only for identical corpora.

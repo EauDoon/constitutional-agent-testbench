@@ -46,3 +46,22 @@ def inspect_suite(suite):
         "expected_pass_count": sum(case["expected_passed"] for case in fixtures["cases"]),
         "duplicate_responses": duplicates,
         "consistent_expectations": not any(group["conflicting_expectations"] for group in duplicates)})
+
+
+def diff_suites(suite, incoming):
+    """Report changes by stable case ID, never by copying candidate values."""
+    left, right = validate_suite(suite), validate_suite(incoming)
+    old = {case["case_id"]: case for case in left["cases"]}
+    new = {case["case_id"]: case for case in right["cases"]}
+    modified = []
+    for identifier in sorted(old.keys() & new.keys()):
+        changed = [field for field in ("response", "expected_passed", "expected_rules")
+                   if (field in old[identifier]) != (field in new[identifier])
+                   or canonical_json(old[identifier].get(field)) != canonical_json(new[identifier].get(field))]
+        if changed:
+            modified.append({"case_id": identifier, "changed_fields": changed})
+    return bounded_artifact({"added": sorted(new.keys() - old.keys()),
+        "removed": sorted(old.keys() - new.keys()), "modified": modified,
+        "order_changed": list(old) != list(new),
+        "version_changed": left["suite_version"] != right["suite_version"],
+        "identical": canonical_json(left) == canonical_json(right), "values_included": False})

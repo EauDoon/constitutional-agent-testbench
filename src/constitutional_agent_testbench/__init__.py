@@ -31,7 +31,10 @@ from .suite import validate_suite_report
 
 from .curation import capture_assertions
 
+from .inspection import diff_suites
+
 __all__ = [
+    "diff_suites",
     "capture_assertions",
     "validate_suite_report",
     "inspect_policy",

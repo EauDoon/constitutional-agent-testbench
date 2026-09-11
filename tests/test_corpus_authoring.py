@@ -36,3 +36,19 @@ class CorpusAuthoringTests(unittest.TestCase):
         raw["cases"][0]["expected_passed"] = False
         with self.assertRaises(WorkflowInputError):
             capture_assertions(policy(), raw)
+
+    def test_corpus_diff_distinguishes_json_types_and_assertion_changes(self):
+        from constitutional_agent_testbench import diff_suites
+        raw, changed = suite(), suite()
+        self.assertTrue(diff_suites(raw, changed)["identical"])
+        changed["cases"][0]["response"]["action"] = 0
+        changed["cases"][1]["response"]["private"] = "SYNTHETIC_PRIVATE"
+        changed["cases"].reverse()
+        result = diff_suites(raw, changed)
+        self.assertEqual(len(result["modified"]), 2)
+        self.assertTrue(result["order_changed"])
+        self.assertNotIn("SYNTHETIC_PRIVATE", str(result))
+        changed["cases"].pop()
+        self.assertEqual(diff_suites(raw, changed)["removed"], ["pass"])
+        changed["cases"][0]["case_id"] = "new"
+        self.assertEqual(diff_suites(raw, changed)["added"], ["new"])
