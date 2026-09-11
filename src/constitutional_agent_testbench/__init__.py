@@ -37,7 +37,10 @@ from .curation import shard_suite
 
 from .curation import select_outcomes
 
+from .curation import deduplicate_suite
+
 __all__ = [
+    "deduplicate_suite",
     "select_outcomes",
     "shard_suite",
     "diff_suites",

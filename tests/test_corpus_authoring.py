@@ -80,3 +80,19 @@ class CorpusAuthoringTests(unittest.TestCase):
                 select_outcomes(policy(), raw, selection)
         with self.assertRaises(WorkflowInputError):
             select_outcomes(policy(), suite(), "mismatched")
+
+    def test_deduplication_preserves_assertions_conflicts_and_json_types(self):
+        from constitutional_agent_testbench import deduplicate_suite
+        raw = suite()
+        for identifier in ("copy", "contradiction", "numeric", "asserted"):
+            case = copy.deepcopy(raw["cases"][0])
+            case["case_id"] = identifier
+            raw["cases"].append(case)
+        raw["suite_version"] = "1.1"
+        raw["cases"][-3]["expected_passed"] = False
+        raw["cases"][-2]["response"]["action"] = 0
+        raw["cases"][-1]["expected_rules"] = {"r": {"passed": True, "reason_code": "RULE_SATISFIED"}}
+        result = deduplicate_suite(raw)
+        self.assertEqual([c["case_id"] for c in result["cases"]], ["pass", "missing", "wrong", "contradiction", "numeric", "asserted"])
+        self.assertEqual(result, deduplicate_suite(result))
+        self.assertEqual(len(raw["cases"]), 7)

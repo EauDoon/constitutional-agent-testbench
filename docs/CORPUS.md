@@ -136,3 +136,12 @@ Mismatch includes per-rule assertions. A correctly expected failure is matched;
 it is not a regression. The selected suite preserves original assertions and
 responses. An empty cohort returns exit 2 and produces no file, because empty
 suites cannot provide a regression gate.
+
+
+## Remove exact duplicate fixtures
+
+`deduplicate-suite suite.json --output unique.json` retains the first case for
+each identical response plus expectation payload. Different verdict assertions,
+partial rule assertions, and JSON booleans versus numbers are preserved. This
+never resolves contradictory fixtures automatically. Use `diff-suites` to review
+which case IDs were removed and `inspect-suite` to check remaining conflicts.

@@ -102,3 +102,17 @@ def select_outcomes(policy, suite, selection):
         raise WorkflowInputError("No cases match the requested outcome; no suite was produced.")
     fixtures["cases"] = selected
     return bounded_artifact(fixtures)
+
+
+def deduplicate_suite(suite):
+    """Keep the first case for each identical response and expectation payload."""
+    from .common import canonical_json
+    fixtures = validate_suite(suite)
+    seen, retained = set(), []
+    for case in fixtures["cases"]:
+        identity = canonical_json({key: value for key, value in case.items() if key != "case_id"})
+        if identity not in seen:
+            retained.append(case)
+            seen.add(identity)
+    fixtures["cases"] = retained
+    return bounded_artifact(fixtures)
