@@ -52,3 +52,16 @@ class CorpusAuthoringTests(unittest.TestCase):
         self.assertEqual(diff_suites(raw, changed)["removed"], ["pass"])
         changed["cases"][0]["case_id"] = "new"
         self.assertEqual(diff_suites(raw, changed)["added"], ["new"])
+
+    def test_shards_cover_every_case_once_and_validate_partitions(self):
+        from constitutional_agent_testbench import shard_suite
+        raw = suite()
+        parts = [shard_suite(raw, {"index": i, "count": 2}) for i in range(2)]
+        self.assertEqual([c["case_id"] for c in parts[0]["cases"]], ["pass", "wrong"])
+        self.assertEqual(sorted(c["case_id"] for p in parts for c in p["cases"]), ["missing", "pass", "wrong"])
+        parts[0]["cases"][0]["response"].clear()
+        self.assertEqual(raw, suite())
+        for partition in ({"index": True, "count": 2}, {"index": 2, "count": 2},
+                          {"index": 0, "count": 4}, {"index": 0, "count": 0}, {}):
+            with self.assertRaises(WorkflowInputError):
+                shard_suite(raw, partition)

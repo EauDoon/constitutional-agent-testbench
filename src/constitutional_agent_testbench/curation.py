@@ -70,3 +70,16 @@ def capture_assertions(policy, suite):
         case["expected_rules"] = {row["rule_id"]: {"passed": row["passed"], "reason_code": row["reason_code"]}
                                   for row in observed["evaluation"]["rule_results"]}
     return bounded_artifact(validate_suite(fixtures))
+
+
+def shard_suite(suite, partition):
+    """Select a zero-based round-robin shard in source order."""
+    fixtures = validate_suite(suite)
+    bounded_artifact(partition)
+    if (not isinstance(partition, dict) or set(partition) != {"index", "count"}
+            or type(partition["index"]) is not int or type(partition["count"]) is not int
+            or not 1 <= partition["count"] <= len(fixtures["cases"])
+            or not 0 <= partition["index"] < partition["count"]):
+        raise WorkflowInputError("Partition requires integer index and count; each shard must be nonempty.")
+    fixtures["cases"] = fixtures["cases"][partition["index"]::partition["count"]]
+    return bounded_artifact(fixtures)

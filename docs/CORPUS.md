@@ -117,3 +117,12 @@ independent correctness oracle.
 changed field names, order changes, and version changes without response or
 assertion values. JSON booleans and numbers remain distinct. Strict exit is 1
 for any difference, including order alone, and 0 only for identical corpora.
+
+
+## Split a corpus across local CI jobs
+
+`shard-suite suite.json partition.json --output shard.json` accepts
+`{"index": 0, "count": 2}` for the first of two round-robin shards. Indices are
+zero-based; count cannot exceed case count. Every source case belongs to exactly
+one shard, and each shard is an executable nonempty suite. Partitioning depends
+on corpus order, so use the same corpus revision and count for every job.

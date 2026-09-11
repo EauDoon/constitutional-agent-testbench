@@ -33,7 +33,10 @@ from .curation import capture_assertions
 
 from .inspection import diff_suites
 
+from .curation import shard_suite
+
 __all__ = [
+    "shard_suite",
     "diff_suites",
     "capture_assertions",
     "validate_suite_report",

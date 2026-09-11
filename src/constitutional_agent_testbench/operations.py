@@ -13,6 +13,8 @@ from .curation import capture_assertions
 
 from .inspection import diff_suites
 
+from .curation import shard_suite
+
 # Command: (ordered JSON inputs, library function, strict success field).
 COMMANDS = {"inspect-policy": (("policy",), inspect_policy, None)}
 COMMANDS["inspect-suite"] = (("suite",), inspect_suite, "consistent_expectations")
@@ -30,6 +32,8 @@ COMMANDS["validate-suite"] = (('suite',), validate_suite_report, None)
 COMMANDS["capture-assertions"] = (('policy', 'suite'), capture_assertions, None)
 
 COMMANDS["diff-suites"] = (('suite', 'incoming'), diff_suites, 'identical')
+
+COMMANDS["shard-suite"] = (('suite', 'partition'), shard_suite, None)
 
 
 def add_operation_parsers(subparsers):
