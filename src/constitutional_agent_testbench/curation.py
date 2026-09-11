@@ -116,3 +116,18 @@ def deduplicate_suite(suite):
             seen.add(identity)
     fixtures["cases"] = retained
     return bounded_artifact(fixtures)
+
+
+def import_responses(responses, expectations):
+    """Create fixtures from a response array and an equally sized explicit verdict array."""
+    bounded_artifact(responses)
+    bounded_artifact(expectations)
+    if (not isinstance(responses, list) or not 1 <= len(responses) <= 256
+            or any(not isinstance(response, dict) for response in responses)
+            or not isinstance(expectations, list) or len(expectations) != len(responses)
+            or any(type(expected) is not bool for expected in expectations)):
+        raise WorkflowInputError("Import requires 1 to 256 response objects and one explicit boolean expectation per response.")
+    fixtures = {"suite_version": "1.0", "cases": [
+        {"case_id": f"case-{index:03d}", "response": response, "expected_passed": expected}
+        for index, (response, expected) in enumerate(zip(responses, expectations, strict=True), start=1)]}
+    return bounded_artifact(validate_suite(fixtures))

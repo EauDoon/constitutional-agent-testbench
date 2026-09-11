@@ -144,3 +144,16 @@ class CorpusAuthoringTests(unittest.TestCase):
         duplicate.update(case_id="conflict", expected_passed=False)
         raw["cases"].append(duplicate)
         self.assertFalse(check_suite(policy(), raw)["checks"]["consistent_expectations"])
+
+    def test_import_requires_explicit_expectations_and_returns_owned_cases(self):
+        from constitutional_agent_testbench import import_responses, evaluate_suite
+        responses = [{"action": False}, {}]
+        imported = import_responses(responses, [True, False])
+        self.assertEqual([c["case_id"] for c in imported["cases"]], ["case-001", "case-002"])
+        self.assertTrue(evaluate_suite(policy(), imported)["matches_expectations"])
+        imported["cases"][0]["response"].clear()
+        self.assertEqual(responses[0], {"action": False})
+        for batch, expected in (([], []), ([{}], [1]), ([{}], []), ([False], [False]),
+                                 ([{}] * 257, [False] * 257), ({}, [False])):
+            with self.assertRaises(WorkflowInputError):
+                import_responses(batch, expected)

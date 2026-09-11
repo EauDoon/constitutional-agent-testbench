@@ -25,6 +25,8 @@ from .compare import migration_expectations
 
 from .triage import check_suite
 
+from .curation import import_responses
+
 # Command: (ordered JSON inputs, library function, strict success field).
 COMMANDS = {"inspect-policy": (("policy",), inspect_policy, None)}
 COMMANDS["inspect-suite"] = (("suite",), inspect_suite, "consistent_expectations")
@@ -54,6 +56,8 @@ COMMANDS["audit-assertions"] = (('policy', 'suite'), audit_assertions, 'assertio
 COMMANDS["migration-expectations"] = (('policy', 'candidate', 'suite'), migration_expectations, 'no_regressions')
 
 COMMANDS["check-suite"] = (('policy', 'suite'), check_suite, 'ready')
+
+COMMANDS["import-responses"] = (('responses', 'expectations'), import_responses, None)
 
 
 def add_operation_parsers(subparsers):

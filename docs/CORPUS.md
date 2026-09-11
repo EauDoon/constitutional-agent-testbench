@@ -177,3 +177,15 @@ completed failing preflight; invalid or bounded-out input returns 2. Expected
 failures alone cannot hide a contradictory policy. Duplicate constraints remain
 advisory. This gate does not require both observed outcomes or complete rule
 assertions; inspect `suite-coverage` separately for those coverage needs.
+
+
+## Import an existing response batch
+
+`import-responses responses.json expectations.json --output imported.json`
+accepts a strict JSON array of 1 to 256 response objects and an equally sized
+array of boolean expected verdicts. It generates stable positional IDs
+`case-001`, `case-002`, and so on. Expectations must be supplied independently;
+the importer never evaluates a policy to invent expected outcomes. Review IDs
+before merging separately imported batches because positional IDs can collide.
+The result preserves response content and can be validated, run, asserted,
+sharded, reduced, or packaged into a replay using the existing commands.

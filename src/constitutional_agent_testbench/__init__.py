@@ -45,7 +45,10 @@ from .compare import migration_expectations
 
 from .triage import check_suite
 
+from .curation import import_responses
+
 __all__ = [
+    "import_responses",
     "check_suite",
     "migration_expectations",
     "audit_assertions",
