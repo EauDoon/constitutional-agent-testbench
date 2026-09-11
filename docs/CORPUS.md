@@ -126,3 +126,13 @@ for any difference, including order alone, and 0 only for identical corpora.
 zero-based; count cannot exceed case count. Every source case belongs to exactly
 one shard, and each shard is an executable nonempty suite. Partitioning depends
 on corpus order, so use the same corpus revision and count for every job.
+
+
+## Extract a regression cohort
+
+`select-outcomes policy.json suite.json selection.json --output regressions.json`
+uses a JSON string: `"mismatched"`, `"matched"`, `"passed"`, or `"failed"`.
+Mismatch includes per-rule assertions. A correctly expected failure is matched;
+it is not a regression. The selected suite preserves original assertions and
+responses. An empty cohort returns exit 2 and produces no file, because empty
+suites cannot provide a regression gate.

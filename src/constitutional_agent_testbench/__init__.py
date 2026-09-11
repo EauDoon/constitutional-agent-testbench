@@ -35,7 +35,10 @@ from .inspection import diff_suites
 
 from .curation import shard_suite
 
+from .curation import select_outcomes
+
 __all__ = [
+    "select_outcomes",
     "shard_suite",
     "diff_suites",
     "capture_assertions",

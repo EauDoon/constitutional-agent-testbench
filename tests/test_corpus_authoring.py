@@ -65,3 +65,18 @@ class CorpusAuthoringTests(unittest.TestCase):
                           {"index": 0, "count": 4}, {"index": 0, "count": 0}, {}):
             with self.assertRaises(WorkflowInputError):
                 shard_suite(raw, partition)
+
+    def test_outcome_selection_separates_expected_failure_from_regression(self):
+        from constitutional_agent_testbench import select_outcomes
+        raw = suite()
+        raw["cases"][0]["expected_passed"] = False
+        selected = select_outcomes(policy(), raw, "mismatched")
+        self.assertEqual([c["case_id"] for c in selected["cases"]], ["pass"])
+        self.assertFalse(selected["cases"][0]["expected_passed"])
+        self.assertEqual(len(select_outcomes(policy(), raw, "failed")["cases"]), 2)
+        self.assertEqual(len(select_outcomes(policy(), raw, "matched")["cases"]), 2)
+        for selection in ("unknown", {}, True):
+            with self.assertRaises(WorkflowInputError):
+                select_outcomes(policy(), raw, selection)
+        with self.assertRaises(WorkflowInputError):
+            select_outcomes(policy(), suite(), "mismatched")

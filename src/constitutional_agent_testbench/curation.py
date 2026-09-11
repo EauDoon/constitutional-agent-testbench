@@ -83,3 +83,22 @@ def shard_suite(suite, partition):
         raise WorkflowInputError("Partition requires integer index and count; each shard must be nonempty.")
     fixtures["cases"] = fixtures["cases"][partition["index"]::partition["count"]]
     return bounded_artifact(fixtures)
+
+
+def select_outcomes(policy, suite, selection):
+    """Select an observed cohort while preserving original expectation intent."""
+    bounded_artifact(selection)
+    if not isinstance(selection, str) or selection not in {"mismatched", "matched", "passed", "failed"}:
+        raise WorkflowInputError("Outcome selection must be mismatched, matched, passed or failed.")
+    fixtures = validate_suite(suite)
+    report = evaluate_suite(policy, fixtures)
+    selected = []
+    for case, observed in zip(fixtures["cases"], report["cases"], strict=True):
+        actual = observed["evaluation"]["passed"]
+        matches = observed["matches_expectation"]
+        if {"mismatched": not matches, "matched": matches, "passed": actual, "failed": not actual}[selection]:
+            selected.append(case)
+    if not selected:
+        raise WorkflowInputError("No cases match the requested outcome; no suite was produced.")
+    fixtures["cases"] = selected
+    return bounded_artifact(fixtures)
