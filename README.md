@@ -95,11 +95,16 @@ The command line interface supports these operations:
 | `merge-suites` / `select-suite` | Combine corpora safely or select exact case IDs. |
 | `triage-suite` / `reduce-suite` | Diagnose regressions or retain a deterministic subset preserving observed evidence. |
 | `create-suite-receipt` / `verify-suite-receipt` | Bind and recompute whole-corpus evidence. |
+| `validate-suite` / `import-responses` | Validate fixture syntax or import response arrays with explicit verdict expectations. |
+| `capture-assertions` / `audit-assertions` | Capture matching observed rule results or audit assertion intent against a policy. |
+| `diff-suites` / `deduplicate-suite` | Review corpus edits without values or retain the first exact fixture duplicate. |
+| `shard-suite` / `select-outcomes` | Split executable suites or select observed verdict and regression cohorts. |
+| `migration-expectations` / `check-suite` | Gate expectation regressions or combine policy and fixture preflight checks. |
 | `create-replay` / `replay` | Create and independently check portable JSON replay bundles. |
 
 See the [operator guide](docs/OPERATOR.md) for a complete authoring, regression,
 migration, and receipt workflow, including command-specific strict exit rules.
-Policy schema 1.0 and existing evaluation outputs remain unchanged in package 0.4.0.
+Policy schema 1.0 and existing evaluation outputs remain unchanged in package 0.5.0.
 Optional suite 1.1 adds per-rule assertions. See the [corpus and replay guide](docs/CORPUS.md)
 for a complete command sequence. All JSON commands accept guarded atomic `--output`
 exports; existing default stdout and strict-exit behavior remain intact.

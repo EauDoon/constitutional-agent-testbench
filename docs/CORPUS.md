@@ -91,3 +91,101 @@ requires consistent expectations; `triage-suite` requires matching expectations;
 `verify-suite-receipt` requires consistent bindings; `replay` requires both.
 Valid negative results return 1 and malformed inputs or exceeded bounds return 2.
 Existing commands preserve their prior strict-exit semantics.
+
+
+## Validate a corpus before choosing a policy
+
+`validate-suite suite.json` validates versions 1.0 and 1.1, case identifiers,
+response objects, assertions, and existing size limits without evaluating a policy.
+The value-free acknowledgement gives the version and case count. Invalid suites
+return exit 2. `inspect-suite` remains the separate expectation-consistency check.
+
+
+## Capture reason-code regression assertions
+
+`capture-assertions policy.json suite.json --output asserted.json` upgrades a
+suite to 1.1 and records every observed rule result. Capture first requires all
+existing verdict and rule assertions to match, so it cannot silently bless a
+regression. It preserves responses and case order and leaves inputs untouched.
+Review the captured baseline before relying on it; observed behavior is not an
+independent correctness oracle.
+
+
+## Review fixture changes
+
+`diff-suites before.json after.json --strict-exit` reports added/removed IDs,
+changed field names, order changes, and version changes without response or
+assertion values. JSON booleans and numbers remain distinct. Strict exit is 1
+for any difference, including order alone, and 0 only for identical corpora.
+
+
+## Split a corpus across local CI jobs
+
+`shard-suite suite.json partition.json --output shard.json` accepts
+`{"index": 0, "count": 2}` for the first of two round-robin shards. Indices are
+zero-based; count cannot exceed case count. Every source case belongs to exactly
+one shard, and each shard is an executable nonempty suite. Partitioning depends
+on corpus order, so use the same corpus revision and count for every job.
+
+
+## Extract a regression cohort
+
+`select-outcomes policy.json suite.json selection.json --output regressions.json`
+uses a JSON string: `"mismatched"`, `"matched"`, `"passed"`, or `"failed"`.
+Mismatch includes per-rule assertions. A correctly expected failure is matched;
+it is not a regression. The selected suite preserves original assertions and
+responses. An empty cohort returns exit 2 and produces no file, because empty
+suites cannot provide a regression gate.
+
+
+## Remove exact duplicate fixtures
+
+`deduplicate-suite suite.json --output unique.json` retains the first case for
+each identical response plus expectation payload. Different verdict assertions,
+partial rule assertions, and JSON booleans versus numbers are preserved. This
+never resolves contradictory fixtures automatically. Use `diff-suites` to review
+which case IDs were removed and `inspect-suite` to check remaining conflicts.
+
+
+## Audit assertion intent before evaluation
+
+`audit-assertions policy.json suite.json --strict-exit` finds removed or
+misspelled rule IDs, reason codes impossible for the declared rule kind, and
+contradictions between explicit rule assertions and the overall expected verdict.
+It also lists unasserted rule IDs. Partial assertions are valid; strict exit 1
+means incompatible assertions, not merely incomplete assertion coverage. This
+checks declared intent without reading response values into the report.
+
+
+## Gate expectation regressions during policy migration
+
+`migration-expectations policy.json candidate.json suite.json --strict-exit`
+groups case IDs into regressions, recoveries, still matched, and still mismatched.
+It detects reason-code assertion changes even when both policies return the same
+overall verdict. Strict exit 1 means a newly mismatching case; existing failures
+remain visible in `still_mismatched` and `candidate_matches_expectations`.
+Use `run-suite candidate.json suite.json --strict-exit` to require every candidate
+expectation to pass, and `compare-policies` for definition and verdict details.
+
+
+## Run a single local preflight
+
+`check-suite policy.json suite.json --strict-exit` combines conservative policy
+lint, duplicate-response expectation consistency, assertion compatibility, and
+fixture regression checks. Exit 0 requires all four checks; exit 1 reports a
+completed failing preflight; invalid or bounded-out input returns 2. Expected
+failures alone cannot hide a contradictory policy. Duplicate constraints remain
+advisory. This gate does not require both observed outcomes or complete rule
+assertions; inspect `suite-coverage` separately for those coverage needs.
+
+
+## Import an existing response batch
+
+`import-responses responses.json expectations.json --output imported.json`
+accepts a strict JSON array of 1 to 256 response objects and an equally sized
+array of boolean expected verdicts. It generates stable positional IDs
+`case-001`, `case-002`, and so on. Expectations must be supplied independently;
+the importer never evaluates a policy to invent expected outcomes. Review IDs
+before merging separately imported batches because positional IDs can collide.
+The result preserves response content and can be validated, run, asserted,
+sharded, reduced, or packaged into a replay using the existing commands.

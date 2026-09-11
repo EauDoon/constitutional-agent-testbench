@@ -7,6 +7,12 @@ from .corpus_receipt import create_suite_receipt, verify_suite_receipt
 from .replay import create_replay_bundle, replay_bundle
 
 
+from .suite import validate_suite_report
+from .curation import capture_assertions, shard_suite, select_outcomes, deduplicate_suite, import_responses
+from .inspection import diff_suites, audit_assertions
+from .compare import migration_expectations
+from .triage import check_suite
+
 # Command: (ordered JSON inputs, library function, strict success field).
 COMMANDS = {"inspect-policy": (("policy",), inspect_policy, None)}
 COMMANDS["inspect-suite"] = (("suite",), inspect_suite, "consistent_expectations")
@@ -18,6 +24,16 @@ COMMANDS["create-suite-receipt"] = (("policy", "suite"), create_suite_receipt, N
 COMMANDS["verify-suite-receipt"] = (("policy", "suite", "receipt"), verify_suite_receipt, "verified")
 COMMANDS["create-replay"] = (("policy", "suite"), create_replay_bundle, None)
 COMMANDS["replay"] = (("bundle",), replay_bundle, "replay_passed")
+COMMANDS["validate-suite"] = (('suite',), validate_suite_report, None)
+COMMANDS["capture-assertions"] = (('policy', 'suite'), capture_assertions, None)
+COMMANDS["diff-suites"] = (('suite', 'incoming'), diff_suites, 'identical')
+COMMANDS["shard-suite"] = (('suite', 'partition'), shard_suite, None)
+COMMANDS["select-outcomes"] = (('policy', 'suite', 'selection'), select_outcomes, None)
+COMMANDS["deduplicate-suite"] = (('suite',), deduplicate_suite, None)
+COMMANDS["audit-assertions"] = (('policy', 'suite'), audit_assertions, 'assertions_compatible')
+COMMANDS["migration-expectations"] = (('policy', 'candidate', 'suite'), migration_expectations, 'no_regressions')
+COMMANDS["check-suite"] = (('policy', 'suite'), check_suite, 'ready')
+COMMANDS["import-responses"] = (('responses', 'expectations'), import_responses, None)
 
 
 def add_operation_parsers(subparsers):

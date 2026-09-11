@@ -46,3 +46,48 @@ def inspect_suite(suite):
         "expected_pass_count": sum(case["expected_passed"] for case in fixtures["cases"]),
         "duplicate_responses": duplicates,
         "consistent_expectations": not any(group["conflicting_expectations"] for group in duplicates)})
+
+
+def diff_suites(suite, incoming):
+    """Report changes by stable case ID, never by copying candidate values."""
+    left, right = validate_suite(suite), validate_suite(incoming)
+    old = {case["case_id"]: case for case in left["cases"]}
+    new = {case["case_id"]: case for case in right["cases"]}
+    modified = []
+    for identifier in sorted(old.keys() & new.keys()):
+        changed = [field for field in ("response", "expected_passed", "expected_rules")
+                   if (field in old[identifier]) != (field in new[identifier])
+                   or canonical_json(old[identifier].get(field)) != canonical_json(new[identifier].get(field))]
+        if changed:
+            modified.append({"case_id": identifier, "changed_fields": changed})
+    return bounded_artifact({"added": sorted(new.keys() - old.keys()),
+        "removed": sorted(old.keys() - new.keys()), "modified": modified,
+        "order_changed": list(old) != list(new),
+        "version_changed": left["suite_version"] != right["suite_version"],
+        "identical": canonical_json(left) == canonical_json(right), "values_included": False})
+
+
+def audit_assertions(policy, suite):
+    """Check assertion references and logical consistency without evaluating responses."""
+    current, fixtures = validate_policy(policy), validate_suite(suite)
+    rules = {rule.rule_id: rule for rule in current.rules}
+    failure = {"required_field": None, "equals": "VALUE_NOT_EQUAL", "one_of": "VALUE_NOT_ALLOWED",
+               "false": "VALUE_NOT_FALSE", "empty_list": "VALUE_NOT_EMPTY_LIST"}
+    cases = []
+    for case in fixtures["cases"]:
+        assertions = case.get("expected_rules", {})
+        unknown = sorted(assertions.keys() - rules.keys())
+        invalid = sorted(identifier for identifier in assertions.keys() & rules.keys()
+                         if assertions[identifier]["reason_code"] not in
+                         {"RULE_SATISFIED", "FIELD_MISSING", failure[rules[identifier].kind]})
+        missing = sorted(rules.keys() - assertions.keys())
+        contradiction = ((case["expected_passed"] and any(not a["passed"] for a in assertions.values()))
+                         or (not case["expected_passed"] and not missing
+                             and all(assertions[key]["passed"] for key in rules)))
+        cases.append({"case_id": case["case_id"], "unknown_rule_ids": unknown,
+                      "incompatible_reason_rule_ids": invalid, "unasserted_rule_ids": missing,
+                      "contradictory_verdict": contradiction})
+    return bounded_artifact({"policy_id": current.policy_id, "case_count": len(cases), "cases": cases,
+        "assertions_compatible": not any(c["unknown_rule_ids"] or c["incompatible_reason_rule_ids"]
+                                         or c["contradictory_verdict"] for c in cases),
+        "fully_asserted": all(not c["unasserted_rule_ids"] for c in cases), "values_included": False})

@@ -57,3 +57,77 @@ def reduce_suite(policy, suite):
         uncovered -= signatures[chosen]
     fixtures["cases"] = [case for index, case in enumerate(fixtures["cases"]) if index in retained]
     return bounded_artifact(validate_suite(fixtures))
+
+
+def capture_assertions(policy, suite):
+    """Fill rule assertions only after all existing expectations pass."""
+    fixtures = validate_suite(suite)
+    report = evaluate_suite(policy, fixtures)
+    if not report["matches_expectations"]:
+        raise WorkflowInputError("Assertion capture requires matching existing expectations.")
+    fixtures["suite_version"] = "1.1"
+    for case, observed in zip(fixtures["cases"], report["cases"], strict=True):
+        case["expected_rules"] = {row["rule_id"]: {"passed": row["passed"], "reason_code": row["reason_code"]}
+                                  for row in observed["evaluation"]["rule_results"]}
+    return bounded_artifact(validate_suite(fixtures))
+
+
+def shard_suite(suite, partition):
+    """Select a zero-based round-robin shard in source order."""
+    fixtures = validate_suite(suite)
+    bounded_artifact(partition)
+    if (not isinstance(partition, dict) or set(partition) != {"index", "count"}
+            or type(partition["index"]) is not int or type(partition["count"]) is not int
+            or not 1 <= partition["count"] <= len(fixtures["cases"])
+            or not 0 <= partition["index"] < partition["count"]):
+        raise WorkflowInputError("Partition requires integer index and count; each shard must be nonempty.")
+    fixtures["cases"] = fixtures["cases"][partition["index"]::partition["count"]]
+    return bounded_artifact(fixtures)
+
+
+def select_outcomes(policy, suite, selection):
+    """Select an observed cohort while preserving original expectation intent."""
+    bounded_artifact(selection)
+    if not isinstance(selection, str) or selection not in {"mismatched", "matched", "passed", "failed"}:
+        raise WorkflowInputError("Outcome selection must be mismatched, matched, passed or failed.")
+    fixtures = validate_suite(suite)
+    report = evaluate_suite(policy, fixtures)
+    selected = []
+    for case, observed in zip(fixtures["cases"], report["cases"], strict=True):
+        actual = observed["evaluation"]["passed"]
+        matches = observed["matches_expectation"]
+        if {"mismatched": not matches, "matched": matches, "passed": actual, "failed": not actual}[selection]:
+            selected.append(case)
+    if not selected:
+        raise WorkflowInputError("No cases match the requested outcome; no suite was produced.")
+    fixtures["cases"] = selected
+    return bounded_artifact(fixtures)
+
+
+def deduplicate_suite(suite):
+    """Keep the first case for each identical response and expectation payload."""
+    from .common import canonical_json
+    fixtures = validate_suite(suite)
+    seen, retained = set(), []
+    for case in fixtures["cases"]:
+        identity = canonical_json({key: value for key, value in case.items() if key != "case_id"})
+        if identity not in seen:
+            retained.append(case)
+            seen.add(identity)
+    fixtures["cases"] = retained
+    return bounded_artifact(fixtures)
+
+
+def import_responses(responses, expectations):
+    """Create fixtures from a response array and an equally sized explicit verdict array."""
+    bounded_artifact(responses)
+    bounded_artifact(expectations)
+    if (not isinstance(responses, list) or not 1 <= len(responses) <= 256
+            or any(not isinstance(response, dict) for response in responses)
+            or not isinstance(expectations, list) or len(expectations) != len(responses)
+            or any(type(expected) is not bool for expected in expectations)):
+        raise WorkflowInputError("Import requires 1 to 256 response objects and one explicit boolean expectation per response.")
+    fixtures = {"suite_version": "1.0", "cases": [
+        {"case_id": f"case-{index:03d}", "response": response, "expected_passed": expected}
+        for index, (response, expected) in enumerate(zip(responses, expectations, strict=True), start=1)]}
+    return bounded_artifact(validate_suite(fixtures))

@@ -27,7 +27,23 @@ from .triage import triage_suite
 from .corpus_receipt import create_suite_receipt, verify_suite_receipt
 from .replay import create_replay_bundle, replay_bundle
 
+from .suite import validate_suite_report
+from .curation import capture_assertions, shard_suite, select_outcomes, deduplicate_suite, import_responses
+from .inspection import diff_suites, audit_assertions
+from .compare import migration_expectations
+from .triage import check_suite
+
 __all__ = [
+    "import_responses",
+    "check_suite",
+    "migration_expectations",
+    "audit_assertions",
+    "deduplicate_suite",
+    "select_outcomes",
+    "shard_suite",
+    "diff_suites",
+    "capture_assertions",
+    "validate_suite_report",
     "inspect_policy",
     "inspect_suite",
     "merge_suites",
@@ -66,5 +82,5 @@ __all__ = [
     "validate_policy",
 ]
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 

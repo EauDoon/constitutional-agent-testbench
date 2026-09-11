@@ -1,5 +1,17 @@
 # Changelog
 
+## Version 0.5.0 - 11-09-2026
+
+- Validate and import explicit fixture batches without deriving expected outcomes.
+- Capture complete rule assertions only after existing expectations match.
+- Review corpus revisions without copying values, and deduplicate exact fixtures.
+- Shard suites deterministically and select observed regression or verdict cohorts.
+- Audit stale assertion IDs, incompatible reason codes, and contradictory verdicts.
+- Classify migration regressions and recoveries including reason-code-only drift.
+- Preflight policy conflicts, fixture consistency, assertions, and regressions together.
+- Exercise preparation through replay with CLI error, recovery, and export protection checks.
+- Preserve policy and suite schemas, evaluator behavior, offline runtime, and atomic export permissions.
+
 ## Version 0.4.0 - 10-09-2026
 
 - Inspect policy structure and fixture duplication without candidate values.
