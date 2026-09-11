@@ -43,7 +43,10 @@ from .inspection import audit_assertions
 
 from .compare import migration_expectations
 
+from .triage import check_suite
+
 __all__ = [
+    "check_suite",
     "migration_expectations",
     "audit_assertions",
     "deduplicate_suite",

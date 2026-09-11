@@ -126,3 +126,21 @@ class CorpusAuthoringTests(unittest.TestCase):
         self.assertTrue(inverse["no_regressions"])
         raw["cases"][0]["expected_passed"] = False
         self.assertEqual(migration_expectations(policy(), policy(), raw)["still_mismatched"], ["pass"])
+
+    def test_preflight_rejects_conflicts_even_when_expected_failures_match(self):
+        from constitutional_agent_testbench import check_suite
+        self.assertTrue(check_suite(policy(), suite())["ready"])
+        impossible = policy()
+        impossible["rules"].append({"rule_id": "other", "kind": "equals", "path": "action", "value": True})
+        raw = suite()
+        for case in raw["cases"]:
+            case["expected_passed"] = False
+        result = check_suite(impossible, raw)
+        self.assertTrue(result["checks"]["matches_expectations"])
+        self.assertFalse(result["checks"]["no_policy_conflicts"])
+        self.assertFalse(result["ready"])
+        raw = suite()
+        duplicate = copy.deepcopy(raw["cases"][0])
+        duplicate.update(case_id="conflict", expected_passed=False)
+        raw["cases"].append(duplicate)
+        self.assertFalse(check_suite(policy(), raw)["checks"]["consistent_expectations"])

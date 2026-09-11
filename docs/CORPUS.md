@@ -166,3 +166,14 @@ overall verdict. Strict exit 1 means a newly mismatching case; existing failures
 remain visible in `still_mismatched` and `candidate_matches_expectations`.
 Use `run-suite candidate.json suite.json --strict-exit` to require every candidate
 expectation to pass, and `compare-policies` for definition and verdict details.
+
+
+## Run a single local preflight
+
+`check-suite policy.json suite.json --strict-exit` combines conservative policy
+lint, duplicate-response expectation consistency, assertion compatibility, and
+fixture regression checks. Exit 0 requires all four checks; exit 1 reports a
+completed failing preflight; invalid or bounded-out input returns 2. Expected
+failures alone cannot hide a contradictory policy. Duplicate constraints remain
+advisory. This gate does not require both observed outcomes or complete rule
+assertions; inspect `suite-coverage` separately for those coverage needs.

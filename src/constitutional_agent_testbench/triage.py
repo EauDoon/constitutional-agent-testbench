@@ -22,3 +22,25 @@ def triage_suite(policy, suite):
         "mismatches": mismatches,
         "failure_groups": [{"rule_id": key[0], "path": key[1], "reason_code": key[2], "case_ids": groups[key]}
                            for key in sorted(groups)], "values_included": False})
+
+
+def check_suite(policy, suite):
+    """Combine existing diagnostics into a value-free local regression preflight."""
+    from .policy import validate_policy
+    from .suite import validate_suite
+    from .authoring import lint_policy
+    from .inspection import inspect_suite, audit_assertions
+    current, fixtures = validate_policy(policy), validate_suite(suite)
+    lint = lint_policy(current)
+    inventory = inspect_suite(fixtures)
+    assertions = audit_assertions(current, fixtures)
+    regression = triage_suite(current, fixtures)
+    checks = {"no_policy_conflicts": not lint["has_conflicts"],
+              "consistent_expectations": inventory["consistent_expectations"],
+              "compatible_assertions": assertions["assertions_compatible"],
+              "matches_expectations": regression["matches_expectations"]}
+    return bounded_artifact({"policy_id": current.policy_id, "ready": all(checks.values()),
+        "checks": checks, "policy_findings": lint["findings"],
+        "duplicate_responses": inventory["duplicate_responses"],
+        "assertions": assertions, "regressions": regression,
+        "scope": "local fixture preflight; not a safety or satisfiability proof"})
