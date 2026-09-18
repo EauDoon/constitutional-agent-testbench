@@ -2,6 +2,8 @@
 
 **A deterministic contract checker for structured AI outputs.**
 
+![build](https://img.shields.io/github/actions/workflow/status/EauDoon/constitutional-agent-testbench/ci.yml?branch=main)
+
 Constitutional Agent Testbench evaluates a JSON response against a declared, machine-readable policy. It gives builders a small and inspectable way to test whether structured output contains required fields, uses approved values, and preserves explicitly declared defaults before another workflow relies on it.
 
 Its PrecedenceTrace mode also checks whether permuting declared peer rules
