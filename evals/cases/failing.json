@@ -1,0 +1,21 @@
+{
+  "id": "failing",
+  "source": "examples/assertion-suite.json",
+  "policy_path": "examples/policy.json",
+  "input": {
+    "actions": ["synthetic-item"],
+    "blocked": true,
+    "decision": "decline",
+    "risk_level": "high",
+    "summary": "Synthetic example."
+  },
+  "expected": {
+    "passed": false,
+    "rules": {
+      "decision-accepted": {
+        "passed": false,
+        "reason_code": "VALUE_NOT_EQUAL"
+      }
+    }
+  }
+}

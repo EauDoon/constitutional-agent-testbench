@@ -1,0 +1,21 @@
+{
+  "id": "passing",
+  "source": "examples/assertion-suite.json",
+  "policy_path": "examples/policy.json",
+  "input": {
+    "actions": [],
+    "blocked": false,
+    "decision": "accept",
+    "risk_level": "low",
+    "summary": "Synthetic example."
+  },
+  "expected": {
+    "passed": true,
+    "rules": {
+      "decision-accepted": {
+        "passed": true,
+        "reason_code": "RULE_SATISFIED"
+      }
+    }
+  }
+}
