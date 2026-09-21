@@ -1,0 +1,15 @@
+{
+  "id": "missing-fields",
+  "source": "examples/assertion-suite.json",
+  "policy_path": "examples/policy.json",
+  "input": {},
+  "expected": {
+    "passed": false,
+    "rules": {
+      "decision-accepted": {
+        "passed": false,
+        "reason_code": "FIELD_MISSING"
+      }
+    }
+  }
+}
