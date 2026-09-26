@@ -236,6 +236,22 @@ def _load_json_argument(path: str) -> Any:
     return load_json_stream(getattr(sys.stdin, "buffer", sys.stdin))
 
 
+def _write_json_stream(stream, value: Any) -> None:
+    """Emit UTF-8 and LF without locale encoding or newline translation.
+
+    Real process streams expose a binary buffer. Text-only streams remain
+    supported for callers embedding main(), including StringIO captures.
+    """
+    serialized = stable_json(value)
+    binary = getattr(stream, "buffer", None)
+    if binary is not None:
+        binary.write(serialized.encode("utf-8"))
+        binary.flush()
+    else:
+        stream.write(serialized)
+        stream.flush()
+
+
 def _run_command(arguments: argparse.Namespace) -> dict[str, Any]:
     if arguments.command == "playground":
         if arguments.policy == "-" or arguments.response == "-":
@@ -316,11 +332,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             display = {"output_written": True}
             if arguments.command == "generate-synthetic":
                 display["policy_id"] = result["policy_id"]
+        _write_json_stream(sys.stdout, display)
     except _HelpRequested:
         return 0
     except TestbenchError as exc:
         error = {"error": exc.public_error()}
-        sys.stderr.write(stable_json(error))
+        _write_json_stream(sys.stderr, error)
         return 2
     except (OverflowError, RecursionError, TypeError, ValueError):
         error = {
@@ -329,10 +346,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "message": "Input data could not be processed as strict JSON.",
             }
         }
-        sys.stderr.write(stable_json(error))
+        _write_json_stream(sys.stderr, error)
         return 2
 
-    sys.stdout.write(stable_json(display))
     if getattr(arguments, "strict_exit", False):
         if arguments.command in COMMANDS:
             return 0 if result[COMMANDS[arguments.command][2]] else 1

@@ -189,3 +189,43 @@ the importer never evaluates a policy to invent expected outcomes. Review IDs
 before merging separately imported batches because positional IDs can collide.
 The result preserves response content and can be validated, run, asserted,
 sharded, reduced, or packaged into a replay using the existing commands.
+
+## Verify an installed package with a Unicode corpus
+
+From an unpacked source distribution or checkout, install the package into your
+chosen Python 3.11+ environment and run:
+
+```text
+python -m pip install --no-deps .
+python scripts/verify_installed_workflow.py
+```
+
+The script uses that environment's installed console command in a fresh temporary
+directory and rejects editable source imports. It creates four explicit synthetic
+fixtures: a passing Unicode response, a missing field, a non-object parent, and
+numeric zero where JSON `false` is required. It validates the policy and corpus,
+then changes the rule from `false` to `equals false`. Verdicts stay unchanged,
+but the numeric-zero failure reason changes; the explicit assertion correctly
+makes the migration gate exit 1.
+
+It exports a value-free receipt and a self-contained replay bundle, independently
+replays both, and checks altered assertions and stored results are rejected. It
+also checks invalid JSON, protected input paths, preserved exports after errors,
+and deterministic output. Its final JSON lists command exit statuses without
+response values. All fixtures and bundles are temporary; a successful run is
+local contract evidence, not an observation of a model or a safety certification.
+
+Since 0.5.1, CLI JSON stdout and stderr use UTF-8 bytes with LF, regardless of the
+process stream's text encoding. Previously, a non-UTF-8 stream could replace or
+drop Unicode response characters, return exit 0, and produce a bundle that failed
+its own receipt verification. The script exercises strict, replacing, and ignoring
+encodings and compares stdout bytes with `--output` exports. Shells that themselves
+transcode redirected output are outside this boundary; `--output` writes UTF-8
+directly to the destination. Embedded `main()` callers supplying text-only streams
+receive Unicode text and control its subsequent encoding.
+
+Replay bundles still contain original policy and response values. Only the
+receipt and replay report omit raw values; share a bundle only with recipients
+who may receive its inputs. Receipts are recomputable consistency checks, not
+signatures: a party able to replace both inputs and receipt can create new valid
+evidence. Comparing against a separately retained receipt detects changed inputs.

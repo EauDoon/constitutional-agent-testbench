@@ -25,13 +25,13 @@ jobs:
         run: python -m build
       - name: Verify archive contents and hashes
         run: |
-          python -m zipfile -l dist/constitutional_agent_testbench-0.5.0-py3-none-any.whl
-          python -m tarfile -l dist/constitutional_agent_testbench-0.5.0.tar.gz
+          python -m zipfile -l dist/constitutional_agent_testbench-0.5.1-py3-none-any.whl
+          python -m tarfile -l dist/constitutional_agent_testbench-0.5.1.tar.gz
           sha256sum dist/* > dist/SHA256SUMS
       - name: Retain reviewed release assets
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: constitutional-agent-testbench-v0.5.0
+          name: constitutional-agent-testbench-v0.5.1
           path: dist/*
           if-no-files-found: error
           retention-days: 14
