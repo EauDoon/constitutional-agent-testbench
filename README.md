@@ -106,7 +106,7 @@ The command line interface supports these operations:
 
 See the [operator guide](docs/OPERATOR.md) for a complete authoring, regression,
 migration, and receipt workflow, including command-specific strict exit rules.
-Policy schema 1.0 and existing evaluation outputs remain unchanged in package 0.5.0.
+Policy schema 1.0 and existing evaluation outputs remain unchanged in package 0.5.1.
 Optional suite 1.1 adds per-rule assertions. See the [corpus and replay guide](docs/CORPUS.md)
 for a complete command sequence. All JSON commands accept guarded atomic `--output`
 exports; existing default stdout and strict-exit behavior remain intact.
@@ -424,3 +424,9 @@ the complete statement.
 Released under the MIT License. See [`LICENSE`](LICENSE).
 
 Atomic exports preserve an existing regular file's POSIX read/write/execute permission bits; special bits are cleared. New exports remain private (0600 on POSIX). Destination symlinks are replaced without reading or changing their targets. Ownership and ACL preservation are outside this local export interface; platform filesystem rules still apply.
+
+The [installed adopter check](docs/CORPUS.md#verify-an-installed-package-with-a-unicode-corpus)
+runs validation, an assertion-sensitive policy migration, receipt export, and
+independent replay through the installed command outside the checkout. CLI JSON
+streams use UTF-8 with LF so Unicode fixtures retain their digest bindings even
+under non-UTF-8 process encodings.

@@ -1,5 +1,16 @@
 # Changelog
 
+## Version 0.5.1 - 26-09-2026
+
+- Emit CLI JSON as UTF-8 with LF directly to binary process streams, preserving
+  Unicode fixtures and receipt bindings even when the terminal encoding would
+  replace, drop, or reject characters. Text-only embedding remains supported.
+- Verify the installed adopter workflow outside the checkout, including
+  assertion-sensitive migration, deterministic exports, independent replay,
+  altered-evidence rejection, strict JSON, and value-free reports.
+- Preserve policy/suite formats, receipt digests, public reason codes and strict
+  regression exit semantics. This patch changes transport, not evaluation.
+
 ## Version 0.5.0 - 11-09-2026
 
 - Validate and import explicit fixture batches without deriving expected outcomes.
