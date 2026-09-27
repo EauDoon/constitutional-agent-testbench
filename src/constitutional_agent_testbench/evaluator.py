@@ -38,6 +38,26 @@ ReasonCode = Literal[
     "VALUE_NOT_EMPTY_LIST",
 ]
 
+#: The closed reason-code vocabulary, derived once from the constants above so
+#: callers that must accept or classify reason codes cannot drift from the ones
+#: this module can actually emit.
+REASON_CODES = frozenset({
+    REASON_SATISFIED,
+    REASON_MISSING,
+    REASON_NOT_EQUAL,
+    REASON_NOT_ALLOWED,
+    REASON_NOT_FALSE,
+    REASON_NOT_EMPTY_LIST,
+})
+
+#: The reason code that can be emitted when a rule kind's constraint is violated.
+FAILURE_REASON_BY_KIND = {
+    "equals": REASON_NOT_EQUAL,
+    "one_of": REASON_NOT_ALLOWED,
+    "false": REASON_NOT_FALSE,
+    "empty_list": REASON_NOT_EMPTY_LIST,
+}
+
 
 class RuleResult(TypedDict):
     """Public per-rule evaluation record."""

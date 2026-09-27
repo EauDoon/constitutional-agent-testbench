@@ -8,13 +8,11 @@ from typing import Any
 
 from .common import (MAX_JSON_INPUT_BYTES, TestbenchError,
                      bounded_canonical_json_size, ensure_json_value)
-from .evaluator import evaluate_response
+from .evaluator import REASON_CODES, evaluate_response
 from .policy import Policy, policy_to_dict, validate_policy
 
 MAX_SUITE_CASES = 256
 MAX_SUITE_POLICY_BYTES = 32_000_000
-REASON_CODES = {"RULE_SATISFIED", "FIELD_MISSING", "VALUE_NOT_EQUAL",
-                "VALUE_NOT_ALLOWED", "VALUE_NOT_FALSE", "VALUE_NOT_EMPTY_LIST"}
 
 
 def _validate_assertions(expected):

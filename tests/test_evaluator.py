@@ -5,6 +5,7 @@ from importlib.resources import files
 
 import constitutional_agent_testbench as cat
 from constitutional_agent_testbench.common import MAX_JSON_INPUT_BYTES
+from constitutional_agent_testbench import evaluator
 from constitutional_agent_testbench.evaluator import (
     EvaluationInputError,
     evaluate_response,
@@ -340,6 +341,41 @@ class EvaluatorTests(unittest.TestCase):
                     result["rule_results"][0]["reason_code"],
                     "RULE_SATISFIED" if expected else "VALUE_NOT_ALLOWED",
                 )
+
+
+class ReasonCodeVocabularyTests(unittest.TestCase):
+    """The declared vocabulary and the emitted vocabulary must be one set."""
+
+    def test_literal_and_runtime_set_agree(self) -> None:
+        self.assertEqual(set(evaluator.ReasonCode.__args__), set(evaluator.REASON_CODES))
+        self.assertEqual(
+            set(evaluator.FAILURE_REASON_BY_KIND.values()) | {"RULE_SATISFIED", "FIELD_MISSING"},
+            set(evaluator.REASON_CODES),
+        )
+
+    def test_suite_assertions_use_the_evaluator_vocabulary(self) -> None:
+        from constitutional_agent_testbench.suite import REASON_CODES as suite_codes
+
+        self.assertEqual(set(suite_codes), set(evaluator.REASON_CODES))
+
+    def test_every_emitted_reason_code_is_declared(self) -> None:
+        document = {
+            "schema_version": "1.0",
+            "policy_id": "vocabulary",
+            "rules": [
+                {"rule_id": "a", "kind": "equals", "path": "a", "value": 1},
+                {"rule_id": "b", "kind": "one_of", "path": "b", "values": ["x"]},
+                {"rule_id": "c", "kind": "false", "path": "c"},
+                {"rule_id": "d", "kind": "empty_list", "path": "d"},
+                {"rule_id": "e", "kind": "required_field", "path": "e"},
+            ],
+        }
+        seen = set()
+        for response in ({}, {"a": 2, "b": "y", "c": True, "d": [1], "e": 0},
+                         {"a": 1, "b": "x", "c": False, "d": [], "e": 0}):
+            for row in evaluate_response(document, response)["rule_results"]:
+                seen.add(row["reason_code"])
+        self.assertEqual(seen, set(evaluator.REASON_CODES))
 
 
 if __name__ == "__main__":

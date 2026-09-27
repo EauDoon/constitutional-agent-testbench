@@ -2,6 +2,8 @@
 
 from collections import Counter
 
+from .common import canonical_json
+from .evaluator import FAILURE_REASON_BY_KIND
 from .policy import validate_policy
 from .workflow import WorkflowInputError, bounded_artifact
 from .common import canonical_json
@@ -71,15 +73,14 @@ def audit_assertions(policy, suite):
     """Check assertion references and logical consistency without evaluating responses."""
     current, fixtures = validate_policy(policy), validate_suite(suite)
     rules = {rule.rule_id: rule for rule in current.rules}
-    failure = {"required_field": None, "equals": "VALUE_NOT_EQUAL", "one_of": "VALUE_NOT_ALLOWED",
-               "false": "VALUE_NOT_FALSE", "empty_list": "VALUE_NOT_EMPTY_LIST"}
     cases = []
     for case in fixtures["cases"]:
         assertions = case.get("expected_rules", {})
         unknown = sorted(assertions.keys() - rules.keys())
         invalid = sorted(identifier for identifier in assertions.keys() & rules.keys()
                          if assertions[identifier]["reason_code"] not in
-                         {"RULE_SATISFIED", "FIELD_MISSING", failure[rules[identifier].kind]})
+                         {"RULE_SATISFIED", "FIELD_MISSING",
+                          FAILURE_REASON_BY_KIND.get(rules[identifier].kind)})
         missing = sorted(rules.keys() - assertions.keys())
         contradiction = ((case["expected_passed"] and any(not a["passed"] for a in assertions.values()))
                          or (not case["expected_passed"] and not missing
