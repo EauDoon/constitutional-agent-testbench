@@ -1,9 +1,15 @@
-# Constitutional Agent Testbench v0.5.1 release assets
+# Constitutional Agent Testbench v0.5.2 release assets
 
-The v0.5.1 package metadata is recorded in
-`release/v0.5.1-manifest.json`. The pinned release workflow builds a wheel and
+The v0.5.2 package metadata is recorded in
+`release/v0.5.2-manifest.json`. The pinned release workflow builds a wheel and
 source distribution, lists both archives, writes SHA-256 files, and retains the
 assets for 14 days. It does not create or publish a remote release.
+
+The distribution installs two console commands, `constitutional-agent-testbench`
+and `constitutional-agent-testbench-playground`. A third entry point that pointed
+at the repository-only `evals` package was removed in 0.5.2 because the package is
+outside `src/` and ships in neither archive; the evaluation runner stays available
+inside a checkout as `python -m evals.runner`.
 
 The strict-exit contract is backwards compatible: existing commands keep exit code zero for valid output unless `--strict-exit` is supplied. With the flag, conformance is zero, valid nonconformance or drift is one, and invalid or unresolved input is two.
 

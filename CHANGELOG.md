@@ -1,5 +1,17 @@
 # Changelog
 
+## Version 0.5.2 - 28-09-2026
+
+- Remove the `constitutional-agent-testbench-evals` console script. It pointed at
+  the repository-only `evals` package, which is outside `src/` and ships in neither
+  the wheel nor the source distribution, so the installed command always failed with
+  `ModuleNotFoundError: No module named 'evals'`. The evaluation runner remains
+  available in a checkout as `python -m evals.runner`.
+- Add a packaging test that fails when a declared console script targets a
+  top-level package the distribution does not ship.
+- Preserve policy and suite schemas, evaluation semantics, reason codes, and the two
+  remaining console commands. This patch changes the installed command surface only.
+
 ## Version 0.5.1 - 26-09-2026
 
 - Emit CLI JSON as UTF-8 with LF directly to binary process streams, preserving
