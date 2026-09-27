@@ -114,14 +114,21 @@ def run_playground(policy_path: str | None, response_path: str | None, *, smoke_
     def export() -> None:
         try:
             result = evaluate_documents(policy_box.get("1.0", "end"), response_box.get("1.0", "end"))
-            verdict_var.set(format_verdict(result))
-            set_result(stable_json(result))
-            target = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON", "*.json")])
-            if target:
-                write_json(target, result)
         except (TestbenchError, ValueError, TypeError) as exc:
             verdict_var.set(f"INVALID — {exc}")
+            set_result("")
             messagebox.showerror("Invalid input", str(exc))
+            return
+        verdict_var.set(format_verdict(result))
+        set_result(stable_json(result))
+        target = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON", "*.json")])
+        if not target:
+            return
+        try:
+            write_json(target, result)
+        except TestbenchError as exc:
+            # A failed write is not a rejected input; keep the live verdict.
+            messagebox.showerror("Export failed", str(exc))
 
     buttons = tk.Frame(root)
     buttons.pack(fill="x", padx=8, pady=8)
