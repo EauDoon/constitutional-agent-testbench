@@ -22,6 +22,13 @@ From the project root, expose `src` on `PYTHONPATH`, then run:
 python -m unittest discover -s tests -v
 ```
 
+Then run the checked-in eval scenarios, which record expected verdicts and
+per-rule reason codes for `examples/policy.json`:
+
+```text
+python -m evals.runner
+```
+
 Also exercise every public command against the bundled examples:
 
 ```text
