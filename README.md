@@ -106,7 +106,7 @@ The command line interface supports these operations:
 
 See the [operator guide](docs/OPERATOR.md) for a complete authoring, regression,
 migration, and receipt workflow, including command-specific strict exit rules.
-Policy schema 1.0 and existing evaluation outputs remain unchanged in package 0.5.1.
+Policy schema 1.0 and existing evaluation outputs remain unchanged in package 0.5.2.
 Optional suite 1.1 adds per-rule assertions. See the [corpus and replay guide](docs/CORPUS.md)
 for a complete command sequence. All JSON commands accept guarded atomic `--output`
 exports; existing default stdout and strict-exit behavior remain intact.
