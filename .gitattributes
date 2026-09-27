@@ -1,0 +1,14 @@
+# Receipts, replay bundles, and CLI JSON transport are defined over UTF-8 bytes
+# with LF endings. `text=auto` normalizes on commit so a contributor whose
+# core.autocrlf is false cannot commit CRLF blobs that would change digests and
+# make a corpus compare differently on Linux and Windows runners.
+* text=auto
+
+# These are read as bytes, so the working tree must match the stored blob.
+*.json text eol=lf
+*.md text eol=lf
+*.toml text eol=lf
+*.yml text eol=lf
+*.py text eol=lf
+*.in text eol=lf
+*.typed text eol=lf
