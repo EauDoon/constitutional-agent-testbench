@@ -8,8 +8,10 @@ from constitutional_agent_testbench.curation import merge_suites, select_suite
 from constitutional_agent_testbench.workflow import WorkflowInputError
 from constitutional_agent_testbench.triage import triage_suite
 from constitutional_agent_testbench.curation import reduce_suite
+from constitutional_agent_testbench.authoring import lint_policy
 from constitutional_agent_testbench.coverage import suite_coverage
 from constitutional_agent_testbench.corpus_receipt import create_suite_receipt, verify_suite_receipt
+from constitutional_agent_testbench.policy import MAX_POLICY_RULES, PolicyValidationError
 from constitutional_agent_testbench.replay import create_replay_bundle, replay_bundle
 from constitutional_agent_testbench.suite import SuiteInputError, evaluate_suite, validate_suite
 
@@ -206,3 +208,34 @@ class ReplayTests(unittest.TestCase):
         self.assertTrue(result["verified"])
         self.assertFalse(result["matches_expectations"])
         self.assertFalse(result["replay_passed"])
+
+
+class PolicyRuleLimitTests(unittest.TestCase):
+    """The 256-rule limit is one bound, enforced by validate_policy alone."""
+
+    def over_limit_policy(self):
+        return {"schema_version": "1.0", "policy_id": "too-many", "rules": [
+            {"rule_id": f"r{index}", "kind": "required_field", "path": f"f{index}"}
+            for index in range(MAX_POLICY_RULES + 1)]}
+
+    def test_validate_policy_owns_the_bound(self):
+        with self.assertRaises(PolicyValidationError) as caught:
+            inspect_policy(self.over_limit_policy())
+        self.assertIn(f"{MAX_POLICY_RULES}", str(caught.exception))
+
+    def test_corpus_commands_surface_the_policy_error_not_a_workflow_error(self):
+        for call in (inspect_policy,
+                     lambda raw: reduce_suite(raw, suite()),
+                     lambda raw: suite_coverage(raw, suite()),
+                     lambda raw: lint_policy(raw),
+                     lambda raw: triage_suite(raw, suite())):
+            with self.subTest(call=call.__name__):
+                with self.assertRaises(PolicyValidationError):
+                    call(self.over_limit_policy())
+
+    def test_a_policy_at_the_limit_is_accepted(self):
+        at_limit = {"schema_version": "1.0", "policy_id": "at-limit", "rules": [
+            {"rule_id": f"r{index}", "kind": "required_field", "path": f"f{index}"}
+            for index in range(MAX_POLICY_RULES)]}
+        self.assertEqual(inspect_policy(at_limit)["rule_count"], MAX_POLICY_RULES)
+        self.assertEqual(suite_coverage(at_limit, suite())["case_count"], 3)

@@ -1,8 +1,7 @@
 """Explicit corpus edits that preserve response content and assertion intent."""
-from .suite import validate_suite, SuiteInputError
+from .suite import MAX_SUITE_CASES, evaluate_suite, validate_suite, SuiteInputError
 from .workflow import bounded_artifact, WorkflowInputError
 from .policy import validate_policy
-from .suite import evaluate_suite
 
 
 def merge_suites(suite, incoming):
@@ -18,10 +17,12 @@ def select_suite(suite, selection):
     """Select exact IDs in original corpus order, rejecting empty or misspelled selections."""
     fixtures = validate_suite(suite)
     bounded_artifact(selection)
-    if (not isinstance(selection, list) or not 1 <= len(selection) <= 256
+    if (not isinstance(selection, list) or not 1 <= len(selection) <= MAX_SUITE_CASES
             or any(not isinstance(identifier, str) for identifier in selection)
             or len(set(selection)) != len(selection)):
-        raise WorkflowInputError("Selection must contain 1 to 256 distinct case identifiers.")
+        raise WorkflowInputError(
+            f"Selection must contain 1 to {MAX_SUITE_CASES} distinct case identifiers."
+        )
     identifiers = set(selection)
     if identifiers - {case["case_id"] for case in fixtures["cases"]}:
         raise WorkflowInputError("Selection contains unknown case identifiers.")
@@ -32,8 +33,6 @@ def select_suite(suite, selection):
 def reduce_suite(policy, suite):
     """Greedily retain observed rule/reason coverage and every mismatching fixture."""
     current = validate_policy(policy)
-    if len(current.rules) > 256:
-        raise WorkflowInputError("Suite reduction supports at most 256 rules.")
     fixtures = validate_suite(suite)
     report = evaluate_suite(current, fixtures)
     signatures = []
@@ -122,11 +121,15 @@ def import_responses(responses, expectations):
     """Create fixtures from a response array and an equally sized explicit verdict array."""
     bounded_artifact(responses)
     bounded_artifact(expectations)
-    if (not isinstance(responses, list) or not 1 <= len(responses) <= 256
+    if (not isinstance(responses, list) or not 1 <= len(responses) <= MAX_SUITE_CASES
             or any(not isinstance(response, dict) for response in responses)
             or not isinstance(expectations, list) or len(expectations) != len(responses)
             or any(type(expected) is not bool for expected in expectations)):
-        raise WorkflowInputError("Import requires 1 to 256 response objects and one explicit boolean expectation per response.")
+        raise WorkflowInputError(
+            "Import requires 1 to "
+            f"{MAX_SUITE_CASES} response objects and one explicit boolean "
+            "expectation per response."
+        )
     fixtures = {"suite_version": "1.0", "cases": [
         {"case_id": f"case-{index:03d}", "response": response, "expected_passed": expected}
         for index, (response, expected) in enumerate(zip(responses, expectations, strict=True), start=1)]}
