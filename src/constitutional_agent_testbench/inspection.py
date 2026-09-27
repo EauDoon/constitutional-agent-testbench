@@ -5,7 +5,7 @@ from collections import Counter
 from .common import canonical_json
 from .evaluator import FAILURE_REASON_BY_KIND
 from .policy import validate_policy
-from .workflow import WorkflowInputError, bounded_artifact
+from .workflow import bounded_artifact
 from .common import canonical_json
 from .suite import validate_suite
 
@@ -13,8 +13,6 @@ from .suite import validate_suite
 def inspect_policy(policy):
     """Inventory declared paths and relationships without copying constraint values."""
     current = validate_policy(policy)
-    if len(current.rules) > 256:
-        raise WorkflowInputError("Policy inspection supports at most 256 rules.")
     paths = sorted({rule.path for rule in current.rules})
     return bounded_artifact({"policy_id": current.policy_id, "schema_version": current.schema_version,
             "rule_count": len(current.rules), "path_count": len(paths),
