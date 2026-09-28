@@ -3,8 +3,10 @@
 Each JSON case file in evals/cases/ describes one input response plus the
 expected verdict (overall pass and per-rule outcome plus reason code). The
 runner loads the declared policy, evaluates the response with the testbench
-library, and compares the actual result against the expected one. Exits 0
-when every case matches, non-zero when any case diverges.
+library, and compares the actual result against the expected one. Every case must
+name every rule its policy declares, so a partial expectation fails the run instead
+of leaving rules unobserved. Exits 0 when every case matches, non-zero when any
+case diverges.
 """
 
 from __future__ import annotations
@@ -43,6 +45,19 @@ class _CaseAssertion(unittest.TestCase):
             self.result["passed"],
             expected["passed"],
             msg=f"overall verdict: expected={expected['passed']}, actual={self.result['passed']}",
+        )
+
+    def test_every_declared_rule_is_covered(self) -> None:
+        expected_rules = self.case["expected"].get("rules", {})
+        declared = [rule.rule_id for rule in self.policy.rules]
+        self.assertEqual(
+            sorted(expected_rules),
+            sorted(declared),
+            msg=(
+                "expected.rules must name every rule the policy declares: "
+                f"missing={sorted(set(declared) - set(expected_rules))}, "
+                f"undeclared={sorted(set(expected_rules) - set(declared))}"
+            ),
         )
 
     def test_rule_outcomes_match_expected(self) -> None:

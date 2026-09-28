@@ -12,9 +12,25 @@
   "expected": {
     "passed": false,
     "rules": {
+      "actions-empty": {
+        "passed": false,
+        "reason_code": "VALUE_NOT_EMPTY_LIST"
+      },
+      "blocked-is-false": {
+        "passed": false,
+        "reason_code": "VALUE_NOT_FALSE"
+      },
       "decision-accepted": {
         "passed": false,
         "reason_code": "VALUE_NOT_EQUAL"
+      },
+      "risk-level-allowed": {
+        "passed": false,
+        "reason_code": "VALUE_NOT_ALLOWED"
+      },
+      "summary-present": {
+        "passed": true,
+        "reason_code": "RULE_SATISFIED"
       }
     }
   }

@@ -23,7 +23,8 @@ python -m unittest discover -s tests -v
 ```
 
 Then run the checked-in eval scenarios, which record expected verdicts and
-per-rule reason codes for `examples/policy.json`:
+per-rule reason codes for `examples/policy.json`. Every case must name every rule
+its policy declares, so a partially expected rule set fails the run:
 
 ```text
 python -m evals.runner
