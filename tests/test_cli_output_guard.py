@@ -49,6 +49,29 @@ class CliOutputGuardTests(unittest.TestCase):
             },
         )
 
+    def test_rejects_whitespace_only_output_before_reading_input(self) -> None:
+        for output in (" ", "\t", "\n", "\u00a0", "\u2003", "\u3000", "\u200b", "\ufeff"):
+            with self.subTest(output=output):
+                stdout = io.StringIO()
+                stderr = io.StringIO()
+                stdin = StdinTrap()
+                StdinTrap.reads = 0
+
+                with (
+                    patch.object(sys, "stdin", stdin),
+                    redirect_stdout(stdout),
+                    redirect_stderr(stderr),
+                ):
+                    exit_code = main(["generate-synthetic", "-", "--output", output])
+
+                self.assertEqual(exit_code, 2)
+                self.assertEqual(StdinTrap.reads, 0)
+                self.assertEqual(stdout.getvalue(), "")
+                self.assertEqual(
+                    json.loads(stderr.getvalue())["error"]["message"],
+                    "--output writes a file and does not accept an empty path or '-'.",
+                )
+
 
 if __name__ == "__main__":
     unittest.main()

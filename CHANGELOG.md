@@ -1,5 +1,15 @@
 # Changelog
 
+## Version 0.5.10 - 28-09-2026
+
+- Reject a whitespace-only `--output` path. An empty string was already an
+  error, but a path of spaces, tabs, newlines, Unicode spaces, a zero-width
+  space, or a BOM was accepted and written as a filename. Those paths now use
+  the same empty-path error, and the check still happens before any JSON input
+  is read.
+- A path that contains a real filename character, including spaces around that
+  name, is unchanged. `-` remains the separate dash error.
+
 ## Version 0.5.9 - 28-09-2026
 
 - Report `diff-suites` `order_changed` from the relative order of case ids that

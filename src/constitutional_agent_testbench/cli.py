@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+import unicodedata
 from pathlib import Path
 from collections.abc import Sequence
 from typing import Any
@@ -247,13 +248,26 @@ def _parse_arguments(argv: Sequence[str] | None) -> argparse.Namespace:
     return _build_parser().parse_args(argv)
 
 
+def _is_blank_path(value: str) -> bool:
+    """True when a path has no filename characters.
+
+    ``str.strip`` covers Unicode spaces. Format and control characters such as
+    a zero-width space or a BOM are blank as well, even though they are not
+    stripped.
+    """
+
+    if not value.strip():
+        return True
+    return all(unicodedata.category(character)[0] in {"C", "Z"} for character in value)
+
+
 def _guard_output(arguments):
     output = getattr(arguments, "output", None)
     if output is None:
         return
     if arguments.command == "generate-synthetic" and output == "-":
         raise CliUsageError("generate-synthetic --output writes a file and does not accept '-'.")
-    if not output or output == "-":
+    if _is_blank_path(output) or output == "-":
         raise CliUsageError("--output writes a file and does not accept an empty path or '-'.")
     fields = (COMMANDS[arguments.command][0] if arguments.command in COMMANDS
               else ("policy", "response", "candidate", "suite", "receipt"))

@@ -1,9 +1,13 @@
-# Constitutional Agent Testbench v0.5.9 release assets
+# Constitutional Agent Testbench v0.5.10 release assets
 
-The v0.5.9 package metadata is recorded in
-`release/v0.5.9-manifest.json`. The pinned release workflow builds a wheel and
+The v0.5.10 package metadata is recorded in
+`release/v0.5.10-manifest.json`. The pinned release workflow builds a wheel and
 source distribution, lists both archives, writes SHA-256 files, and retains the
 assets for 14 days. It does not create or publish a remote release.
+
+`--output` rejects a whitespace-only path, including Unicode spaces and format
+characters, with the same empty-path error as `""`. The check happens before
+any JSON input is read.
 
 `diff-suites` sets `order_changed` only when case ids present in both corpora
 change relative order. Adding or removing a case is not a reorder.
