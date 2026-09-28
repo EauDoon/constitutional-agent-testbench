@@ -1,5 +1,13 @@
 # Changelog
 
+## Version 0.5.14 - 28-09-2026
+
+- Copy each nested JSON value inside a validated suite case on its own.
+  `deepcopy` memos a repeated object, so one nested object stored under two
+  response keys stayed shared after the per-case copy. Editing one key changed
+  the other and could change a later evaluation. The caller's original objects
+  stay untouched.
+
 ## Version 0.5.13 - 28-09-2026
 
 - List only finite-domain rules in a `DISJOINT_CONSTRAINTS` finding. A

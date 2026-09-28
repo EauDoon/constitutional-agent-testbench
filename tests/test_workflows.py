@@ -67,6 +67,18 @@ class SuiteTests(unittest.TestCase):
         self.assertFalse(owned["cases"][1]["response"]["action"])
         self.assertFalse(shared["action"])
 
+    def test_owned_response_does_not_share_a_nested_object(self):
+        nested = {"n": 1}
+        raw = {"suite_version": "1.0", "cases": [{
+            "case_id": "c",
+            "response": {"left": nested, "right": nested},
+            "expected_passed": True,
+        }]}
+        owned = validate_suite(raw)
+        owned["cases"][0]["response"]["left"]["n"] = 9
+        self.assertEqual(owned["cases"][0]["response"]["right"]["n"], 1)
+        self.assertEqual(nested["n"], 1)
+
 
 class CoverageTests(unittest.TestCase):
     def test_counts_and_gaps(self):
@@ -211,7 +223,7 @@ class OperatorBoundaryTests(unittest.TestCase):
 
     def test_public_api_and_version(self):
         import constitutional_agent_testbench as package
-        self.assertEqual(package.__version__, "0.5.13")
+        self.assertEqual(package.__version__, "0.5.14")
         for name in ("lint_policy", "explain_response", "evaluate_suite", "suite_coverage",
                      "compare_policies", "generate_rule_probes", "create_receipt", "verify_receipt"):
             self.assertTrue(callable(getattr(package, name)))
