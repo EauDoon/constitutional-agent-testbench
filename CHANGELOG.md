@@ -1,5 +1,20 @@
 # Changelog
 
+## Version 0.5.3 - 28-09-2026
+
+- Give the exhaustive and `INCONCLUSIVE_NONDETERMINISTIC` PrecedenceTrace reports one
+  `coverage` contract. Both are stamped `report_schema_version` 1.0, but the
+  incomplete report omitted `incomplete_orders`, `observed_work_bytes` and
+  `rule_results_complete`, while the exhaustive report omitted `orders_completed` and
+  `orders_attempted`, so a consumer written against one shape raised `KeyError` on the
+  other. Fields that cannot be known after a run stops early are now reported as
+  `null`, which matches the unresolved `conforms_within_coverage` convention the module
+  already uses. No existing field changed value and no key was removed.
+- Add a test that pins the shared key set and the field values for both report shapes.
+- Preserve policy and suite schemas, evaluation semantics, reason codes, PrecedenceTrace
+  verdicts, witnesses, and the two console commands. This patch changes the reported
+  `coverage` fields of `check-order` only.
+
 ## Version 0.5.2 - 28-09-2026
 
 - Remove the `constitutional-agent-testbench-evals` console script. It pointed at

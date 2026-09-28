@@ -106,7 +106,9 @@ The command line interface supports these operations:
 
 See the [operator guide](docs/OPERATOR.md) for a complete authoring, regression,
 migration, and receipt workflow, including command-specific strict exit rules.
-Policy schema 1.0 and existing evaluation outputs remain unchanged in package 0.5.2.
+Policy schema 1.0, evaluation semantics, and PrecedenceTrace verdicts, witnesses, and
+projections remain unchanged in package 0.5.3, which only adds `coverage` fields to the
+`check-order` report.
 Optional suite 1.1 adds per-rule assertions. See the [corpus and replay guide](docs/CORPUS.md)
 for a complete command sequence. All JSON commands accept guarded atomic `--output`
 exports; existing default stdout and strict-exit behavior remain intact.
@@ -276,7 +278,9 @@ to 1,000,000 bytes, repeats every order three times, and applies a
 100,000,000-byte deterministic work budget to planned inputs and observed
 evaluator output. Reports expose unique orders, total evaluator calls,
 input-work estimates, returned-result bytes, charged work, incomplete-order
-counts, and the per-result and report limits. A valid evaluation can therefore
+counts, and the per-result and report limits. Every report carries the same
+`coverage` fields whether it is exhaustive or stops early, and a coverage field
+that cannot be known after an early stop is reported as `null`. A valid evaluation can therefore
 still fail closed with `ORDER_CHECK_TOO_LARGE` if its bounded witness report
 would exceed the separate report limit. A custom evaluator can still consume unbounded time,
 memory, network, or external resources before it returns; callers that do not
