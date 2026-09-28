@@ -1,12 +1,12 @@
-# Constitutional Agent Testbench v0.5.8 release assets
+# Constitutional Agent Testbench v0.5.9 release assets
 
-The v0.5.8 package metadata is recorded in
-`release/v0.5.8-manifest.json`. The pinned release workflow builds a wheel and
+The v0.5.9 package metadata is recorded in
+`release/v0.5.9-manifest.json`. The pinned release workflow builds a wheel and
 source distribution, lists both archives, writes SHA-256 files, and retains the
 assets for 14 days. It does not create or publish a remote release.
 
-`compare-policies` sets `order_changed` only when rules present in both policies
-change relative order. Adding a rule is not a reorder.
+`diff-suites` sets `order_changed` only when case ids present in both corpora
+change relative order. Adding or removing a case is not a reorder.
 
 The exhaustive and `INCONCLUSIVE_NONDETERMINISTIC` PrecedenceTrace reports share one
 `coverage` contract, so a consumer can read the same fields from either. Values that

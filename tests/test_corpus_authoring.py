@@ -53,6 +53,23 @@ class CorpusAuthoringTests(unittest.TestCase):
         changed["cases"][0]["case_id"] = "new"
         self.assertEqual(diff_suites(raw, changed)["added"], ["new"])
 
+    def test_adding_or_removing_a_case_does_not_count_as_reordering(self):
+        from constitutional_agent_testbench import diff_suites
+        raw = suite()
+        added = suite()
+        added["cases"].append({"case_id": "extra", "response": {"action": 0}, "expected_passed": False})
+        appended = diff_suites(raw, added)
+        self.assertEqual(appended["added"], ["extra"])
+        self.assertFalse(appended["order_changed"])
+        removed = suite()
+        removed["cases"].pop()
+        dropped = diff_suites(raw, removed)
+        self.assertEqual(dropped["removed"], ["wrong"])
+        self.assertFalse(dropped["order_changed"])
+        reordered = suite()
+        reordered["cases"].reverse()
+        self.assertTrue(diff_suites(raw, reordered)["order_changed"])
+
     def test_shards_cover_every_case_once_and_validate_partitions(self):
         from constitutional_agent_testbench import shard_suite
         raw = suite()
