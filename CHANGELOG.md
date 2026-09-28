@@ -1,5 +1,13 @@
 # Changelog
 
+## Version 0.5.5 - 28-09-2026
+
+- Keep an unknown assertion identifier out of `contradictory_verdict`. A stale
+  rule asserted as failed was treated as a verdict contradiction even when every
+  declared rule agreed with `expected_passed`. Unknown identifiers stay in
+  `unknown_rule_ids`, so the assertion gate still fails.
+- A declared rule that disagrees with the overall verdict is still contradictory.
+
 ## Version 0.5.4 - 28-09-2026
 
 - Report an unknown option as an unknown option even when a required path is also

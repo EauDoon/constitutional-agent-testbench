@@ -82,5 +82,5 @@ __all__ = [
     "validate_policy",
 ]
 
-__version__ = "0.5.4"
+__version__ = "0.5.5"
 
