@@ -1,9 +1,11 @@
-# Constitutional Agent Testbench v0.5.12 release assets
+# Constitutional Agent Testbench v0.5.13 release assets
 
-The v0.5.12 package metadata is recorded in
-`release/v0.5.12-manifest.json`. The pinned release workflow builds a wheel and
+The v0.5.13 package metadata is recorded in
+`release/v0.5.13-manifest.json`. The pinned release workflow builds a wheel and
 source distribution, lists both archives, writes SHA-256 files, and retains the
 assets for 14 days. It does not create or publish a remote release.
+
+A disjoint-constraint finding names only the rules that have finite domains. A presence rule on the same path stays out of that finding. The conflict itself still fails `--strict-exit`.
 
 An unknown option is reported as an unknown option when it follows `--output`
 or appears before a token that is not a command. A real flag such as

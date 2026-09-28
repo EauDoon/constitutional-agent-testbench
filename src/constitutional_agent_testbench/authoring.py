@@ -50,14 +50,17 @@ def lint_policy(policy: Policy | dict[str, Any]) -> dict[str, Any]:
         groups.setdefault(rule.path, []).append(rule)
     for path, rules in sorted(groups.items()):
         domains = [_domain(rule) for rule in rules]
-        finite = [domain for domain in domains if domain is not None]
+        finite = [(rule, domain) for rule, domain in zip(rules, domains, strict=True)
+                  if domain is not None]
         if finite:
-            allowed = set(map(canonical_json, finite[0]))
-            for domain in finite[1:]:
+            allowed = set(map(canonical_json, finite[0][1]))
+            for _rule, domain in finite[1:]:
                 allowed.intersection_update(map(canonical_json, domain))
             if not allowed:
+                # A required_field has no finite domain, so it cannot be one of
+                # the constraints that failed to intersect.
                 findings.append({"code": "DISJOINT_CONSTRAINTS", "path": path,
-                                 "rule_ids": sorted(rule.rule_id for rule in rules)})
+                                 "rule_ids": sorted(rule.rule_id for rule, _domain in finite)})
         seen: dict[str, str] = {}
         for rule in rules:
             marker = _constraint_marker(rule)

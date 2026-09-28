@@ -1,5 +1,12 @@
 # Changelog
 
+## Version 0.5.13 - 28-09-2026
+
+- List only finite-domain rules in a `DISJOINT_CONSTRAINTS` finding. A
+  `required_field` on the same path was included even though it has no allowed
+  set and does not make the domains disjoint. The conflict is unchanged, so
+  `--strict-exit` still fails. Duplicate-only findings still do not.
+
 ## Version 0.5.12 - 28-09-2026
 
 - Classify an unknown option before a missing `--output` value or an invalid
