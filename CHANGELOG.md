@@ -1,5 +1,13 @@
 # Changelog
 
+## Version 0.5.9 - 28-09-2026
+
+- Report `diff-suites` `order_changed` from the relative order of case ids that
+  exist in both corpora. Adding or removing a case made the full id lists
+  differ, so the diff said the corpus was reordered when the shared cases kept
+  their order. Added and removed ids stay in their own fields. Reversing shared
+  cases is still an order change. Strict exit still follows `identical`.
+
 ## Version 0.5.8 - 28-09-2026
 
 - Report `order_changed` from the relative order of rules that exist in both

@@ -60,9 +60,14 @@ def diff_suites(suite, incoming):
                    or canonical_json(old[identifier].get(field)) != canonical_json(new[identifier].get(field))]
         if changed:
             modified.append({"case_id": identifier, "changed_fields": changed})
+    old_ids, new_ids = list(old), list(new)
+    shared_ids = set(old_ids) & set(new_ids)
     return bounded_artifact({"added": sorted(new.keys() - old.keys()),
         "removed": sorted(old.keys() - new.keys()), "modified": modified,
-        "order_changed": list(old) != list(new),
+        # Added and removed ids are already listed. Reordering means the shared
+        # cases changed relative order, not that the full id lists differ.
+        "order_changed": [case_id for case_id in old_ids if case_id in shared_ids]
+        != [case_id for case_id in new_ids if case_id in shared_ids],
         "version_changed": left["suite_version"] != right["suite_version"],
         "identical": canonical_json(left) == canonical_json(right), "values_included": False})
 
