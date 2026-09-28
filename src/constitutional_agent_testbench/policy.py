@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import re
-from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any
 
@@ -13,6 +12,7 @@ from .common import (
     TestbenchError,
     bounded_canonical_json_size,
     canonical_json,
+    copy_json_tree,
     ensure_json_value,
 )
 
@@ -303,7 +303,7 @@ def validate_policy(raw_policy: Any) -> Policy:
                 label=f"{label} value",
                 **location,
             )
-            rule_value = deepcopy(raw_rule["value"])
+            rule_value = copy_json_tree(raw_rule["value"])
             rules.append(Rule(rule_id=rule_id, kind=kind, path=path, value=rule_value))
             continue
 
@@ -335,7 +335,7 @@ def validate_policy(raw_policy: Any) -> Policy:
                     rule_id=rule_id,
                     kind=kind,
                     path=path,
-                    values=tuple(deepcopy(raw_values)),
+                    values=tuple(copy_json_tree(value) for value in raw_values),
                 )
             )
             continue
@@ -356,9 +356,9 @@ def policy_to_dict(policy: Policy) -> dict[str, Any]:
             "rule_id": rule.rule_id,
         }
         if rule.kind == "equals":
-            raw_rule["value"] = deepcopy(rule.value)
+            raw_rule["value"] = copy_json_tree(rule.value)
         elif rule.kind == "one_of":
-            raw_rule["values"] = deepcopy(list(rule.values))
+            raw_rule["values"] = [copy_json_tree(value) for value in rule.values]
         raw_rules.append(raw_rule)
     return {
         "policy_id": policy.policy_id,

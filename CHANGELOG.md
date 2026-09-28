@@ -1,5 +1,13 @@
 # Changelog
 
+## Version 0.5.15 - 28-09-2026
+
+- Copy each nested constraint value on its own. `deepcopy` memos a repeated
+  object, so one nested object used in two places inside an `equals` value or
+  across `one_of` values stayed shared after validation. Editing one occurrence
+  changed the other and could change a later evaluation. The caller's original
+  objects stay untouched, and exported rules are copied the same way.
+
 ## Version 0.5.14 - 28-09-2026
 
 - Copy each nested JSON value inside a validated suite case on its own.

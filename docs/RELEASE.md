@@ -1,9 +1,11 @@
-# Constitutional Agent Testbench v0.5.14 release assets
+# Constitutional Agent Testbench v0.5.15 release assets
 
-The v0.5.14 package metadata is recorded in
-`release/v0.5.14-manifest.json`. The pinned release workflow builds a wheel and
+The v0.5.15 package metadata is recorded in
+`release/v0.5.15-manifest.json`. The pinned release workflow builds a wheel and
 source distribution, lists both archives, writes SHA-256 files, and retains the
 assets for 14 days. It does not create or publish a remote release.
+
+Validated `equals` and `one_of` values copy each nested occurrence separately, so a repeated object does not stay shared inside the policy.
 
 A validated suite case copies each nested value separately. A repeated object under two response keys no longer stays shared.
 

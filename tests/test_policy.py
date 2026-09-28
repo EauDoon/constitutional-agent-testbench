@@ -388,6 +388,35 @@ class PolicyValidationTests(unittest.TestCase):
         self.assertEqual(second_export["rules"][0]["value"], {"items": ["original"]})
         self.assertEqual(second_export["rules"][1]["values"], [{"mode": "safe"}])
 
+    def test_repeated_nested_constraint_values_do_not_stay_shared(self) -> None:
+        shared = {"n": 1}
+        raw_policy = {
+            "schema_version": "1.0",
+            "policy_id": "shared-nested",
+            "rules": [
+                {
+                    "rule_id": "object-equals",
+                    "kind": "equals",
+                    "path": "object",
+                    "value": {"left": shared, "right": shared},
+                },
+                {
+                    "rule_id": "object-allowed",
+                    "kind": "one_of",
+                    "path": "allowed",
+                    "values": [{"left": shared}, {"right": shared}],
+                },
+            ],
+        }
+        policy = validate_policy(raw_policy)
+        equals = next(rule for rule in policy.rules if rule.rule_id == "object-equals")
+        allowed = next(rule for rule in policy.rules if rule.rule_id == "object-allowed")
+        equals.value["left"]["n"] = 9
+        allowed.values[0]["left"]["n"] = 8
+        self.assertEqual(equals.value["right"]["n"], 1)
+        self.assertEqual(allowed.values[1]["right"]["n"], 1)
+        self.assertEqual(shared["n"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()
