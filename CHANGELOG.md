@@ -1,5 +1,13 @@
 # Changelog
 
+## Version 0.5.17 - 28-09-2026
+
+- Reject a non-object eval case before the runner subscripts it. A boolean,
+  null, array, number, or string case file raised `TypeError`. An `expected`
+  value or `expected.rules` value that is not an object failed the same way
+  later in the case. Those fixtures now raise `EvalCaseError`. Checked-in
+  object cases are unchanged.
+
 ## Version 0.5.16 - 28-09-2026
 
 - Do not report a reordered `one_of` allowed set as a modified rule.

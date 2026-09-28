@@ -1,9 +1,11 @@
-# Constitutional Agent Testbench v0.5.16 release assets
+# Constitutional Agent Testbench v0.5.17 release assets
 
-The v0.5.16 package metadata is recorded in
-`release/v0.5.16-manifest.json`. The pinned release workflow builds a wheel and
+The v0.5.17 package metadata is recorded in
+`release/v0.5.17-manifest.json`. The pinned release workflow builds a wheel and
 source distribution, lists both archives, writes SHA-256 files, and retains the
 assets for 14 days. It does not create or publish a remote release.
+
+The eval runner rejects a case file that is not a JSON object, including a boolean document and a non-object `expected` or `expected.rules` value, instead of raising `TypeError`.
 
 `compare-policies` treats a reordered `one_of` allowed set as the same rule. A wider set is still modified, and an `equals` array reorder is still modified.
 
