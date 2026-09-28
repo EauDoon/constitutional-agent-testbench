@@ -23,9 +23,31 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 from constitutional_agent_testbench import evaluate_response, validate_policy  # noqa: E402
 
 
-def _load_case(path: Path) -> dict:
+class EvalCaseError(Exception):
+    """Raised when an eval case file is not a usable JSON object."""
+
+
+def load_case_document(path: Path) -> dict:
+    """Load one case file. Non-object fixtures are rejected before subscripting."""
+
     with path.open("r", encoding="utf-8") as handle:
-        return json.load(handle)
+        document = json.load(handle)
+    name = path.name
+    if not isinstance(document, dict):
+        raise EvalCaseError(f"{name} must be a JSON object")
+    expected = document.get("expected")
+    if not isinstance(expected, dict):
+        raise EvalCaseError(f"{name} expected must be a JSON object")
+    rules = expected.get("rules", {})
+    if not isinstance(rules, dict):
+        raise EvalCaseError(f"{name} expected.rules must be a JSON object")
+    if "policy_path" not in document or "input" not in document:
+        raise EvalCaseError(f"{name} requires policy_path and input")
+    return document
+
+
+def _load_case(path: Path) -> dict:
+    return load_case_document(path)
 
 
 class _CaseAssertion(unittest.TestCase):
