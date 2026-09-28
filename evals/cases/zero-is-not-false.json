@@ -1,0 +1,37 @@
+{
+  "id": "zero-is-not-false",
+  "source": "examples/assertion-suite.json",
+  "policy_path": "examples/policy.json",
+  "input": {
+    "actions": [],
+    "blocked": 0,
+    "decision": "accept",
+    "risk_level": "low",
+    "summary": "Synthetic example."
+  },
+  "expected": {
+    "passed": false,
+    "rules": {
+      "actions-empty": {
+        "passed": true,
+        "reason_code": "RULE_SATISFIED"
+      },
+      "blocked-is-false": {
+        "passed": false,
+        "reason_code": "VALUE_NOT_FALSE"
+      },
+      "decision-accepted": {
+        "passed": true,
+        "reason_code": "RULE_SATISFIED"
+      },
+      "risk-level-allowed": {
+        "passed": true,
+        "reason_code": "RULE_SATISFIED"
+      },
+      "summary-present": {
+        "passed": true,
+        "reason_code": "RULE_SATISFIED"
+      }
+    }
+  }
+}
