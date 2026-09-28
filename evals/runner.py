@@ -11,7 +11,6 @@ case diverges.
 
 from __future__ import annotations
 
-import json
 import sys
 import unittest
 from pathlib import Path
@@ -21,6 +20,7 @@ CASES_DIR = Path(__file__).resolve().parent / "cases"
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from constitutional_agent_testbench import evaluate_response, validate_policy  # noqa: E402
+from constitutional_agent_testbench.common import load_json  # noqa: E402
 
 
 class EvalCaseError(Exception):
@@ -30,8 +30,7 @@ class EvalCaseError(Exception):
 def load_case_document(path: Path) -> dict:
     """Load one case file. Non-object fixtures are rejected before subscripting."""
 
-    with path.open("r", encoding="utf-8") as handle:
-        document = json.load(handle)
+    document = load_json(path)
     name = path.name
     if not isinstance(document, dict):
         raise EvalCaseError(f"{name} must be a JSON object")
@@ -46,6 +45,12 @@ def load_case_document(path: Path) -> dict:
     return document
 
 
+def load_policy_document(path: Path):
+    """Load a case policy through the same strict JSON boundary as the CLI."""
+
+    return validate_policy(load_json(path))
+
+
 def _load_case(path: Path) -> dict:
     return load_case_document(path)
 
@@ -57,8 +62,7 @@ class _CaseAssertion(unittest.TestCase):
         self.case_path = Path(getattr(self, "_case_path"))
         self.case = _load_case(self.case_path)
         self.policy_path = REPO_ROOT / self.case["policy_path"]
-        with self.policy_path.open("r", encoding="utf-8") as handle:
-            self.policy = validate_policy(json.load(handle))
+        self.policy = load_policy_document(self.policy_path)
         self.result = evaluate_response(self.policy, self.case["input"])
 
     def test_overall_verdict_matches_expected(self) -> None:
