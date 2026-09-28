@@ -1,5 +1,13 @@
 # Changelog
 
+## Version 0.5.16 - 28-09-2026
+
+- Do not report a reordered `one_of` allowed set as a modified rule.
+  Membership does not depend on order, but `compare-policies` compared the
+  arrays as sequences, so `[1, 2]` and `[2, 1]` were `modified`. A strictly
+  wider set is still modified. An `equals` array reorder is still modified,
+  because array order is part of that constraint. Added rules stay in `added`.
+
 ## Version 0.5.15 - 28-09-2026
 
 - Copy each nested constraint value on its own. `deepcopy` memos a repeated

@@ -7,6 +7,16 @@ from .policy import Policy, policy_to_dict, validate_policy
 from .suite import evaluate_suite, validate_suite
 
 
+def _rule_signature(rule: dict[str, Any]) -> str:
+    """Identity of a declared rule. ``one_of`` membership does not depend on order."""
+
+    if rule.get("kind") == "one_of" and isinstance(rule.get("values"), list):
+        ordered = dict(rule)
+        ordered["values"] = sorted(rule["values"], key=canonical_json)
+        return canonical_json(ordered)
+    return canonical_json(rule)
+
+
 def compare_policies(before: Policy | dict[str, Any], after: Policy | dict[str, Any],
                      suite: Any) -> dict[str, Any]:
     """Compare definitions and observed verdicts; neither policy overrides the other."""
@@ -21,7 +31,7 @@ def compare_policies(before: Policy | dict[str, Any], after: Policy | dict[str, 
     changes = {"added": sorted(new_rules.keys() - old_rules.keys()),
                "removed": sorted(old_rules.keys() - new_rules.keys()),
                "modified": sorted(key for key in old_rules.keys() & new_rules.keys()
-                                  if canonical_json(old_rules[key]) != canonical_json(new_rules[key])),
+                                  if _rule_signature(old_rules[key]) != _rule_signature(new_rules[key])),
                # Added and removed rules are already listed. Reordering means the
                # shared rules changed relative order, not that the full lists differ.
                "order_changed": [rule_id for rule_id in old_ids if rule_id in shared_ids]
