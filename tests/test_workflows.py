@@ -104,6 +104,16 @@ class ComparisonTests(unittest.TestCase):
         self.assertEqual(report["rule_changes"]["removed"], ["r"])
         self.assertEqual(report["rule_changes"]["added"], ["new"])
 
+    def test_adding_a_rule_does_not_count_as_reordering(self):
+        old = policy(rule("a", path="a"), rule("b", path="b"))
+        appended = policy(rule("a", path="a"), rule("b", path="b"), rule("c", path="c"))
+        inserted = policy(rule("a", path="a"), rule("c", path="c"), rule("b", path="b"))
+        swapped = policy(rule("b", path="b"), rule("c", path="c"), rule("a", path="a"))
+        self.assertFalse(compare_policies(old, appended, suite())["rule_changes"]["order_changed"])
+        self.assertFalse(compare_policies(old, inserted, suite())["rule_changes"]["order_changed"])
+        self.assertTrue(compare_policies(old, swapped, suite())["rule_changes"]["order_changed"])
+        self.assertEqual(compare_policies(old, appended, suite())["rule_changes"]["added"], ["c"])
+
 
 class ProbeTests(unittest.TestCase):
     def test_verified_round_trip_and_collateral(self):
@@ -201,7 +211,7 @@ class OperatorBoundaryTests(unittest.TestCase):
 
     def test_public_api_and_version(self):
         import constitutional_agent_testbench as package
-        self.assertEqual(package.__version__, "0.5.7")
+        self.assertEqual(package.__version__, "0.5.8")
         for name in ("lint_policy", "explain_response", "evaluate_suite", "suite_coverage",
                      "compare_policies", "generate_rule_probes", "create_receipt", "verify_receipt"):
             self.assertTrue(callable(getattr(package, name)))

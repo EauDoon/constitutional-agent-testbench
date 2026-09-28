@@ -15,11 +15,17 @@ def compare_policies(before: Policy | dict[str, Any], after: Policy | dict[str, 
     old_report, new_report = evaluate_suite(old, fixtures), evaluate_suite(new, fixtures)
     old_rules = {r["rule_id"]: r for r in policy_to_dict(old)["rules"]}
     new_rules = {r["rule_id"]: r for r in policy_to_dict(new)["rules"]}
+    old_ids = [rule.rule_id for rule in old.rules]
+    new_ids = [rule.rule_id for rule in new.rules]
+    shared_ids = set(old_ids) & set(new_ids)
     changes = {"added": sorted(new_rules.keys() - old_rules.keys()),
                "removed": sorted(old_rules.keys() - new_rules.keys()),
                "modified": sorted(key for key in old_rules.keys() & new_rules.keys()
                                   if canonical_json(old_rules[key]) != canonical_json(new_rules[key])),
-               "order_changed": [r.rule_id for r in old.rules] != [r.rule_id for r in new.rules]}
+               # Added and removed rules are already listed. Reordering means the
+               # shared rules changed relative order, not that the full lists differ.
+               "order_changed": [rule_id for rule_id in old_ids if rule_id in shared_ids]
+               != [rule_id for rule_id in new_ids if rule_id in shared_ids]}
     cases = []
     for left, right in zip(old_report["cases"], new_report["cases"], strict=True):
         a, b = left["evaluation"], right["evaluation"]
