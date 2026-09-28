@@ -117,6 +117,11 @@ def parse_json_text(text: str) -> Any:
     except UnicodeError as exc:
         raise JsonInputError("The requested input is not valid strict JSON.") from exc
     except ValueError as exc:
+        # A numeric literal such as 1e309 becomes Infinity after parsing, so it
+        # never reaches parse_constant. That is invalid JSON, not an oversized
+        # document. Nesting and node limits stay structural errors.
+        if "non-finite" in str(exc).lower():
+            raise JsonInputError("The requested input is not valid strict JSON.") from exc
         raise JsonInputError(
             "The requested input exceeds supported JSON structural limits."
         ) from exc

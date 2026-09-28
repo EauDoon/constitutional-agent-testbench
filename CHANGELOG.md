@@ -1,5 +1,12 @@
 # Changelog
 
+## Version 0.5.11 - 28-09-2026
+
+- Report an overflowing numeric literal as invalid strict JSON. `1e309` becomes
+  a non-finite float after parsing, so it never hits the `Infinity` token
+  rejection and was labeled as a structural size limit. Nesting, node, and byte
+  limits still use the structural-limit error. The `Infinity` token is unchanged.
+
 ## Version 0.5.10 - 28-09-2026
 
 - Reject a whitespace-only `--output` path. An empty string was already an

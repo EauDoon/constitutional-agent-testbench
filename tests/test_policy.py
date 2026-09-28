@@ -190,6 +190,15 @@ class PolicyValidationTests(unittest.TestCase):
             with self.assertRaises(JsonInputError):
                 load_json(path)
 
+    def test_overflow_numeric_literals_are_invalid_json_not_a_structural_limit(self) -> None:
+        for payload in ("1e309", "-1e309", "2e308", "1.7976931348623159e+308", "[1e309]"):
+            with self.subTest(payload=payload):
+                with self.assertRaisesRegex(JsonInputError, "not valid strict JSON") as raised:
+                    parse_json_text(payload)
+                self.assertNotIn("structural", str(raised.exception).lower())
+        with self.assertRaisesRegex(JsonInputError, "not valid strict JSON"):
+            parse_json_text("Infinity")
+
     def test_rejects_lone_unicode_surrogates(self) -> None:
         with self.assertRaises(JsonInputError):
             parse_json_text("\ud800")
