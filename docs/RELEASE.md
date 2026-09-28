@@ -1,11 +1,12 @@
-# Constitutional Agent Testbench v0.5.6 release assets
+# Constitutional Agent Testbench v0.5.7 release assets
 
-The v0.5.6 package metadata is recorded in
-`release/v0.5.6-manifest.json`. The pinned release workflow builds a wheel and
+The v0.5.7 package metadata is recorded in
+`release/v0.5.7-manifest.json`. The pinned release workflow builds a wheel and
 source distribution, lists both archives, writes SHA-256 files, and retains the
 assets for 14 days. It does not create or publish a remote release.
 
-Validated suite copies no longer alias one response object across cases.
+`lint-policy` reports `one_of` rules that allow the same set in a different
+order as `DUPLICATE_CONSTRAINT`. A wider set is not a duplicate.
 
 The exhaustive and `INCONCLUSIVE_NONDETERMINISTIC` PrecedenceTrace reports share one
 `coverage` contract, so a consumer can read the same fields from either. Values that
