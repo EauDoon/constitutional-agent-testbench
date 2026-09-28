@@ -211,7 +211,7 @@ class OperatorBoundaryTests(unittest.TestCase):
 
     def test_public_api_and_version(self):
         import constitutional_agent_testbench as package
-        self.assertEqual(package.__version__, "0.5.12")
+        self.assertEqual(package.__version__, "0.5.13")
         for name in ("lint_policy", "explain_response", "evaluate_suite", "suite_coverage",
                      "compare_policies", "generate_rule_probes", "create_receipt", "verify_receipt"):
             self.assertTrue(callable(getattr(package, name)))
@@ -244,6 +244,20 @@ class AuthoringTests(unittest.TestCase):
         raw = policy(rule("parent", "one_of", "action", values=[{}, {"name": None}]),
                      rule("child", "required_field", "action.name"))
         self.assertFalse(lint_policy(raw)["has_conflicts"])
+
+    def test_presence_rule_is_not_part_of_a_disjoint_finding(self):
+        raw = policy(
+            rule("req", "required_field", "action"),
+            rule("one", "equals", "action", value=1),
+            rule("two", "equals", "action", value=2),
+        )
+        report = lint_policy(raw)
+        self.assertEqual(report["findings"], [{
+            "code": "DISJOINT_CONSTRAINTS",
+            "path": "action",
+            "rule_ids": ["one", "two"],
+        }])
+        self.assertTrue(report["has_conflicts"])
 
     def test_three_way_empty_intersection(self):
         raw = policy(*(rule(str(i), "one_of", values=v) for i, v in
