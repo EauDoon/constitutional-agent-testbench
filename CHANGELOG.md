@@ -1,5 +1,12 @@
 # Changelog
 
+## Version 0.5.19 - 28-09-2026
+
+- Do not treat JSON numbers as eval pass states. The runner compared verdicts
+  with Python equality, so an expected `passed` of `1` or `0` matched a boolean
+  `true` or `false`. Both sides must be JSON booleans. Checked-in boolean
+  expectations are unchanged. Reason-code comparisons are unchanged.
+
 ## Version 0.5.18 - 28-09-2026
 
 - Reject duplicate JSON object members in eval case and policy files. The

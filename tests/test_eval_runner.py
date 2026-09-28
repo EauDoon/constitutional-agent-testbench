@@ -56,6 +56,14 @@ class EvalRunnerFixtureTests(unittest.TestCase):
             with self.assertRaises(JsonInputError):
                 runner.load_policy_document(policy)
 
+    def test_numeric_zero_and_one_are_not_pass_states(self) -> None:
+        for actual, expected in ((True, 1), (False, 0), (True, 1.0), (False, 0.0)):
+            with self.subTest(actual=actual, expected=expected):
+                with self.assertRaises(AssertionError):
+                    runner.passed_states_match(actual, expected, "passed")
+        runner.passed_states_match(True, True, "passed")
+        runner.passed_states_match(False, False, "passed")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,9 +1,11 @@
-# Constitutional Agent Testbench v0.5.18 release assets
+# Constitutional Agent Testbench v0.5.19 release assets
 
-The v0.5.18 package metadata is recorded in
-`release/v0.5.18-manifest.json`. The pinned release workflow builds a wheel and
+The v0.5.19 package metadata is recorded in
+`release/v0.5.19-manifest.json`. The pinned release workflow builds a wheel and
 source distribution, lists both archives, writes SHA-256 files, and retains the
 assets for 14 days. It does not create or publish a remote release.
+
+Eval pass states must be JSON booleans. A numeric `1` or `0` no longer matches `true` or `false`.
 
 Eval case files and their policies reject duplicate JSON object members instead of keeping the last value.
 
