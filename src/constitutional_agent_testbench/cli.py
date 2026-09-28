@@ -206,6 +206,47 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _relax_required_arguments(parser: argparse.ArgumentParser) -> None:
+    """Allow a probe parse to finish when required positionals are absent.
+
+    argparse reports missing required arguments before unrecognized ones, so an
+    unknown option is otherwise classified as a missing path.
+    """
+
+    for action in parser._actions:
+        if isinstance(action, argparse._SubParsersAction):
+            action.required = False
+            for subparser in set(action._name_parser_map.values()):
+                _relax_required_arguments(subparser)
+            continue
+        if action.option_strings:
+            continue
+        action.required = False
+        if action.nargs is None:
+            action.nargs = "?"
+
+
+def _unknown_arguments(argv: Sequence[str] | None) -> bool:
+    tokens = list(sys.argv[1:] if argv is None else argv)
+    if any(token in {"-h", "--help"} for token in tokens):
+        return False
+    probe = _build_parser()
+    _relax_required_arguments(probe)
+    try:
+        _namespace, extra = probe.parse_known_args(tokens)
+    except (CliUsageError, _HelpRequested):
+        return False
+    return bool(extra)
+
+
+def _parse_arguments(argv: Sequence[str] | None) -> argparse.Namespace:
+    if _unknown_arguments(argv):
+        raise CliUsageError(
+            "Unknown option or extra argument. Use --help to inspect usage."
+        )
+    return _build_parser().parse_args(argv)
+
+
 def _guard_output(arguments):
     output = getattr(arguments, "output", None)
     if output is None:
@@ -323,7 +364,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     """Run the command line interface and return a process exit code."""
 
     try:
-        arguments = _build_parser().parse_args(argv)
+        arguments = _parse_arguments(argv)
         _guard_output(arguments)
         result = _run_command(arguments)
         display = result
