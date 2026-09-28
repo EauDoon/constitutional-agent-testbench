@@ -1,9 +1,13 @@
-# Constitutional Agent Testbench v0.5.10 release assets
+# Constitutional Agent Testbench v0.5.11 release assets
 
-The v0.5.10 package metadata is recorded in
-`release/v0.5.10-manifest.json`. The pinned release workflow builds a wheel and
+The v0.5.11 package metadata is recorded in
+`release/v0.5.11-manifest.json`. The pinned release workflow builds a wheel and
 source distribution, lists both archives, writes SHA-256 files, and retains the
 assets for 14 days. It does not create or publish a remote release.
+
+A numeric literal that overflows to a non-finite value, such as `1e309`, is
+rejected as invalid strict JSON. It is not reported as a structural size limit.
+The `Infinity` token stays invalid strict JSON as well.
 
 `--output` rejects a whitespace-only path, including Unicode spaces and format
 characters, with the same empty-path error as `""`. The check happens before
