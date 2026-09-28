@@ -126,6 +126,26 @@ class ComparisonTests(unittest.TestCase):
         self.assertTrue(compare_policies(old, swapped, suite())["rule_changes"]["order_changed"])
         self.assertEqual(compare_policies(old, appended, suite())["rule_changes"]["added"], ["c"])
 
+    def test_reordered_one_of_set_is_not_a_modified_rule(self):
+        fixtures = {"suite_version": "1.0", "cases": [
+            {"case_id": "c", "response": {"v": 1}, "expected_passed": True}]}
+        old = policy(rule("r", "one_of", "v", values=[1, {"b": 2, "a": 1}]))
+        reordered = policy(rule("r", "one_of", "v", values=[{"a": 1, "b": 2}, 1]))
+        wider = policy(rule("r", "one_of", "v", values=[1, {"a": 1, "b": 2}, 3]))
+        report = compare_policies(old, reordered, fixtures)
+        self.assertEqual(report["rule_changes"]["modified"], [])
+        self.assertFalse(report["rule_changes"]["order_changed"])
+        self.assertEqual(report["cases"][0]["changed_rule_results"], [])
+        self.assertEqual(compare_policies(old, wider, fixtures)["rule_changes"]["modified"], ["r"])
+        equals_old = policy(rule("r", "equals", "v", value=[1, 2]))
+        equals_new = policy(rule("r", "equals", "v", value=[2, 1]))
+        equals_suite = {"suite_version": "1.0", "cases": [
+            {"case_id": "c", "response": {"v": [1, 2]}, "expected_passed": True}]}
+        self.assertEqual(
+            compare_policies(equals_old, equals_new, equals_suite)["rule_changes"]["modified"],
+            ["r"],
+        )
+
 
 class ProbeTests(unittest.TestCase):
     def test_verified_round_trip_and_collateral(self):
@@ -223,7 +243,7 @@ class OperatorBoundaryTests(unittest.TestCase):
 
     def test_public_api_and_version(self):
         import constitutional_agent_testbench as package
-        self.assertEqual(package.__version__, "0.5.15")
+        self.assertEqual(package.__version__, "0.5.16")
         for name in ("lint_policy", "explain_response", "evaluate_suite", "suite_coverage",
                      "compare_policies", "generate_rule_probes", "create_receipt", "verify_receipt"):
             self.assertTrue(callable(getattr(package, name)))
