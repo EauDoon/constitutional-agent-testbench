@@ -227,10 +227,84 @@ def _relax_required_arguments(parser: argparse.ArgumentParser) -> None:
             action.nargs = "?"
 
 
+def _is_option_token(token: str) -> bool:
+    """True for an option-like token, not for ``-`` or a negative number."""
+
+    if len(token) < 2 or not token.startswith("-"):
+        return False
+    body = token[1:]
+    if body[:1].isdigit() or (body[:1] == "." and len(body) > 1 and body[1].isdigit()):
+        return False
+    return True
+
+
+def _option_takes_value(action: argparse.Action) -> bool:
+    return action.nargs is None or (isinstance(action.nargs, int) and action.nargs > 0)
+
+
+def _option_tables(
+    parser: argparse.ArgumentParser,
+) -> tuple[dict[str, bool], dict[str, dict[str, bool]]]:
+    subparsers = next(
+        action
+        for action in parser._actions
+        if isinstance(action, argparse._SubParsersAction)
+    )
+
+    def table(target: argparse.ArgumentParser) -> dict[str, bool]:
+        found: dict[str, bool] = {}
+        for action in target._actions:
+            takes_value = _option_takes_value(action)
+            for option in action.option_strings:
+                found[option] = takes_value
+        return found
+
+    return table(parser), {
+        name: table(subparser) for name, subparser in subparsers._name_parser_map.items()
+    }
+
+
+def _scan_unknown_option(tokens: list[str]) -> bool:
+    """Find an unknown option argparse would hide behind another error.
+
+    A value-taking flag does not consume a following option, so
+    ``--output --bogus`` raises "expected one argument" before the unknown
+    token is reported. An unknown option before an invalid command is reported
+    as an unknown command instead.
+    """
+
+    main_options, by_command = _option_tables(_build_parser())
+    command: str | None = None
+    index = 0
+    while index < len(tokens):
+        token = tokens[index]
+        if token == "--":
+            return False
+        if not _is_option_token(token):
+            if command is None:
+                command = token
+            index += 1
+            continue
+        name, separator, _explicit = token.partition("=")
+        lookup = name if separator else token
+        options = by_command[command] if command in by_command else main_options
+        if lookup not in options:
+            return True
+        if options[lookup] and not separator:
+            following = index + 1
+            if following < len(tokens) and not _is_option_token(tokens[following]):
+                index = following + 1
+                continue
+        index += 1
+    return False
+
+
 def _unknown_arguments(argv: Sequence[str] | None) -> bool:
     tokens = list(sys.argv[1:] if argv is None else argv)
     if any(token in {"-h", "--help"} for token in tokens):
         return False
+    if _scan_unknown_option(tokens):
+        return True
     probe = _build_parser()
     _relax_required_arguments(probe)
     try:
