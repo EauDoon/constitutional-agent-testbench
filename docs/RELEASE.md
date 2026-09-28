@@ -1,9 +1,13 @@
-# Constitutional Agent Testbench v0.5.11 release assets
+# Constitutional Agent Testbench v0.5.12 release assets
 
-The v0.5.11 package metadata is recorded in
-`release/v0.5.11-manifest.json`. The pinned release workflow builds a wheel and
+The v0.5.12 package metadata is recorded in
+`release/v0.5.12-manifest.json`. The pinned release workflow builds a wheel and
 source distribution, lists both archives, writes SHA-256 files, and retains the
 assets for 14 days. It does not create or publish a remote release.
+
+An unknown option is reported as an unknown option when it follows `--output`
+or appears before a token that is not a command. A real flag such as
+`--strict-exit` without its value is still a missing argument.
 
 A numeric literal that overflows to a non-finite value, such as `1e309`, is
 rejected as invalid strict JSON. It is not reported as a structural size limit.

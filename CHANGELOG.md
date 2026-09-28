@@ -1,5 +1,13 @@
 # Changelog
 
+## Version 0.5.12 - 28-09-2026
+
+- Classify an unknown option before a missing `--output` value or an invalid
+  command. `evaluate policy response --output --bogus` was reported as a missing
+  argument, and `--output not-a-command` was reported as an unknown command.
+  `--output --strict-exit` is still a missing argument because both flags are
+  real. Help text and exit code 2 are unchanged.
+
 ## Version 0.5.11 - 28-09-2026
 
 - Report an overflowing numeric literal as invalid strict JSON. `1e309` becomes

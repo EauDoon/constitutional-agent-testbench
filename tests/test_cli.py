@@ -221,6 +221,38 @@ class CliTests(unittest.TestCase):
                 self.assertNotIn("--bogus", stderr)
                 self.assertNotIn("--strict", stderr)
 
+    def test_unknown_option_is_not_hidden_by_a_value_taking_flag(self) -> None:
+        unknown = {
+            "error": {
+                "code": "INVALID_COMMAND",
+                "message": (
+                    "Unknown option or extra argument. Use --help to inspect usage."
+                ),
+            }
+        }
+        for arguments in (
+            ["evaluate", str(POLICY), str(FAILING_RESPONSE), "--output", "--bogus"],
+            ["generate-synthetic", str(POLICY), "--output", "--nope"],
+            ["--output", "not-a-command"],
+            ["lint-policy", str(POLICY), "--output", "--bogus"],
+        ):
+            with self.subTest(arguments=arguments):
+                exit_code, stdout, stderr = run_cli(arguments)
+                self.assertEqual(exit_code, 2)
+                self.assertEqual(stdout, "")
+                self.assertEqual(json.loads(stderr), unknown)
+
+    def test_real_flag_after_output_stays_a_missing_argument(self) -> None:
+        exit_code, stdout, stderr = run_cli(
+            ["evaluate", str(POLICY), str(FAILING_RESPONSE), "--output", "--strict-exit"]
+        )
+        self.assertEqual(exit_code, 2)
+        self.assertEqual(stdout, "")
+        self.assertEqual(
+            json.loads(stderr)["error"]["message"],
+            "Missing required argument. Use --help to inspect usage.",
+        )
+
     def test_valid_flag_without_positionals_stays_a_missing_argument(self) -> None:
         exit_code, stdout, stderr = run_cli(["evaluate", "--strict-exit"])
 
