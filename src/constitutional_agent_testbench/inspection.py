@@ -80,7 +80,11 @@ def audit_assertions(policy, suite):
                          {"RULE_SATISFIED", "FIELD_MISSING",
                           FAILURE_REASON_BY_KIND.get(rules[identifier].kind)})
         missing = sorted(rules.keys() - assertions.keys())
-        contradiction = ((case["expected_passed"] and any(not a["passed"] for a in assertions.values()))
+        # Unknown identifiers are reported separately. A stale rule that is
+        # asserted as failed does not contradict the verdict of the declared rules.
+        known_failed = any(not assertions[identifier]["passed"]
+                           for identifier in assertions.keys() & rules.keys())
+        contradiction = ((case["expected_passed"] and known_failed)
                          or (not case["expected_passed"] and not missing
                              and all(assertions[key]["passed"] for key in rules)))
         cases.append({"case_id": case["case_id"], "unknown_rule_ids": unknown,

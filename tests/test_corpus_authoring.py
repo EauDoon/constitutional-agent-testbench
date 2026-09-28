@@ -109,6 +109,13 @@ class CorpusAuthoringTests(unittest.TestCase):
         self.assertTrue(result["cases"][0]["contradictory_verdict"])
         self.assertEqual(result["cases"][1]["incompatible_reason_rule_ids"], ["r"])
         self.assertEqual(result["cases"][2]["unknown_rule_ids"], ["stale"])
+        stale_only = capture_assertions(policy(), suite())
+        stale_only["cases"][0]["expected_rules"]["stale"] = {
+            "passed": False, "reason_code": "FIELD_MISSING"}
+        stale_case = audit_assertions(policy(), stale_only)["cases"][0]
+        self.assertEqual(stale_case["unknown_rule_ids"], ["stale"])
+        self.assertFalse(stale_case["contradictory_verdict"])
+        self.assertFalse(audit_assertions(policy(), stale_only)["assertions_compatible"])
         self.assertTrue(audit_assertions(policy(), suite())["assertions_compatible"])
         self.assertFalse(audit_assertions(policy(), suite())["fully_asserted"])
 
