@@ -388,7 +388,8 @@ The test suite covers all supported rule kinds, strict policy validation,
 missing-field failure, stable reason codes, JSON type distinctions, duplicate
 object members, nested-value isolation, input limits, deterministic synthetic
 generation, fail-closed handling of conflicting synthetic constraints,
-PrecedenceTrace drift classes and planted counterexamples, and the command-line
+PrecedenceTrace drift classes and planted counterexamples, output stability
+across `PYTHONHASHSEED` values, and the command-line
 JSON and exit-code contracts.
 
 Continuous integration installs the package and runs the complete suite on Python 3.11 through 3.14. It also verifies the installed console command and builds and inspects both wheel and source-distribution artifacts.
