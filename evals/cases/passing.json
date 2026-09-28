@@ -12,7 +12,23 @@
   "expected": {
     "passed": true,
     "rules": {
+      "actions-empty": {
+        "passed": true,
+        "reason_code": "RULE_SATISFIED"
+      },
+      "blocked-is-false": {
+        "passed": true,
+        "reason_code": "RULE_SATISFIED"
+      },
       "decision-accepted": {
+        "passed": true,
+        "reason_code": "RULE_SATISFIED"
+      },
+      "risk-level-allowed": {
+        "passed": true,
+        "reason_code": "RULE_SATISFIED"
+      },
+      "summary-present": {
         "passed": true,
         "reason_code": "RULE_SATISFIED"
       }

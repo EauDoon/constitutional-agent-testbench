@@ -6,7 +6,23 @@
   "expected": {
     "passed": false,
     "rules": {
+      "actions-empty": {
+        "passed": false,
+        "reason_code": "FIELD_MISSING"
+      },
+      "blocked-is-false": {
+        "passed": false,
+        "reason_code": "FIELD_MISSING"
+      },
       "decision-accepted": {
+        "passed": false,
+        "reason_code": "FIELD_MISSING"
+      },
+      "risk-level-allowed": {
+        "passed": false,
+        "reason_code": "FIELD_MISSING"
+      },
+      "summary-present": {
         "passed": false,
         "reason_code": "FIELD_MISSING"
       }
