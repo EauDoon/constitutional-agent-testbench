@@ -57,6 +57,16 @@ class SuiteTests(unittest.TestCase):
         self.assertEqual(len(raw["cases"]), 2)
         self.assertNotIn("private-string", str(evaluate_suite(policy(rule()), raw)))
 
+    def test_owned_cases_do_not_share_one_response_object(self):
+        shared = {"action": False}
+        raw = {"suite_version": "1.0", "cases": [
+            {"case_id": "one", "response": shared, "expected_passed": True},
+            {"case_id": "two", "response": shared, "expected_passed": False}]}
+        owned = validate_suite(raw)
+        owned["cases"][0]["response"]["action"] = True
+        self.assertFalse(owned["cases"][1]["response"]["action"])
+        self.assertFalse(shared["action"])
+
 
 class CoverageTests(unittest.TestCase):
     def test_counts_and_gaps(self):
@@ -191,7 +201,7 @@ class OperatorBoundaryTests(unittest.TestCase):
 
     def test_public_api_and_version(self):
         import constitutional_agent_testbench as package
-        self.assertEqual(package.__version__, "0.5.5")
+        self.assertEqual(package.__version__, "0.5.6")
         for name in ("lint_policy", "explain_response", "evaluate_suite", "suite_coverage",
                      "compare_policies", "generate_rule_probes", "create_receipt", "verify_receipt"):
             self.assertTrue(callable(getattr(package, name)))

@@ -58,7 +58,10 @@ def validate_suite(suite: Any) -> dict[str, Any]:
             raise SuiteInputError("Each response must be an object and expected_passed a boolean.")
         if "expected_rules" in case:
             _validate_assertions(case["expected_rules"])
-    return deepcopy(suite)
+    # deepcopy() memos repeated objects, so one response used by two cases would
+    # stay shared and a later edit of one case would change the other.
+    return {"suite_version": suite["suite_version"],
+            "cases": [deepcopy(case) for case in suite["cases"]]}
 
 
 def evaluate_suite(policy: Policy | dict[str, Any], suite: Any) -> dict[str, Any]:
