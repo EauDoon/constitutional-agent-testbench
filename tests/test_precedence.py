@@ -181,6 +181,53 @@ class PrecedenceTraceTests(unittest.TestCase):
             ["alpha", "gamma", "beta"],
         )
 
+    def test_both_report_shapes_expose_one_coverage_contract(self) -> None:
+        exhaustive = check_order_conformance(three_rule_policy(), passing_response())
+
+        calls = 0
+
+        def alternating(policy, response):
+            nonlocal calls
+            calls += 1
+            result = evaluate_response(policy, response)
+            if calls % 2 == 0:
+                result["rule_results"][0]["passed"] = False
+                result["rule_results"][0]["reason_code"] = "ALTERNATING_RESULT"
+                result["passed"] = all(
+                    item["passed"] for item in result["rule_results"]
+                )
+            return result
+
+        inconclusive = check_order_conformance(
+            three_rule_policy(),
+            passing_response(),
+            evaluator=alternating,
+        )
+
+        self.assertEqual(inconclusive["status"], "INCONCLUSIVE_NONDETERMINISTIC")
+        self.assertEqual(
+            exhaustive["report_schema_version"],
+            inconclusive["report_schema_version"],
+        )
+        self.assertEqual(
+            sorted(exhaustive["coverage"]),
+            sorted(inconclusive["coverage"]),
+        )
+
+        clean = exhaustive["coverage"]
+        self.assertEqual(clean["orders_attempted"], clean["orders_evaluated"])
+        self.assertEqual(clean["orders_completed"], clean["orders_evaluated"])
+        self.assertEqual(clean["incomplete_orders"], 0)
+        self.assertTrue(clean["rule_results_complete"])
+        self.assertEqual(clean["observed_work_bytes"], clean["charged_work_bytes"])
+
+        stopped = inconclusive["coverage"]
+        self.assertEqual(stopped["orders_attempted"], stopped["orders_evaluated"])
+        self.assertEqual(stopped["orders_completed"], stopped["orders_evaluated"] - 1)
+        self.assertIsNone(stopped["incomplete_orders"])
+        self.assertIsNone(stopped["rule_results_complete"])
+        self.assertEqual(stopped["observed_work_bytes"], stopped["charged_work_bytes"])
+
     def test_last_writer_behavior_produces_semantic_order_drift(self) -> None:
         def last_writer(policy, response):
             result = evaluate_response(policy, response)

@@ -1,9 +1,14 @@
-# Constitutional Agent Testbench v0.5.2 release assets
+# Constitutional Agent Testbench v0.5.3 release assets
 
-The v0.5.2 package metadata is recorded in
-`release/v0.5.2-manifest.json`. The pinned release workflow builds a wheel and
+The v0.5.3 package metadata is recorded in
+`release/v0.5.3-manifest.json`. The pinned release workflow builds a wheel and
 source distribution, lists both archives, writes SHA-256 files, and retains the
 assets for 14 days. It does not create or publish a remote release.
+
+The exhaustive and `INCONCLUSIVE_NONDETERMINISTIC` PrecedenceTrace reports share one
+`coverage` contract, so a consumer can read the same fields from either. Values that
+cannot be known after an early stop, such as incomplete-order counts, are reported as
+`null` alongside the unresolved `conforms_within_coverage`.
 
 The distribution installs two console commands, `constitutional-agent-testbench`
 and `constitutional-agent-testbench-playground`. A third entry point that pointed
