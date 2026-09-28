@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-from copy import deepcopy
 import re
 from typing import Any
 
 from .common import (MAX_JSON_INPUT_BYTES, TestbenchError,
-                     bounded_canonical_json_size, ensure_json_value)
+                     bounded_canonical_json_size, copy_json_tree, ensure_json_value)
 from .evaluator import REASON_CODES, evaluate_response
 from .policy import Policy, policy_to_dict, validate_policy
 
@@ -58,10 +57,11 @@ def validate_suite(suite: Any) -> dict[str, Any]:
             raise SuiteInputError("Each response must be an object and expected_passed a boolean.")
         if "expected_rules" in case:
             _validate_assertions(case["expected_rules"])
-    # deepcopy() memos repeated objects, so one response used by two cases would
-    # stay shared and a later edit of one case would change the other.
+    # Copy each case, and each nested value inside it, on its own. deepcopy()
+    # memos a repeated object, so one response used by two cases — or one nested
+    # object stored under two keys — would stay shared.
     return {"suite_version": suite["suite_version"],
-            "cases": [deepcopy(case) for case in suite["cases"]]}
+            "cases": [copy_json_tree(case) for case in suite["cases"]]}
 
 
 def evaluate_suite(policy: Policy | dict[str, Any], suite: Any) -> dict[str, Any]:

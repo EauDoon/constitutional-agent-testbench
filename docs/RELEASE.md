@@ -1,9 +1,11 @@
-# Constitutional Agent Testbench v0.5.13 release assets
+# Constitutional Agent Testbench v0.5.14 release assets
 
-The v0.5.13 package metadata is recorded in
-`release/v0.5.13-manifest.json`. The pinned release workflow builds a wheel and
+The v0.5.14 package metadata is recorded in
+`release/v0.5.14-manifest.json`. The pinned release workflow builds a wheel and
 source distribution, lists both archives, writes SHA-256 files, and retains the
 assets for 14 days. It does not create or publish a remote release.
+
+A validated suite case copies each nested value separately. A repeated object under two response keys no longer stays shared.
 
 A disjoint-constraint finding names only the rules that have finite domains. A presence rule on the same path stays out of that finding. The conflict itself still fails `--strict-exit`.
 

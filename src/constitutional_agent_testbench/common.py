@@ -264,6 +264,20 @@ def bounded_canonical_json_size(value: Any, *, label: str, limit: int) -> int:
     return total
 
 
+def copy_json_tree(value: Any) -> Any:
+    """Copy a JSON tree without preserving shared object identity.
+
+    ``deepcopy`` memos a repeated object, so one nested value stored under two
+    keys stays shared. JSON has no identity; each occurrence is its own copy.
+    """
+
+    if isinstance(value, dict):
+        return {key: copy_json_tree(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [copy_json_tree(item) for item in value]
+    return value
+
+
 def json_values_equal(left: Any, right: Any) -> bool:
     """Compare JSON values without Python's bool and integer equivalence."""
 
