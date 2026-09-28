@@ -1,5 +1,13 @@
 # Changelog
 
+## Version 0.5.18 - 28-09-2026
+
+- Reject duplicate JSON object members in eval case and policy files. The
+  runner used `json.load`, which keeps the last duplicate and continues, so a
+  repeated `policy_path`, response field, or `passed` flag was silently
+  dropped. Those files now use the strict loader. A boolean case file is still
+  `EvalCaseError`, not a JSON syntax error.
+
 ## Version 0.5.17 - 28-09-2026
 
 - Reject a non-object eval case before the runner subscripts it. A boolean,
