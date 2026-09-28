@@ -55,6 +55,17 @@ def _load_case(path: Path) -> dict:
     return load_case_document(path)
 
 
+def passed_states_match(actual, expected, label: str) -> None:
+    """Compare pass states without treating JSON numbers as booleans.
+
+    ``True == 1`` and ``False == 0`` in Python, so a numeric expectation would
+    otherwise match a real boolean verdict.
+    """
+
+    if type(actual) is not bool or type(expected) is not bool or actual is not expected:
+        raise AssertionError(f"{label}: expected={expected!r}, actual={actual!r}")
+
+
 class _CaseAssertion(unittest.TestCase):
     longMessage = True
 
@@ -67,10 +78,10 @@ class _CaseAssertion(unittest.TestCase):
 
     def test_overall_verdict_matches_expected(self) -> None:
         expected = self.case["expected"]
-        self.assertEqual(
+        passed_states_match(
             self.result["passed"],
             expected["passed"],
-            msg=f"overall verdict: expected={expected['passed']}, actual={self.result['passed']}",
+            f"overall verdict: expected={expected['passed']}, actual={self.result['passed']}",
         )
 
     def test_every_declared_rule_is_covered(self) -> None:
@@ -98,10 +109,10 @@ class _CaseAssertion(unittest.TestCase):
                 msg=f"expected rule {rule_id!r} not present in evaluation results",
             )
             actual = results_by_id[rule_id]
-            self.assertEqual(
+            passed_states_match(
                 actual["passed"],
                 expectation["passed"],
-                msg=(
+                (
                     f"rule {rule_id!r} pass state: "
                     f"expected={expectation['passed']}, actual={actual['passed']}"
                 ),
