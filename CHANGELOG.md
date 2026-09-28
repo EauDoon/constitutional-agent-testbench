@@ -1,5 +1,13 @@
 # Changelog
 
+## Version 0.5.6 - 28-09-2026
+
+- Copy each suite case on its own. `validate_suite` used one `deepcopy`, which
+  keeps a repeated object shared, so two cases built from the same response
+  stayed aliased. Editing one owned case changed the other and could change a
+  later evaluation of both.
+- The caller's original objects stay untouched, and JSON-loaded suites are unchanged.
+
 ## Version 0.5.5 - 28-09-2026
 
 - Keep an unknown assertion identifier out of `contradictory_verdict`. A stale
