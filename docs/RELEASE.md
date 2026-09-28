@@ -1,9 +1,12 @@
-# Constitutional Agent Testbench v0.5.3 release assets
+# Constitutional Agent Testbench v0.5.4 release assets
 
-The v0.5.3 package metadata is recorded in
-`release/v0.5.3-manifest.json`. The pinned release workflow builds a wheel and
+The v0.5.4 package metadata is recorded in
+`release/v0.5.4-manifest.json`. The pinned release workflow builds a wheel and
 source distribution, lists both archives, writes SHA-256 files, and retains the
 assets for 14 days. It does not create or publish a remote release.
+
+Unknown options are reported as unknown options even when a required path is
+also missing. A recognized flag without its paths is still a missing argument.
 
 The exhaustive and `INCONCLUSIVE_NONDETERMINISTIC` PrecedenceTrace reports share one
 `coverage` contract, so a consumer can read the same fields from either. Values that

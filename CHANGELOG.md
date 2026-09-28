@@ -1,5 +1,14 @@
 # Changelog
 
+## Version 0.5.4 - 28-09-2026
+
+- Report an unknown option as an unknown option even when a required path is also
+  absent. argparse mentions the missing positional first, so `evaluate --bogus`
+  was classified as a missing argument and the invalid flag looked accepted until
+  the paths were supplied.
+- Preserve exit code 2, the path-free `INVALID_COMMAND` contract, and the missing-argument
+  message for a real flag such as `--strict-exit` that is present without its paths.
+
 ## Version 0.5.3 - 28-09-2026
 
 - Give the exhaustive and `INCONCLUSIVE_NONDETERMINISTIC` PrecedenceTrace reports one

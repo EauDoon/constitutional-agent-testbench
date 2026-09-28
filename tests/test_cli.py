@@ -195,6 +195,42 @@ class CliTests(unittest.TestCase):
         )
         self.assertIn("Unknown option or extra argument", stderr)
 
+    def test_unknown_option_is_not_hidden_by_a_missing_positional(self) -> None:
+        for arguments in (
+            ["evaluate", "--bogus"],
+            ["evaluate", "--strict"],
+            ["inspect-policy", "--strict-exit"],
+            ["validate-policy", "--bogus"],
+        ):
+            with self.subTest(arguments=arguments):
+                exit_code, stdout, stderr = run_cli(arguments)
+                self.assertEqual(exit_code, 2)
+                self.assertEqual(stdout, "")
+                self.assertEqual(
+                    json.loads(stderr),
+                    {
+                        "error": {
+                            "code": "INVALID_COMMAND",
+                            "message": (
+                                "Unknown option or extra argument. "
+                                "Use --help to inspect usage."
+                            ),
+                        }
+                    },
+                )
+                self.assertNotIn("--bogus", stderr)
+                self.assertNotIn("--strict", stderr)
+
+    def test_valid_flag_without_positionals_stays_a_missing_argument(self) -> None:
+        exit_code, stdout, stderr = run_cli(["evaluate", "--strict-exit"])
+
+        self.assertEqual(exit_code, 2)
+        self.assertEqual(stdout, "")
+        self.assertEqual(
+            json.loads(stderr)["error"]["message"],
+            "Missing required argument. Use --help to inspect usage.",
+        )
+
     def test_missing_required_argument_uses_the_json_error_contract(self) -> None:
         exit_code, stdout, stderr = run_cli(["validate-policy"])
 
