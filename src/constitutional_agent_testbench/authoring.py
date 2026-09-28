@@ -15,6 +15,15 @@ class AuthoringLimitError(TestbenchError):
     code = "AUTHORING_LIMIT_EXCEEDED"
 
 
+def _constraint_marker(rule: Rule) -> str:
+    """Identity of a constraint. ``one_of`` is a set, so value order is ignored."""
+
+    domain = _domain(rule)
+    if rule.kind == "one_of" and domain is not None:
+        domain = sorted(canonical_json(value) for value in domain)
+    return canonical_json([rule.kind, domain])
+
+
 def _domain(rule: Rule) -> list[Any] | None:
     if rule.kind == "equals":
         return [rule.value]
@@ -51,7 +60,7 @@ def lint_policy(policy: Policy | dict[str, Any]) -> dict[str, Any]:
                                  "rule_ids": sorted(rule.rule_id for rule in rules)})
         seen: dict[str, str] = {}
         for rule in rules:
-            marker = canonical_json([rule.kind, _domain(rule)])
+            marker = _constraint_marker(rule)
             if marker in seen:
                 findings.append({"code": "DUPLICATE_CONSTRAINT", "path": path,
                                  "rule_ids": sorted([seen[marker], rule.rule_id])})

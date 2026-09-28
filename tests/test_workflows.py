@@ -201,7 +201,7 @@ class OperatorBoundaryTests(unittest.TestCase):
 
     def test_public_api_and_version(self):
         import constitutional_agent_testbench as package
-        self.assertEqual(package.__version__, "0.5.6")
+        self.assertEqual(package.__version__, "0.5.7")
         for name in ("lint_policy", "explain_response", "evaluate_suite", "suite_coverage",
                      "compare_policies", "generate_rule_probes", "create_receipt", "verify_receipt"):
             self.assertTrue(callable(getattr(package, name)))
@@ -218,6 +218,17 @@ class AuthoringTests(unittest.TestCase):
         raw = policy(rule(), rule("other"), rule("child", "required_field", "action.name"))
         codes = {item["code"] for item in lint_policy(raw)["findings"]}
         self.assertEqual(codes, {"DUPLICATE_CONSTRAINT", "INCOMPATIBLE_DESCENDANTS"})
+
+    def test_one_of_order_is_the_same_constraint(self):
+        raw = policy(rule("first", "one_of", "value", values=[1, {"b": 2, "a": 1}]),
+                     rule("second", "one_of", "value", values=[{"a": 1, "b": 2}, 1]))
+        report = lint_policy(raw)
+        self.assertEqual(report["findings"], [
+            {"code": "DUPLICATE_CONSTRAINT", "path": "value", "rule_ids": ["first", "second"]}])
+        self.assertFalse(report["has_conflicts"])
+        wider = policy(rule("first", "one_of", "value", values=[1, 2]),
+                       rule("second", "one_of", "value", values=[2, 3]))
+        self.assertEqual(lint_policy(wider)["findings"], [])
 
     def test_valid_nested_domain_and_null_presence(self):
         raw = policy(rule("parent", "one_of", "action", values=[{}, {"name": None}]),

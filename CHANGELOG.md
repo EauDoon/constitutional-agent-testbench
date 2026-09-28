@@ -1,5 +1,14 @@
 # Changelog
 
+## Version 0.5.7 - 28-09-2026
+
+- Treat `one_of` rules with the same allowed set as duplicate constraints even
+  when the values are listed in different orders. Membership does not depend on
+  order, but the duplicate check compared the arrays as sequences, so `[1, 2]`
+  and `[2, 1]` produced no finding. Object key order was already ignored.
+- A strictly wider allowed set is still a different constraint. Duplicate-only
+  findings still do not fail `--strict-exit`.
+
 ## Version 0.5.6 - 28-09-2026
 
 - Copy each suite case on its own. `validate_suite` used one `deepcopy`, which
