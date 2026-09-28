@@ -1,5 +1,13 @@
 # Changelog
 
+## Version 0.5.8 - 28-09-2026
+
+- Report `order_changed` from the relative order of rules that exist in both
+  policies. Adding or inserting a rule made the full identifier lists differ, so
+  the migration report said the rules were reordered when the shared rules kept
+  their order. Added and removed rules stay in their own fields. A real swap of
+  shared rules is still `order_changed`.
+
 ## Version 0.5.7 - 28-09-2026
 
 - Treat `one_of` rules with the same allowed set as duplicate constraints even
