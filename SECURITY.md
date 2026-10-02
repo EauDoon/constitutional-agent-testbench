@@ -33,7 +33,14 @@ its network or filesystem access, or roll back its side effects.
 - Keep personal data, credentials, access tokens, and confidential material out of policies, responses, examples, and issue reports.
 - Write generated output only to an intended local destination.
 
-The command line interface follows paths explicitly supplied by its operator. It does not search the file system. Standard file handling can follow a symbolic link supplied as an input or output path, so operators should verify path ownership in untrusted environments.
+The command line interface uses paths explicitly supplied by its operator and
+never searches the file system. Input paths and ancestor directories can follow
+symbolic links. Atomic exports replace a symbolic link at the final destination
+without reading or changing its target. This does not sandbox parent directories
+or prevent another process from changing them. Verify input and destination
+ownership before working in untrusted directories. Existing regular-file POSIX
+permission bits are preserved except special bits; ownership and ACL preservation
+are outside the export contract.
 
 ## Reporting a concern
 

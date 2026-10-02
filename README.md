@@ -42,119 +42,51 @@ This is useful for development checks, regression suites, demonstrations, and pr
 
 ## Quick start
 
-Requirements:
-
-- Python 3.11 or newer
-- A source checkout of this repository
-
-From the repository root, expose `src` on `PYTHONPATH`:
-
-```bash
-export PYTHONPATH=src
-```
-
-In PowerShell:
-
-```powershell
-$env:PYTHONPATH = "src"
-```
-
-After `python -m pip install --no-deps .`, the same operations are available as
-the `constitutional-agent-testbench` console command.
-`constitutional-agent-testbench-playground` is equivalent to
-`constitutional-agent-testbench playground` and forwards the same optional
-policy path, response path, and `--smoke-test` flag.
-
-Validate the bundled policy, then evaluate the passing example:
+Use Python 3.11 or newer. From a source checkout or unpacked source distribution,
+install the package into your chosen environment, then run the installed command:
 
 ```text
-python -m constitutional_agent_testbench.cli validate-policy examples/policy.json
-python -m constitutional_agent_testbench.cli evaluate examples/policy.json examples/passing-response.json
+python -m pip install --no-deps .
+constitutional-agent-testbench validate-policy examples/policy.json
+constitutional-agent-testbench evaluate examples/policy.json examples/passing-response.json --strict-exit
+constitutional-agent-testbench evaluate examples/policy.json examples/failing-response.json --strict-exit
 ```
 
-The first command reports that the policy is valid. The second reports `"passed": true` and includes an ordered result for every rule. To inspect failure behavior, replace `passing-response.json` with `failing-response.json`.
+The passing example reports `"passed": true` and exits `0`. The failing example
+reports `"passed": false` and exits `1`. Invalid commands or inputs exit `2` with
+a JSON error on standard error. Keep `--strict-exit` when using evaluation as an
+automation gate; without it, a completed failing evaluation exits `0`.
 
-## Command line interface
+Current package version: **0.5.19**. See [package metadata](pyproject.toml) and
+[the changelog](CHANGELOG.md) for the version and changes. Policy schema `1.0`
+and optional suite schema `1.1` are separate from the package version.
 
-The command line interface supports these operations:
-
-| Command | Purpose |
-| --- | --- |
-| `validate-policy` | Validate a policy and report its identifier and schema version. |
-| `evaluate` | Evaluate a response and return the overall result plus every rule result. |
-| `check-order` | Run PrecedenceTrace against one fixed response and two to seven declared peer rules. |
-| `generate-synthetic` | Produce a verified passing and failing case, either on standard output or in an explicitly selected file. |
-| `playground` | Open the offline policy playground, or run its headless smoke check. |
-| `lint-policy` | Identify exact-path conflicts, incompatible descendants, and duplicate constraints. |
-| `explain` | Show absent members and non-object parents without copying candidate values. |
-| `generate-probes` | Produce verified per-rule mutations and an executable fixture suite. |
-| `run-suite` | Compare every fixture result with its explicit expected pass state. |
-| `suite-coverage` | Count observed pass/fail outcomes and reason codes for each rule. |
-| `compare-policies` | Show definition changes and fixture impact between two independently evaluated policies. |
-| `create-receipt` | Bind policy and response digests to their deterministic evaluation. |
-| `verify-receipt` | Recompute and compare the complete receipt against supplied inputs. |
-| `inspect-policy` / `inspect-suite` | Inventory paths or detect duplicate inputs and conflicting assertions without values. |
-| `merge-suites` / `select-suite` | Combine corpora safely or select exact case IDs. |
-| `triage-suite` / `reduce-suite` | Diagnose regressions or retain a deterministic subset preserving observed evidence. |
-| `create-suite-receipt` / `verify-suite-receipt` | Bind and recompute whole-corpus evidence. |
-| `validate-suite` / `import-responses` | Validate fixture syntax or import response arrays with explicit verdict expectations. |
-| `capture-assertions` / `audit-assertions` | Capture matching observed rule results or audit assertion intent against a policy. |
-| `diff-suites` / `deduplicate-suite` | Review corpus edits without values or retain the first exact fixture duplicate. |
-| `shard-suite` / `select-outcomes` | Split executable suites or select observed verdict and regression cohorts. |
-| `migration-expectations` / `check-suite` | Gate expectation regressions or combine policy and fixture preflight checks. |
-| `create-replay` / `replay` | Create and independently check portable JSON replay bundles. |
-
-See the [operator guide](docs/OPERATOR.md) for a complete authoring, regression,
-migration, and receipt workflow, including command-specific strict exit rules.
-Policy schema 1.0, evaluation semantics, and PrecedenceTrace verdicts, witnesses, and
-projections remain unchanged in package 0.5.3, which only adds `coverage` fields to the
-`check-order` report.
-Optional suite 1.1 adds per-rule assertions. See the [corpus and replay guide](docs/CORPUS.md)
-for a complete command sequence. All JSON commands accept guarded atomic `--output`
-exports; existing default stdout and strict-exit behavior remain intact.
-
-Run directly from a source checkout after adding `src` to `PYTHONPATH`:
+To exercise a complete installed workflow, including independently authored
+synthetic expectations, migration, receipts, and replay:
 
 ```text
-python -m constitutional_agent_testbench.cli validate-policy examples/policy.json
-python -m constitutional_agent_testbench.cli evaluate examples/policy.json examples/passing-response.json
-python -m constitutional_agent_testbench.cli check-order examples/policy.json examples/passing-response.json
-python -m constitutional_agent_testbench.cli generate-synthetic examples/policy.json
-python -m constitutional_agent_testbench.cli generate-synthetic examples/policy.json --output generated-cases.json
-python -m constitutional_agent_testbench.cli playground --smoke-test
+python scripts/verify_installed_workflow.py
 ```
 
-For `validate-policy`, `evaluate`, `check-order`, and `generate-synthetic`,
-policy and response arguments accept `-` to read bounded strict JSON from
-standard input. At most one argument may use standard input in a command, and
-the same 1,000,000-byte limit and structural checks apply as for files. For
-example:
+This checks the installed package in a fresh temporary directory. It does not
+call a model or establish that a real deployment is safe. See the
+[corpus and replay guide](docs/CORPUS.md) for the fixture contract and limitations.
 
-```text
-python -m constitutional_agent_testbench.cli evaluate examples/policy.json - < examples/passing-response.json
-```
+## Next steps
 
-Operational results and controlled errors are JSON with sorted object keys. Help output remains plain command-line text. `--help` lists commands and argument conventions; unknown commands, unknown options, extra arguments, and missing arguments return `INVALID_COMMAND` with a usage hint and do not echo the supplied tokens. Policy validation errors name the failing rule when its identifier is valid, and the JSON error object then includes `policy_id`, `rule_id`, and `rule_index` for those known values. Invalid identifiers and input paths are still omitted.
+- [Operator guide](docs/OPERATOR.md): complete command catalog, authoring,
+  regression, migration, output handling, and command-specific strict exit rules.
+- [Corpus and replay guide](docs/CORPUS.md): explicit assertions, curation,
+  receipts, and portable replay bundles.
+- [Contributor guide](CONTRIBUTING.md): source-checkout setup and validation.
+- [Release guide](docs/RELEASE.md): local build and package verification;
+  publication is a separate action.
 
-When `--output` is supplied, `generate-synthetic` writes the complete case bundle and prints a path-free acknowledgement. `--output` writes a file and does not accept `-`. `playground` optional policy and response arguments are file paths and do not read `-` as standard input.
-
-An important integration detail: completed `evaluate` and `check-order`
-commands return process exit code `0` when their JSON result reports a failed
-evaluation or order drift. Automation should inspect `passed`, `status`, and
-`conforms_within_coverage`. Controlled command, input, policy, response,
-generation, coverage-limit, and output errors return process exit code `2`
-with a machine-readable error object on standard error.
-
-Add `--strict-exit` to `evaluate` or `check-order` when automation should use
-the process status as a gate. Conformance returns `0`, valid nonconformance or
-drift returns `1`, and invalid or unresolved input returns `2`.
-
-`playground` is offline and reuses the library evaluator. Labeled policy and
-response editors sit above a live pass/fail verdict and the same JSON result
-the CLI emits. The verdict line uses rule identifiers and reason codes only;
-candidate values stay out of that summary. It writes nothing during editing or
-evaluation. The **Export result** button opens an explicit save dialog and is
-the only playground write path.
+The offline playground reuses the evaluator. Start it with
+`constitutional-agent-testbench playground`; `--smoke-test` runs a headless
+check. The **Export result** save dialog is its only write path. The separate
+`constitutional-agent-testbench-playground` entry point accepts the same optional
+policy and response paths and `--smoke-test` flag.
 
 ## Library use
 
@@ -376,7 +308,7 @@ Keep these boundaries in view:
 - JSON input files, validated policies, and candidate responses are limited to 1,000,000 bytes. In-memory JSON values are limited to 32 container levels and 100,000 nodes.
 - PrecedenceTrace additionally limits each in-memory policy, response, and returned evaluator result to 1,000,000 serialized UTF-8 bytes.
 - Policies are limited to 256 rules, `one_of` rules are limited to 256 candidate values, and field paths are limited to 32 segments.
-- The command line interface follows explicitly supplied paths. Standard file handling may follow symbolic links.
+- Input paths and ancestor directories can follow symbolic links. Atomic exports replace the final destination link without changing its target; see [Security](SECURITY.md).
 - Generated output is written only when an operator supplies `--output`, and the operator is responsible for selecting an intended destination.
 - Personal data, credentials, access tokens, and confidential material should be kept out of policies, responses, examples, and issue reports.
 

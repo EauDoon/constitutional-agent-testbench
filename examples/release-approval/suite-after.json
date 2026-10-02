@@ -1,0 +1,339 @@
+{
+  "suite_version": "1.1",
+  "cases": [
+    {
+      "case_id": "approved",
+      "response": {
+        "summary": "Synthetic release approval example.",
+        "status": "approved",
+        "dry_run": false,
+        "queued_actions": []
+      },
+      "expected_passed": true,
+      "expected_rules": {
+        "summary-present": {
+          "passed": true,
+          "reason_code": "RULE_SATISFIED"
+        },
+        "status-approved": {
+          "passed": true,
+          "reason_code": "RULE_SATISFIED"
+        },
+        "dry-run-false": {
+          "passed": true,
+          "reason_code": "RULE_SATISFIED"
+        },
+        "queue-empty": {
+          "passed": true,
+          "reason_code": "RULE_SATISFIED"
+        }
+      }
+    },
+    {
+      "case_id": "conditional-status",
+      "response": {
+        "summary": "Synthetic release approval example.",
+        "status": "approved-with-conditions",
+        "dry_run": false,
+        "queued_actions": []
+      },
+      "expected_passed": true,
+      "expected_rules": {
+        "summary-present": {
+          "passed": true,
+          "reason_code": "RULE_SATISFIED"
+        },
+        "status-approved": {
+          "passed": true,
+          "reason_code": "RULE_SATISFIED"
+        },
+        "dry-run-false": {
+          "passed": true,
+          "reason_code": "RULE_SATISFIED"
+        },
+        "queue-empty": {
+          "passed": true,
+          "reason_code": "RULE_SATISFIED"
+        }
+      }
+    },
+    {
+      "case_id": "conditional-status-with-queue",
+      "response": {
+        "summary": "Synthetic release approval example.",
+        "status": "approved-with-conditions",
+        "dry_run": false,
+        "queued_actions": [
+          "synthetic-deploy"
+        ]
+      },
+      "expected_passed": false,
+      "expected_rules": {
+        "summary-present": {
+          "passed": true,
+          "reason_code": "RULE_SATISFIED"
+        },
+        "status-approved": {
+          "passed": true,
+          "reason_code": "RULE_SATISFIED"
+        },
+        "dry-run-false": {
+          "passed": true,
+          "reason_code": "RULE_SATISFIED"
+        },
+        "queue-empty": {
+          "passed": false,
+          "reason_code": "VALUE_NOT_EMPTY_LIST"
+        }
+      }
+    },
+    {
+      "case_id": "missing-summary",
+      "response": {
+        "status": "approved",
+        "dry_run": false,
+        "queued_actions": []
+      },
+      "expected_passed": false,
+      "expected_rules": {
+        "summary-present": {
+          "passed": false,
+          "reason_code": "FIELD_MISSING"
+        },
+        "status-approved": {
+          "passed": true,
+          "reason_code": "RULE_SATISFIED"
+        },
+        "dry-run-false": {
+          "passed": true,
+          "reason_code": "RULE_SATISFIED"
+        },
+        "queue-empty": {
+          "passed": true,
+          "reason_code": "RULE_SATISFIED"
+        }
+      }
+    },
+    {
+      "case_id": "null-summary-is-present",
+      "response": {
+        "summary": null,
+        "status": "approved",
+        "dry_run": false,
+        "queued_actions": []
+      },
+      "expected_passed": true,
+      "expected_rules": {
+        "summary-present": {
+          "passed": true,
+          "reason_code": "RULE_SATISFIED"
+        },
+        "status-approved": {
+          "passed": true,
+          "reason_code": "RULE_SATISFIED"
+        },
+        "dry-run-false": {
+          "passed": true,
+          "reason_code": "RULE_SATISFIED"
+        },
+        "queue-empty": {
+          "passed": true,
+          "reason_code": "RULE_SATISFIED"
+        }
+      }
+    },
+    {
+      "case_id": "zero-is-not-false",
+      "response": {
+        "summary": "Synthetic release approval example.",
+        "status": "approved",
+        "dry_run": 0,
+        "queued_actions": []
+      },
+      "expected_passed": false,
+      "expected_rules": {
+        "summary-present": {
+          "passed": true,
+          "reason_code": "RULE_SATISFIED"
+        },
+        "status-approved": {
+          "passed": true,
+          "reason_code": "RULE_SATISFIED"
+        },
+        "dry-run-false": {
+          "passed": false,
+          "reason_code": "VALUE_NOT_FALSE"
+        },
+        "queue-empty": {
+          "passed": true,
+          "reason_code": "RULE_SATISFIED"
+        }
+      }
+    },
+    {
+      "case_id": "string-false-is-not-false",
+      "response": {
+        "summary": "Synthetic release approval example.",
+        "status": "approved",
+        "dry_run": "false",
+        "queued_actions": []
+      },
+      "expected_passed": false,
+      "expected_rules": {
+        "summary-present": {
+          "passed": true,
+          "reason_code": "RULE_SATISFIED"
+        },
+        "status-approved": {
+          "passed": true,
+          "reason_code": "RULE_SATISFIED"
+        },
+        "dry-run-false": {
+          "passed": false,
+          "reason_code": "VALUE_NOT_FALSE"
+        },
+        "queue-empty": {
+          "passed": true,
+          "reason_code": "RULE_SATISFIED"
+        }
+      }
+    },
+    {
+      "case_id": "true-is-not-false",
+      "response": {
+        "summary": "Synthetic release approval example.",
+        "status": "approved",
+        "dry_run": true,
+        "queued_actions": []
+      },
+      "expected_passed": false,
+      "expected_rules": {
+        "summary-present": {
+          "passed": true,
+          "reason_code": "RULE_SATISFIED"
+        },
+        "status-approved": {
+          "passed": true,
+          "reason_code": "RULE_SATISFIED"
+        },
+        "dry-run-false": {
+          "passed": false,
+          "reason_code": "VALUE_NOT_FALSE"
+        },
+        "queue-empty": {
+          "passed": true,
+          "reason_code": "RULE_SATISFIED"
+        }
+      }
+    },
+    {
+      "case_id": "object-is-not-empty-list",
+      "response": {
+        "summary": "Synthetic release approval example.",
+        "status": "approved",
+        "dry_run": false,
+        "queued_actions": {}
+      },
+      "expected_passed": false,
+      "expected_rules": {
+        "summary-present": {
+          "passed": true,
+          "reason_code": "RULE_SATISFIED"
+        },
+        "status-approved": {
+          "passed": true,
+          "reason_code": "RULE_SATISFIED"
+        },
+        "dry-run-false": {
+          "passed": true,
+          "reason_code": "RULE_SATISFIED"
+        },
+        "queue-empty": {
+          "passed": false,
+          "reason_code": "VALUE_NOT_EMPTY_LIST"
+        }
+      }
+    },
+    {
+      "case_id": "queue-not-empty",
+      "response": {
+        "summary": "Synthetic release approval example.",
+        "status": "approved",
+        "dry_run": false,
+        "queued_actions": [
+          "synthetic-deploy"
+        ]
+      },
+      "expected_passed": false,
+      "expected_rules": {
+        "summary-present": {
+          "passed": true,
+          "reason_code": "RULE_SATISFIED"
+        },
+        "status-approved": {
+          "passed": true,
+          "reason_code": "RULE_SATISFIED"
+        },
+        "dry-run-false": {
+          "passed": true,
+          "reason_code": "RULE_SATISFIED"
+        },
+        "queue-empty": {
+          "passed": false,
+          "reason_code": "VALUE_NOT_EMPTY_LIST"
+        }
+      }
+    },
+    {
+      "case_id": "rejected-status",
+      "response": {
+        "summary": "Synthetic release approval example.",
+        "status": "rejected",
+        "dry_run": false,
+        "queued_actions": []
+      },
+      "expected_passed": false,
+      "expected_rules": {
+        "summary-present": {
+          "passed": true,
+          "reason_code": "RULE_SATISFIED"
+        },
+        "status-approved": {
+          "passed": false,
+          "reason_code": "VALUE_NOT_ALLOWED"
+        },
+        "dry-run-false": {
+          "passed": true,
+          "reason_code": "RULE_SATISFIED"
+        },
+        "queue-empty": {
+          "passed": true,
+          "reason_code": "RULE_SATISFIED"
+        }
+      }
+    },
+    {
+      "case_id": "missing-all",
+      "response": {},
+      "expected_passed": false,
+      "expected_rules": {
+        "summary-present": {
+          "passed": false,
+          "reason_code": "FIELD_MISSING"
+        },
+        "status-approved": {
+          "passed": false,
+          "reason_code": "FIELD_MISSING"
+        },
+        "dry-run-false": {
+          "passed": false,
+          "reason_code": "FIELD_MISSING"
+        },
+        "queue-empty": {
+          "passed": false,
+          "reason_code": "FIELD_MISSING"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0",
+  "policy_id": "synthetic-release-approval-v1",
+  "rules": [
+    {
+      "kind": "required_field",
+      "path": "summary",
+      "rule_id": "summary-present"
+    },
+    {
+      "kind": "one_of",
+      "path": "status",
+      "rule_id": "status-approved",
+      "values": [
+        "approved"
+      ]
+    },
+    {
+      "kind": "false",
+      "path": "dry_run",
+      "rule_id": "dry-run-false"
+    },
+    {
+      "kind": "empty_list",
+      "path": "queued_actions",
+      "rule_id": "queue-empty"
+    }
+  ]
+}

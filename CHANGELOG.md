@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Add independently authored synthetic release-approval expectations to the
+  installed adopter workflow, covering all rule outcomes under both sides of a
+  policy migration plus receipt and replay checks. Runtime semantics are unchanged.
+- Lead onboarding with an installed strict-exit example, move the full command
+  catalog to the operator guide, and align version and symlink documentation
+  with the current package contract.
+
 ## Version 0.5.19 - 28-09-2026
 
 - Do not treat JSON numbers as eval pass states. The runner compared verdicts

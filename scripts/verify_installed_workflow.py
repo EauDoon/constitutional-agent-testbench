@@ -1,7 +1,8 @@
 """Exercise an installed console command in a fresh directory with synthetic data.
 
 Run using the Python interpreter whose environment contains the installed package.
-No source-tree imports, network, models, or persistent fixtures are used.
+Checked-in synthetic expectations are copied into the temporary directory.
+No source-tree package imports, network, models, or persistent outputs are used.
 """
 from __future__ import annotations
 
@@ -16,6 +17,55 @@ import tempfile
 
 
 MARKER = "SYNTHETIC_PRIVATE_é雪💡"
+
+
+def verify_adopter_oracle(checkout, save, run):
+    """Check frozen, independently authored outcomes without capturing assertions."""
+    fixtures = checkout / "examples" / "release-approval"
+    expected = json.loads((fixtures / "expected-migration.json").read_text(encoding="utf-8"))
+
+    def require_equal(actual, wanted, label):
+        # Preserve JSON boolean/number distinctions instead of Python True == 1.
+        if json.dumps(actual, sort_keys=True) != json.dumps(wanted, sort_keys=True):
+            raise AssertionError(f"Independent release-approval oracle disagrees: {label}")
+
+    for version in ("before", "after"):
+        policy = json.loads((fixtures / f"policy-{version}.json").read_text(encoding="utf-8"))
+        suite = json.loads((fixtures / f"suite-{version}.json").read_text(encoding="utf-8"))
+        policy_name, suite_name = f"release-policy-{version}.json", f"release-suite-{version}.json"
+        save(policy_name, policy)
+        save(suite_name, suite)
+        run("validate-policy", policy_name)
+        run("validate-suite", suite_name)
+        run("check-suite", policy_name, suite_name, "--strict-exit")
+        report, _ = run("run-suite", policy_name, suite_name, "--strict-exit")
+        require_equal([case["case_id"] for case in report["cases"]],
+                      [case["case_id"] for case in suite["cases"]], f"{version} case coverage")
+        for actual, wanted in zip(report["cases"], suite["cases"], strict=True):
+            evaluation = actual["evaluation"]
+            rule_ids = [row["rule_id"] for row in evaluation["rule_results"]]
+            require_equal(rule_ids, [row["rule_id"] for row in policy["rules"]],
+                          f"{version}/{wanted['case_id']} rule coverage")
+            require_equal(evaluation["passed"], wanted["expected_passed"],
+                          f"{version}/{wanted['case_id']} verdict")
+            outcomes = {row["rule_id"]: {"passed": row["passed"], "reason_code": row["reason_code"]}
+                        for row in evaluation["rule_results"]}
+            require_equal(outcomes, wanted["expected_rules"],
+                          f"{version}/{wanted['case_id']} rule outcomes")
+        receipt_name, replay_name = f"release-receipt-{version}.json", f"release-replay-{version}.json"
+        run("create-suite-receipt", policy_name, suite_name, "--output", receipt_name)
+        run("verify-suite-receipt", policy_name, suite_name, receipt_name, "--strict-exit")
+        run("create-replay", policy_name, suite_name, "--output", replay_name)
+        replay, _ = run("replay", replay_name, "--strict-exit")
+        require_equal([replay["verified"], replay["replay_passed"]], [True, True], f"{version} replay")
+
+    before, after, suite_name = "release-policy-before.json", "release-policy-after.json", "release-suite-before.json"
+    run("run-suite", after, suite_name, "--strict-exit", expected=1)
+    comparison, _ = run("compare-policies", before, after, suite_name, "--strict-exit", expected=1)
+    require_equal(comparison, expected["compare_policies_with_before_suite"], "policy comparison")
+    migration, _ = run("migration-expectations", before, after, suite_name, "--strict-exit", expected=1)
+    require_equal(migration, expected["migration_expectations_with_before_suite"], "expectation migration")
+    return len(suite["cases"])
 
 
 def main():
@@ -65,6 +115,8 @@ def main():
         if (installation["source"].get("dir_info", {}).get("editable") is True
                 or Path(installation["module"]).resolve().is_relative_to(checkout / "src")):
             raise AssertionError("Expected a non-editable installed distribution.")
+
+        adopter_case_count = verify_adopter_oracle(checkout, save, run)
 
         policy = {"schema_version": "1.0", "policy_id": "synthetic-adopter", "rules": [
             {"rule_id": "execute", "kind": "false", "path": "action.execute"},
@@ -158,6 +210,7 @@ def main():
         assert (root / "suite.json").read_bytes() == source
 
     print(json.dumps({"passed": True, "fixture_kind": "synthetic", "values_included": False,
+                      "independent_adopter_cases": adopter_case_count,
                       "command_checks": len(steps), "steps": steps}, indent=2, sort_keys=True))
 
 

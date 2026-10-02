@@ -1,0 +1,138 @@
+{
+  "basis": "Hand-authored from the public rule contract before evaluator execution. No evaluator or capture-assertions command used.",
+  "compare_policies_with_before_suite": {
+    "before_policy_id": "synthetic-release-approval-v1",
+    "after_policy_id": "synthetic-release-approval-v2",
+    "rule_changes": {
+      "added": [],
+      "removed": [],
+      "modified": [
+        "status-approved"
+      ],
+      "order_changed": false
+    },
+    "verdict_change_count": 1,
+    "newly_passing": [
+      "conditional-status"
+    ],
+    "newly_failing": [],
+    "before_matches_expectations": true,
+    "after_matches_expectations": false,
+    "cases": [
+      {
+        "case_id": "approved",
+        "before_passed": true,
+        "after_passed": true,
+        "verdict_changed": false,
+        "changed_rule_results": []
+      },
+      {
+        "case_id": "conditional-status",
+        "before_passed": false,
+        "after_passed": true,
+        "verdict_changed": true,
+        "changed_rule_results": [
+          "status-approved"
+        ]
+      },
+      {
+        "case_id": "conditional-status-with-queue",
+        "before_passed": false,
+        "after_passed": false,
+        "verdict_changed": false,
+        "changed_rule_results": [
+          "status-approved"
+        ]
+      },
+      {
+        "case_id": "missing-summary",
+        "before_passed": false,
+        "after_passed": false,
+        "verdict_changed": false,
+        "changed_rule_results": []
+      },
+      {
+        "case_id": "null-summary-is-present",
+        "before_passed": true,
+        "after_passed": true,
+        "verdict_changed": false,
+        "changed_rule_results": []
+      },
+      {
+        "case_id": "zero-is-not-false",
+        "before_passed": false,
+        "after_passed": false,
+        "verdict_changed": false,
+        "changed_rule_results": []
+      },
+      {
+        "case_id": "string-false-is-not-false",
+        "before_passed": false,
+        "after_passed": false,
+        "verdict_changed": false,
+        "changed_rule_results": []
+      },
+      {
+        "case_id": "true-is-not-false",
+        "before_passed": false,
+        "after_passed": false,
+        "verdict_changed": false,
+        "changed_rule_results": []
+      },
+      {
+        "case_id": "object-is-not-empty-list",
+        "before_passed": false,
+        "after_passed": false,
+        "verdict_changed": false,
+        "changed_rule_results": []
+      },
+      {
+        "case_id": "queue-not-empty",
+        "before_passed": false,
+        "after_passed": false,
+        "verdict_changed": false,
+        "changed_rule_results": []
+      },
+      {
+        "case_id": "rejected-status",
+        "before_passed": false,
+        "after_passed": false,
+        "verdict_changed": false,
+        "changed_rule_results": []
+      },
+      {
+        "case_id": "missing-all",
+        "before_passed": false,
+        "after_passed": false,
+        "verdict_changed": false,
+        "changed_rule_results": []
+      }
+    ],
+    "comparison_scope": "supplied fixtures only; no policy recommendation"
+  },
+  "migration_expectations_with_before_suite": {
+    "before_policy_id": "synthetic-release-approval-v1",
+    "after_policy_id": "synthetic-release-approval-v2",
+    "regressions": [
+      "conditional-status",
+      "conditional-status-with-queue"
+    ],
+    "recoveries": [],
+    "still_mismatched": [],
+    "still_matched": [
+      "approved",
+      "missing-summary",
+      "null-summary-is-present",
+      "zero-is-not-false",
+      "string-false-is-not-false",
+      "true-is-not-false",
+      "object-is-not-empty-list",
+      "queue-not-empty",
+      "rejected-status",
+      "missing-all"
+    ],
+    "no_regressions": false,
+    "candidate_matches_expectations": false,
+    "comparison_scope": "supplied expectations only; no policy recommendation"
+  }
+}
