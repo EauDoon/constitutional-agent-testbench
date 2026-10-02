@@ -201,7 +201,14 @@ python scripts/verify_installed_workflow.py
 ```
 
 The script uses that environment's installed console command in a fresh temporary
-directory and rejects editable source imports. It creates four explicit synthetic
+directory and rejects editable source imports. It first checks the
+[independently authored release-approval oracle](ADOPTER-ORACLE.md): twelve cases,
+all per-rule verdicts and reason codes under two policies, and the explicit
+difference between verdict changes and expectation regressions. Those checked-in
+expectations were frozen before evaluator execution, not captured from outputs.
+Each policy/suite pair also passes receipt verification and replay.
+
+It then creates four explicit synthetic
 fixtures: a passing Unicode response, a missing field, a non-object parent, and
 numeric zero where JSON `false` is required. It validates the policy and corpus,
 then changes the rule from `false` to `equals false`. Verdicts stay unchanged,
@@ -212,7 +219,7 @@ It exports a value-free receipt and a self-contained replay bundle, independentl
 replays both, and checks altered assertions and stored results are rejected. It
 also checks invalid JSON, protected input paths, preserved exports after errors,
 and deterministic output. Its final JSON lists command exit statuses without
-response values. All fixtures and bundles are temporary; a successful run is
+response values. Working copies and generated bundles are temporary; a successful run is
 local contract evidence, not an observation of a model or a safety certification.
 
 Since 0.5.1, CLI JSON stdout and stderr use UTF-8 bytes with LF, regardless of the

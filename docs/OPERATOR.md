@@ -1,7 +1,55 @@
 # Local policy operator workflow
 
-See the [0.5.1 corpus guide](CORPUS.md) for a complete executable curation,
+See the [corpus guide](CORPUS.md) for a complete executable curation,
 assertion, receipt, replay, and atomic-export workflow.
+
+## Command catalog
+
+Use the installed `constitutional-agent-testbench` command after
+`python -m pip install --no-deps .`. For source-only development, set
+`PYTHONPATH=src` and use `python -m constitutional_agent_testbench.cli` instead.
+
+| Command | Purpose |
+| --- | --- |
+| `validate-policy` | Validate a policy and report its identifier and schema version. |
+| `evaluate` | Evaluate a response and return the overall result plus every rule result. |
+| `check-order` | Run PrecedenceTrace against one fixed response and two to seven declared peer rules. |
+| `generate-synthetic` | Produce a verified passing and failing case, either on standard output or in an explicitly selected file. |
+| `playground` | Open the offline policy playground, or run its headless smoke check. |
+| `lint-policy` | Identify exact-path conflicts, incompatible descendants, and duplicate constraints. |
+| `explain` | Show absent members and non-object parents without copying candidate values. |
+| `generate-probes` | Produce verified per-rule mutations and an executable fixture suite. |
+| `run-suite` | Compare every fixture result with its explicit expected pass state. |
+| `suite-coverage` | Count observed pass/fail outcomes and reason codes for each rule. |
+| `compare-policies` | Show definition changes and fixture impact between two independently evaluated policies. |
+| `create-receipt` | Bind policy and response digests to their deterministic evaluation. |
+| `verify-receipt` | Recompute and compare the complete receipt against supplied inputs. |
+| `inspect-policy` / `inspect-suite` | Inventory paths or detect duplicate inputs and conflicting assertions without values. |
+| `merge-suites` / `select-suite` | Combine corpora safely or select exact case IDs. |
+| `triage-suite` / `reduce-suite` | Diagnose regressions or retain a deterministic subset preserving observed evidence. |
+| `create-suite-receipt` / `verify-suite-receipt` | Bind and recompute whole-corpus evidence. |
+| `validate-suite` / `import-responses` | Validate fixture syntax or import response arrays with explicit verdict expectations. |
+| `capture-assertions` / `audit-assertions` | Capture matching observed rule results or audit assertion intent against a policy. |
+| `diff-suites` / `deduplicate-suite` | Review corpus edits without values or retain the first exact fixture duplicate. |
+| `shard-suite` / `select-outcomes` | Split executable suites or select observed verdict and regression cohorts. |
+| `migration-expectations` / `check-suite` | Gate expectation regressions or combine policy and fixture preflight checks. |
+| `create-replay` / `replay` | Create and independently check portable JSON replay bundles. |
+
+Operational results and controlled errors are JSON with sorted object keys;
+help remains plain text. Unknown commands or options and missing or extra
+arguments return `INVALID_COMMAND` with a usage hint without echoing tokens.
+
+For `validate-policy`, `evaluate`, `check-order`, and `generate-synthetic`, policy
+and response arguments accept `-` for bounded strict JSON on standard input.
+At most one input argument may use standard input. The same 1,000,000-byte and
+structural limits apply to files and standard input. `--output` selects a file
+and does not accept `-`; playground inputs are file paths only.
+
+For `evaluate` and `check-order`, a completed nonconformance result returns `0`
+unless `--strict-exit` is supplied. With it, conformance returns `0`, valid
+nonconformance or drift returns `1`, and invalid or unresolved input returns `2`.
+Other commands have the command-specific gates described below. Inspect the JSON
+result as well as the exit status.
 
 ## Corpus inspection and curation
 
@@ -36,7 +84,7 @@ relationships without displaying constraint values. The library equivalent is
 `inspect_policy`. Inspection supports up to 256 rules and a 1,000,000-byte
 formatted report; exceeding a workflow bound fails closed with `INVALID_WORKFLOW`.
 
-Package 0.3.0 adds authoring and regression tools around the existing schema 1.0
+Authoring and regression tools use the schema 1.0
 evaluator. All rules still participate. Input content never selects authority,
 executes an action, or overrides another policy. Runtime dependencies remain
 limited to Python's standard library.
