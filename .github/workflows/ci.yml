@@ -38,6 +38,7 @@ jobs:
       - name: Run the checked-in eval scenarios
         run: python -m evals.runner
       - name: Verify the installed command
+        shell: bash
         run: |
           constitutional-agent-testbench validate-policy examples/policy.json
           constitutional-agent-testbench evaluate examples/policy.json examples/passing-response.json
@@ -112,6 +113,7 @@ jobs:
       - name: Build and install the wheel
         shell: pwsh
         run: |
+          $PSNativeCommandUseErrorActionPreference = $true
           python -m pip install --disable-pip-version-check --no-cache-dir "setuptools==83.0.0"
           python -m pip wheel --disable-pip-version-check --no-cache-dir --no-deps --no-build-isolation --wheel-dir "$env:RUNNER_TEMP" .
           $wheel = Get-ChildItem -LiteralPath $env:RUNNER_TEMP -Filter "constitutional_agent_testbench-0.5.19-*.whl" | Select-Object -First 1
@@ -120,6 +122,7 @@ jobs:
       - name: Run installed-wheel contract checks
         shell: pwsh
         run: |
+          $PSNativeCommandUseErrorActionPreference = $true
           python -m unittest discover -s tests -v
           constitutional-agent-testbench validate-policy examples/policy.json
           constitutional-agent-testbench playground --smoke-test
