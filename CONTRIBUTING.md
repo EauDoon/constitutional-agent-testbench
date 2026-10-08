@@ -47,6 +47,15 @@ python -m pip install ruff==0.16.8
 python -m ruff check --no-cache .
 ```
 
+Type-check the public API the way a downstream consumer sees it. Install the
+package first, so mypy reads the installed copy and its `py.typed` marker:
+
+```text
+python -m pip install --no-deps .
+python -m pip install mypy==2.3.1
+python -m mypy --python-version 3.11 --follow-imports=silent tests/static_typing/public_api.py
+```
+
 Build and inspect both distribution formats before release:
 
 ```text

@@ -31,6 +31,12 @@ jobs:
         run: python -m pip install --disable-pip-version-check ruff==0.16.8
       - name: Lint
         run: python -m ruff check --no-cache .
+      - name: Install the package and the pinned type checker
+        run: |
+          python -m pip install --disable-pip-version-check --no-deps .
+          python -m pip install --disable-pip-version-check mypy==2.3.1
+      - name: Type-check the public API as a downstream consumer
+        run: python -m mypy --python-version 3.11 --follow-imports=silent tests/static_typing/public_api.py
 
   verify:
     name: ${{ matrix.os }} Python ${{ matrix.python }}

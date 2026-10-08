@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import itertools
+import typing
 import unittest
 
 import constitutional_agent_testbench.precedence as precedence_module
 from constitutional_agent_testbench.common import MAX_JSON_INPUT_BYTES
-from constitutional_agent_testbench.evaluator import evaluate_response
+from constitutional_agent_testbench.evaluator import EvaluationResult, evaluate_response
 from constitutional_agent_testbench.policy import Policy, Rule
 from constitutional_agent_testbench.precedence import (
     OrderCheckTooLargeError,
@@ -52,6 +53,14 @@ def one_failure_response() -> dict:
 
 
 class PrecedenceTraceTests(unittest.TestCase):
+    def test_evaluator_alias_accepts_the_public_result_type(self) -> None:
+        _parameters, returned = typing.get_args(precedence_module.Evaluator)
+        self.assertIn(EvaluationResult, typing.get_args(returned))
+        report = check_order_conformance(
+            three_rule_policy(), passing_response(), evaluator=evaluate_response
+        )
+        self.assertTrue(report["conforms_within_coverage"])
+
     def test_exhausts_three_rule_permutations_without_semantic_drift(self) -> None:
         report = check_order_conformance(three_rule_policy(), passing_response())
 
