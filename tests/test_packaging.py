@@ -1,5 +1,6 @@
 """Guard the installed command surface against un-shipped entry points."""
 
+import ast
 import re
 import tomllib
 import unittest
@@ -66,6 +67,46 @@ class LicenseMetadataTests(unittest.TestCase):
         readme = (ROOT / "README.md").read_text("utf-8")
         self.assertIn("Apache License 2.0", readme)
         self.assertNotIn("Released under the MIT License", readme)
+
+
+def _repository_packages_imported_by_tests() -> set[str]:
+    """Top-level names the tests import that resolve to a package at the root."""
+
+    found: set[str] = set()
+    for path in sorted((ROOT / "tests").glob("*.py")):
+        tree = ast.parse(path.read_text("utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                names = [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+                names = [node.module]
+            else:
+                continue
+            for name in names:
+                top = name.split(".", 1)[0]
+                if (ROOT / top / "__init__.py").is_file():
+                    found.add(top)
+    return found
+
+
+class SourceDistributionTests(unittest.TestCase):
+    """Tests ship in the sdist, so everything they import must ship too."""
+
+    def test_sdist_ships_every_repository_package_the_tests_import(self):
+        packages = _repository_packages_imported_by_tests()
+        self.assertIn("evals", packages)
+        manifest = (ROOT / "MANIFEST.in").read_text("utf-8").splitlines()
+        for package in sorted(packages):
+            with self.subTest(package=package):
+                covering = [
+                    line.split()[2:]
+                    for line in manifest
+                    if line.split()[:2] == ["recursive-include", package]
+                ]
+                self.assertTrue(
+                    any("*.py" in patterns for patterns in covering),
+                    f"MANIFEST.in must ship {package}/ Python files for the sdist tests",
+                )
 
 
 class ProjectMetadataTests(unittest.TestCase):

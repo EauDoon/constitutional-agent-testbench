@@ -42,8 +42,9 @@ cannot be known after an early stop, such as incomplete-order counts, are report
 The distribution installs two console commands, `constitutional-agent-testbench`
 and `constitutional-agent-testbench-playground`. A third entry point that pointed
 at the repository-only `evals` package was removed in 0.5.2 because the package is
-outside `src/` and ships in neither archive; the evaluation runner stays available
-inside a checkout as `python -m evals.runner`.
+outside `src/` and is not part of the wheel; the source distribution includes it so
+its tests can run, and the evaluation runner stays available inside a checkout or an
+unpacked source distribution as `python -m evals.runner`.
 
 The strict-exit contract is backwards compatible: existing commands keep exit code zero for valid output unless `--strict-exit` is supplied. With the flag, conformance is zero, valid nonconformance or drift is one, and invalid or unresolved input is two.
 
