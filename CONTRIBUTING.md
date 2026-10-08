@@ -54,5 +54,5 @@ A proposed change should describe its public behavior, tests, compatibility impa
 Keep the version in `pyproject.toml`, `__version__` in the public package, and
 the changelog entry synchronized.
 
-By contributing, contributors agree that accepted changes are distributed under the MIT License.
+By contributing, contributors agree that accepted changes are distributed under the Apache License 2.0.
 

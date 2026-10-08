@@ -309,6 +309,7 @@ Keep these boundaries in view:
 - PrecedenceTrace additionally limits each in-memory policy, response, and returned evaluator result to 1,000,000 serialized UTF-8 bytes.
 - Policies are limited to 256 rules, `one_of` rules are limited to 256 candidate values, and field paths are limited to 32 segments.
 - Input paths and ancestor directories can follow symbolic links. Atomic exports replace the final destination link without changing its target; see [Security](SECURITY.md).
+- Atomic exports preserve an existing regular file's POSIX read/write/execute permission bits; special bits are cleared. New exports remain private (0600 on POSIX). Destination symlinks are replaced without reading or changing their targets. Ownership and ACL preservation are outside this local export interface; platform filesystem rules still apply.
 - Generated output is written only when an operator supplies `--output`, and the operator is responsible for selecting an intended destination.
 - Personal data, credentials, access tokens, and confidential material should be kept out of policies, responses, examples, and issue reports.
 
@@ -331,6 +332,12 @@ JSON and exit-code contracts.
 Continuous integration installs the package and runs the complete suite on Python 3.11 through 3.14. It also verifies the installed console command and builds and inspects both wheel and source-distribution artifacts.
 
 Runtime imports are limited to the Python standard library and local package modules. The package declares no runtime dependencies.
+
+The [installed adopter check](docs/CORPUS.md#verify-an-installed-package-with-a-unicode-corpus)
+runs validation, an assertion-sensitive policy migration, receipt export, and
+independent replay through the installed command outside the checkout. CLI JSON
+streams use UTF-8 with LF so Unicode fixtures retain their digest bindings even
+under non-UTF-8 process encodings.
 
 ## Repository map
 
@@ -358,12 +365,4 @@ the complete statement.
 
 ## License
 
-Released under the MIT License. See [`LICENSE`](LICENSE).
-
-Atomic exports preserve an existing regular file's POSIX read/write/execute permission bits; special bits are cleared. New exports remain private (0600 on POSIX). Destination symlinks are replaced without reading or changing their targets. Ownership and ACL preservation are outside this local export interface; platform filesystem rules still apply.
-
-The [installed adopter check](docs/CORPUS.md#verify-an-installed-package-with-a-unicode-corpus)
-runs validation, an assertion-sensitive policy migration, receipt export, and
-independent replay through the installed command outside the checkout. CLI JSON
-streams use UTF-8 with LF so Unicode fixtures retain their digest bindings even
-under non-UTF-8 process encodings.
+Released under the Apache License 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE). Source revisions up to and including 0.5.19 were published under the MIT License.

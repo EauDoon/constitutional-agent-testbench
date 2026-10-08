@@ -80,6 +80,19 @@ jobs:
           python -m build
           python -m zipfile -l dist/*.whl
           python -m tarfile -l dist/*.tar.gz
+          python - <<'PY'
+          import glob, tarfile, zipfile
+          (wheel,) = glob.glob("dist/*.whl")
+          (sdist,) = glob.glob("dist/*.tar.gz")
+          with zipfile.ZipFile(wheel) as archive:
+              names = archive.namelist()
+              assert any(name.endswith(".dist-info/licenses/NOTICE") for name in names), "wheel lacks NOTICE"
+              metadata = archive.read(next(name for name in names if name.endswith(".dist-info/METADATA"))).decode("utf-8")
+          assert "License-Expression: Apache-2.0" in metadata.splitlines(), "wheel license is not Apache-2.0"
+          assert "License-File: NOTICE" in metadata.splitlines(), "wheel metadata lacks NOTICE"
+          with tarfile.open(sdist) as archive:
+              assert any(name.count("/") == 1 and name.endswith("/NOTICE") for name in archive.getnames()), "sdist lacks NOTICE"
+          PY
       - name: Verify both installed distributions outside the checkout
         if: matrix.python == '3.12' && matrix.os == 'ubuntu-latest'
         run: |

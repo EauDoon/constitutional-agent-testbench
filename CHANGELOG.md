@@ -8,6 +8,9 @@
 - Lead onboarding with an installed strict-exit example, move the full command
   catalog to the operator guide, and align version and symlink documentation
   with the current package contract.
+- Relicense from MIT to the Apache License 2.0 and ship NOTICE in both
+  distributions; package metadata now declares Apache-2.0. Source revisions up
+  to 0.5.19 remain available under MIT.
 
 ## Version 0.5.19 - 28-09-2026
 
