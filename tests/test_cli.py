@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import codecs
 import io
 import json
 import sys
@@ -11,6 +12,7 @@ from unittest.mock import patch
 
 from constitutional_agent_testbench.cli import main
 from constitutional_agent_testbench.common import (
+    ENCODING_MESSAGE,
     MAX_JSON_INPUT_BYTES,
     JsonInputError,
     load_json,
@@ -653,6 +655,71 @@ class CliTests(unittest.TestCase):
         self.assertEqual(exit_code, 2)
         self.assertEqual(stdout, "")
         self.assertEqual(json.loads(stderr)["error"]["code"], "ORDER_CHECK_TOO_LARGE")
+
+
+class EncodingErrorTests(unittest.TestCase):
+    """Encoding problems are named instead of looking like a missing file."""
+
+    SAMPLES = {
+        "utf-8-bom": codecs.BOM_UTF8 + b"{}",
+        "utf-16-powershell": "{}".encode("utf-16"),
+        "utf-16-be-bom": codecs.BOM_UTF16_BE + "{}".encode("utf-16-be"),
+        "utf-32": "{}".encode("utf-32"),
+        "invalid-utf-8": bytes([0x22, 0xFF, 0x22]),
+    }
+
+    def assert_encoding_error(self, exit_code: int, stdout: str, stderr: str) -> None:
+        self.assertEqual(exit_code, 2)
+        self.assertEqual(stdout, "")
+        error = json.loads(stderr)["error"]
+        self.assertEqual(error["code"], "INVALID_JSON_INPUT")
+        self.assertEqual(error["message"], ENCODING_MESSAGE)
+        self.assertIn("byte order mark", error["message"])
+
+    def test_file_inputs_report_an_encoding_specific_error(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            for name, payload in self.SAMPLES.items():
+                with self.subTest(sample=name):
+                    path = Path(directory) / f"{name}.json"
+                    path.write_bytes(payload)
+                    exit_code, stdout, stderr = run_cli(["validate-policy", str(path)])
+                    self.assert_encoding_error(exit_code, stdout, stderr)
+                    self.assertNotIn(str(path), stderr)
+
+    def test_missing_file_keeps_the_read_failure_message(self) -> None:
+        missing = ROOT / "examples" / "does-not-exist.json"
+        exit_code, _stdout, stderr = run_cli(["validate-policy", str(missing)])
+        self.assertEqual(exit_code, 2)
+        self.assertEqual(
+            json.loads(stderr)["error"]["message"],
+            "Unable to read the requested JSON input.",
+        )
+
+    def test_binary_standard_input_with_a_bom_is_named(self) -> None:
+        stdin = io.TextIOWrapper(io.BytesIO(codecs.BOM_UTF8 + POLICY.read_bytes()), encoding="utf-8")
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with patch.object(sys, "stdin", stdin), redirect_stdout(stdout), redirect_stderr(stderr):
+            exit_code = main(["validate-policy", "-"])
+        self.assert_encoding_error(exit_code, stdout.getvalue(), stderr.getvalue())
+
+    def test_text_standard_input_with_a_bom_is_named(self) -> None:
+        exit_code, stdout, stderr = run_cli(
+            ["validate-policy", "-"],
+            stdin_text=chr(0xFEFF) + POLICY.read_text(encoding="utf-8"),
+        )
+        self.assert_encoding_error(exit_code, stdout, stderr)
+
+    def test_undecodable_text_stream_is_named(self) -> None:
+        stream = io.TextIOWrapper(io.BytesIO(bytes([0x22, 0xFF, 0x22])), encoding="utf-8")
+        with self.assertRaisesRegex(JsonInputError, "byte order mark"):
+            load_json_stream(stream)
+
+    def test_oversized_input_reports_the_limit_even_inside_a_character(self) -> None:
+        # The bounded read stops inside a two-byte character; the limit, not a
+        # decoding failure, is the accurate diagnosis.
+        payload = b'"a' + chr(0xE9).encode("utf-8") * (MAX_JSON_INPUT_BYTES // 2) + b'"'
+        with self.assertRaisesRegex(JsonInputError, "1,000,000-byte"):
+            load_json_stream(io.BytesIO(payload))
 
 
 if __name__ == "__main__":

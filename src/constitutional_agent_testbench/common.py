@@ -14,6 +14,13 @@ MAX_JSON_INPUT_BYTES = 1_000_000
 MAX_JSON_NESTING = 32
 MAX_JSON_NODES = 100_000
 
+# Inputs are UTF-8 without a byte order mark. Windows PowerShell 5.1 `Out-File`
+# and `>` write UTF-16 with a BOM, which must not look like a missing file.
+ENCODING_MESSAGE = "The requested input is not UTF-8 JSON without a byte order mark."
+# UTF-8, UTF-16LE (also the start of UTF-32LE) and UTF-16BE marks. A UTF-32BE
+# mark is not valid UTF-8 and fails decoding with the same message.
+_BYTE_ORDER_MARKS = (b"\xef\xbb\xbf", b"\xff\xfe", b"\xfe\xff")
+
 
 class TestbenchError(Exception):
     """Base class for controlled public errors."""
@@ -56,28 +63,37 @@ def load_json_stream(input_file: BinaryIO | TextIO) -> Any:
 
     try:
         data = input_file.read(MAX_JSON_INPUT_BYTES + 1)
-    except (OSError, UnicodeError) as exc:
+    except UnicodeError as exc:
+        raise JsonInputError(ENCODING_MESSAGE) from exc
+    except OSError as exc:
         raise JsonInputError("Unable to read the requested JSON input.") from exc
 
     if isinstance(data, bytes):
         size = len(data)
-        try:
-            text = data.decode("utf-8")
-        except UnicodeError as exc:
-            raise JsonInputError("Unable to read the requested JSON input.") from exc
     elif isinstance(data, str):
         try:
             size = len(data.encode("utf-8"))
         except UnicodeError as exc:
             raise JsonInputError("Unable to read the requested JSON input.") from exc
-        text = data
     else:
         raise JsonInputError("Unable to read the requested JSON input.")
 
+    # The bounded read may end inside a multi-byte character, so the size limit
+    # is reported before any decoding is attempted.
     if size > MAX_JSON_INPUT_BYTES:
         raise JsonInputError(
             "The requested input exceeds the 1,000,000-byte file-size limit."
         )
+
+    if isinstance(data, bytes):
+        if data.startswith(_BYTE_ORDER_MARKS):
+            raise JsonInputError(ENCODING_MESSAGE)
+        try:
+            text = data.decode("utf-8")
+        except UnicodeError as exc:
+            raise JsonInputError(ENCODING_MESSAGE) from exc
+    else:
+        text = data
 
     return parse_json_text(text)
 
@@ -103,6 +119,8 @@ def parse_json_text(text: str) -> Any:
         raise JsonInputError(
             "The requested input exceeds the 1,000,000-byte file-size limit."
         )
+    if text.startswith("\ufeff"):
+        raise JsonInputError(ENCODING_MESSAGE)
     try:
         value = json.loads(
             text,

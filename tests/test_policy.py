@@ -199,6 +199,11 @@ class PolicyValidationTests(unittest.TestCase):
         with self.assertRaisesRegex(JsonInputError, "not valid strict JSON"):
             parse_json_text("Infinity")
 
+    def test_byte_order_mark_text_is_an_encoding_error(self) -> None:
+        with self.assertRaisesRegex(JsonInputError, "byte order mark"):
+            parse_json_text(chr(0xFEFF) + "{}")
+        self.assertEqual(parse_json_text("{}"), {})
+
     def test_rejects_lone_unicode_surrogates(self) -> None:
         with self.assertRaises(JsonInputError):
             parse_json_text("\ud800")

@@ -45,6 +45,12 @@ At most one input argument may use standard input. The same 1,000,000-byte and
 structural limits apply to files and standard input. `--output` selects a file
 and does not accept `-`; playground inputs are file paths only.
 
+Inputs must be UTF-8 without a byte order mark. On Windows, PowerShell 5.1
+`Out-File` and the `>` redirection write UTF-16 with a byte order mark, which is
+rejected as `INVALID_JSON_INPUT` with a message naming the encoding. Use
+PowerShell 7 `Set-Content -Encoding utf8NoBOM`, or let the command write its
+result with `--output`.
+
 For `evaluate` and `check-order`, a completed nonconformance result returns `0`
 unless `--strict-exit` is supplied. With it, conformance returns `0`, valid
 nonconformance or drift returns `1`, and invalid or unresolved input returns `2`.

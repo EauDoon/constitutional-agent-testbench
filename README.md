@@ -287,7 +287,7 @@ All rules are evaluated even after one fails. This preserves a complete, inspect
 
 Determinism comes from explicit constraints rather than hidden model behavior:
 
-- Input files are decoded as UTF-8 JSON, with duplicate object members and non-finite numbers rejected.
+- Input files are decoded as UTF-8 JSON, with duplicate object members and non-finite numbers rejected. A byte order mark or a UTF-16/32 encoding is rejected with an encoding-specific error rather than the missing-file message.
 - JSON equality uses a canonical, key-sorted representation. Python coercions do not apply, so the JSON boolean `true` is not equal to the JSON number `1`.
 - Rules are evaluated in declared order, while emitted object keys are sorted.
 - Evaluation adds no timestamps, randomness, external data, or model output.
