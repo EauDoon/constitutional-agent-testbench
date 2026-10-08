@@ -39,6 +39,14 @@ python -m constitutional_agent_testbench.cli check-order examples/policy.json ex
 python -m constitutional_agent_testbench.cli generate-synthetic examples/policy.json
 ```
 
+Lint with the same pinned ruff release and rule set as CI. The rules are
+declared in `pyproject.toml`:
+
+```text
+python -m pip install ruff==0.16.8
+python -m ruff check --no-cache .
+```
+
 Build and inspect both distribution formats before release:
 
 ```text

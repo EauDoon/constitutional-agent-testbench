@@ -6,7 +6,6 @@ module recomputes the public results in a fresh interpreter under several
 ``PYTHONHASHSEED`` values and requires byte-identical serialized output.
 """
 
-import json
 import os
 import subprocess
 import sys

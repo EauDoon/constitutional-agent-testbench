@@ -136,5 +136,26 @@ class ProjectMetadataTests(unittest.TestCase):
         self.assertEqual(declared, tested)
 
 
+@unittest.skipUnless(CI_WORKFLOW.is_file(), "repository-only check; the sdist has no .github/")
+class WorkflowPolicyTests(unittest.TestCase):
+    def setUp(self):
+        self.workflow = CI_WORKFLOW.read_text("utf-8")
+
+    def test_main_runs_are_never_cancelled(self):
+        settings = re.findall(r"^\s*cancel-in-progress:\s*(.+)$", self.workflow, re.MULTILINE)
+        self.assertEqual(settings, ["${{ github.event_name == 'pull_request' }}"])
+
+    def test_lint_job_uses_the_documented_ruff_pin(self):
+        pins = set(re.findall(r"ruff==[0-9.]+", self.workflow))
+        self.assertEqual(len(pins), 1)
+        self.assertIn(pins.pop(), (ROOT / "CONTRIBUTING.md").read_text("utf-8"))
+        self.assertIn("python -m ruff check --no-cache .", self.workflow)
+
+    def test_dependabot_tracks_pinned_actions(self):
+        config = (ROOT / ".github" / "dependabot.yml").read_text("utf-8")
+        self.assertIn("package-ecosystem: github-actions", config)
+        self.assertRegex(config, r"default-days:\s*14")
+
+
 if __name__ == "__main__":
     unittest.main()

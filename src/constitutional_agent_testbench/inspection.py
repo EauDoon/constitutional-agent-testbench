@@ -6,7 +6,6 @@ from .common import canonical_json
 from .evaluator import FAILURE_REASON_BY_KIND
 from .policy import validate_policy
 from .workflow import bounded_artifact
-from .common import canonical_json
 from .suite import validate_suite
 
 
