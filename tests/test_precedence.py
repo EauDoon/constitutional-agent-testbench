@@ -209,10 +209,14 @@ class PrecedenceTraceTests(unittest.TestCase):
             exhaustive["report_schema_version"],
             inconclusive["report_schema_version"],
         )
+        self.assertEqual(sorted(exhaustive), sorted(inconclusive))
         self.assertEqual(
             sorted(exhaustive["coverage"]),
             sorted(inconclusive["coverage"]),
         )
+        self.assertIsNone(inconclusive["presentation_follows_requested_order"])
+        self.assertIsNone(inconclusive["conforms_within_coverage"])
+        self.assertIsNone(inconclusive["variance"])
 
         clean = exhaustive["coverage"]
         self.assertEqual(clean["orders_attempted"], clean["orders_evaluated"])

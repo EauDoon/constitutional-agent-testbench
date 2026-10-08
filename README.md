@@ -211,8 +211,9 @@ to 1,000,000 bytes, repeats every order three times, and applies a
 evaluator output. Reports expose unique orders, total evaluator calls,
 input-work estimates, returned-result bytes, charged work, incomplete-order
 counts, and the per-result and report limits. Every report carries the same
-`coverage` fields whether it is exhaustive or stops early, and a coverage field
-that cannot be known after an early stop is reported as `null`. A valid evaluation can therefore
+top-level fields and the same `coverage` fields whether it is exhaustive or
+stops early, and a field that cannot be known after an early stop, such as
+`variance` or `presentation_follows_requested_order`, is reported as `null`. A valid evaluation can therefore
 still fail closed with `ORDER_CHECK_TOO_LARGE` if its bounded witness report
 would exceed the separate report limit. A custom evaluator can still consume unbounded time,
 memory, network, or external resources before it returns; callers that do not

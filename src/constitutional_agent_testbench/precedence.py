@@ -462,6 +462,7 @@ def _nondeterministic_report(
             "work_budget_bytes": MAX_EXHAUSTIVE_WORK_BYTES,
         },
         "policy_id": policy.policy_id,
+        "presentation_follows_requested_order": None,
         "report_schema_version": REPORT_SCHEMA_VERSION,
         "status": "INCONCLUSIVE_NONDETERMINISTIC",
         "variance": None,
