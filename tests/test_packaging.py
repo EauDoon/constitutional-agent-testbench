@@ -121,7 +121,26 @@ class AdopterScriptTests(unittest.TestCase):
 
 class ProjectMetadataTests(unittest.TestCase):
     def setUp(self):
-        self.project = tomllib.loads((ROOT / "pyproject.toml").read_text("utf-8"))["project"]
+        self.pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text("utf-8"))
+        self.project = self.pyproject["project"]
+
+    def test_version_is_single_sourced(self):
+        self.assertNotIn("version", self.project)
+        self.assertIn("version", self.project["dynamic"])
+        self.assertEqual(
+            self.pyproject["tool"]["setuptools"]["dynamic"]["version"],
+            {"attr": "constitutional_agent_testbench._version.__version__"},
+        )
+        source = PACKAGE_ROOT / "constitutional_agent_testbench" / "_version.py"
+        tree = ast.parse(source.read_text("utf-8"), filename=str(source))
+        literals = [
+            node.value.value
+            for node in tree.body
+            if isinstance(node, ast.Assign)
+            and [target.id for target in node.targets if isinstance(target, ast.Name)] == ["__version__"]
+        ]
+        self.assertEqual(len(literals), 1)
+        self.assertRegex(literals[0], r"^\d+\.\d+\.\d+$")
 
     def test_project_urls_are_declared(self):
         urls = self.project["urls"]

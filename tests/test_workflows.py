@@ -1,4 +1,5 @@
 import copy
+import importlib.metadata
 import unittest
 from unittest.mock import patch
 from pathlib import Path
@@ -255,7 +256,19 @@ class OperatorBoundaryTests(unittest.TestCase):
 
     def test_public_api_and_version(self):
         import constitutional_agent_testbench as package
-        self.assertEqual(package.__version__, "0.5.19")
+        from constitutional_agent_testbench import _version
+        self.assertRegex(package.__version__, r"^\d+\.\d+\.\d+$")
+        self.assertIs(package.__version__, _version.__version__)
+        # Compare installed metadata only when it describes the imported copy;
+        # PYTHONPATH=src can shadow an older installed distribution.
+        try:
+            dist = importlib.metadata.distribution("constitutional-agent-testbench")
+        except importlib.metadata.PackageNotFoundError:
+            dist = None
+        if dist is not None:
+            located = Path(dist.locate_file("constitutional_agent_testbench/__init__.py"))
+            if located.resolve() == Path(package.__file__).resolve():
+                self.assertEqual(dist.version, package.__version__)
         for name in ("lint_policy", "explain_response", "evaluate_suite", "suite_coverage",
                      "compare_policies", "generate_rule_probes", "create_receipt", "verify_receipt"):
             self.assertTrue(callable(getattr(package, name)))

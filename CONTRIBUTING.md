@@ -79,8 +79,9 @@ python -m tarfile -l dist/*.tar.gz
 
 A proposed change should describe its public behavior, tests, compatibility impact, and any new limitation. Generated examples must remain fully synthetic. Changes to the policy schema or output contract require an explicit versioning decision.
 
-Keep the version in `pyproject.toml`, `__version__` in the public package, and
-the changelog entry synchronized.
+Edit the version only in `src/constitutional_agent_testbench/_version.py`;
+`pyproject.toml` reads it at build time and the package re-exports it as
+`__version__`. Keep the changelog entry in step with it.
 
 By contributing, contributors agree that accepted changes are distributed under the Apache License 2.0.
 
