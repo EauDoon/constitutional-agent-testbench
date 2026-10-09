@@ -178,7 +178,9 @@ The explicit shell redirection saves the receipt. Commands otherwise print JSON
 and do not persist inputs. Verification recomputes policy and response digests
 and every evaluation field, including rule order. Canonical JSON uses sorted
 object keys, compact separators, UTF-8, and strict finite numbers; array order
-and numeric representations remain significant. Policy digests include policy
+and numeric representations remain significant. The same canonical form decides
+`equals` and `one_of` evaluation, not only digests: an integer literal such as
+`1` never equals `1.0` or `1e0`, and `0.0` never equals `-0.0`. Policy digests include policy
 identifiers and declared rule order. Whitespace and object member order do not
 change digests.
 

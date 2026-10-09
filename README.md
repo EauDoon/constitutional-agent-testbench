@@ -251,8 +251,8 @@ A path contains dot-separated object-key segments. Each segment starts with a le
 | Kind | Required rule fields | Pass condition |
 | --- | --- | --- |
 | `required_field` | `rule_id`, `kind`, `path` | The path exists, including when its value is null. |
-| `equals` | `rule_id`, `kind`, `path`, `value` | The path value is JSON-equal to `value`. |
-| `one_of` | `rule_id`, `kind`, `path`, `values` | The path value is JSON-equal to one listed value. |
+| `equals` | `rule_id`, `kind`, `path`, `value` | The path value is equal to `value` under canonical JSON (sorted keys; `1` and `1.0` differ). |
+| `one_of` | `rule_id`, `kind`, `path`, `values` | The path value is equal to one listed value under canonical JSON (sorted keys; `1` and `1.0` differ). |
 | `false` | `rule_id`, `kind`, `path` | The path value is the JSON boolean false. |
 | `empty_list` | `rule_id`, `kind`, `path` | The path value is an empty JSON array. |
 
@@ -289,6 +289,7 @@ Determinism comes from explicit constraints rather than hidden model behavior:
 
 - Input files are decoded as UTF-8 JSON, with duplicate object members and non-finite numbers rejected. A byte order mark or a UTF-16/32 encoding is rejected with an encoding-specific error rather than the missing-file message.
 - JSON equality uses a canonical, key-sorted representation. Python coercions do not apply, so the JSON boolean `true` is not equal to the JSON number `1`.
+- Numeric literal form is significant. An integer literal such as `1` or `100` never equals a literal with a fraction or exponent such as `1.0`, `1e0` or `1e2`, and `0.0` and `-0.0` are different values; `1.0` and `1e0` are the same value. This is the same rule receipt digests apply. A policy that declares `1` rejects a response containing `1.0`, so emit numbers in the form the policy declares.
 - Rules are evaluated in declared order, while emitted object keys are sorted.
 - Evaluation adds no timestamps, randomness, external data, or model output.
 - Nested policy values are copied during validation so later mutation of the source object cannot silently change the validated policy.
