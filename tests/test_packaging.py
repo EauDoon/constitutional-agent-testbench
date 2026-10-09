@@ -109,6 +109,16 @@ class SourceDistributionTests(unittest.TestCase):
                 )
 
 
+class AdopterScriptTests(unittest.TestCase):
+    def test_adopter_checks_survive_python_optimize(self):
+        # `python -O` strips assert statements, so the adopter oracle must
+        # fail through explicit raises to keep "passed=true" meaningful.
+        script = ROOT / "scripts" / "verify_installed_workflow.py"
+        tree = ast.parse(script.read_text("utf-8"), filename=str(script))
+        bare = [node.lineno for node in ast.walk(tree) if isinstance(node, ast.Assert)]
+        self.assertEqual(bare, [])
+
+
 class ProjectMetadataTests(unittest.TestCase):
     def setUp(self):
         self.project = tomllib.loads((ROOT / "pyproject.toml").read_text("utf-8"))["project"]

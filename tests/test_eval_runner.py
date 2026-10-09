@@ -1,7 +1,9 @@
-"""The eval runner must reject fixtures that are not JSON objects."""
+"""The eval runner must reject malformed fixtures before it uses them."""
 
 from __future__ import annotations
 
+import copy
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -55,6 +57,59 @@ class EvalRunnerFixtureTests(unittest.TestCase):
             )
             with self.assertRaises(JsonInputError):
                 runner.load_policy_document(policy)
+
+    def test_malformed_case_fields_are_rejected(self) -> None:
+        valid = {
+            "id": "case",
+            "source": "synthetic",
+            "policy_path": "examples/policy.json",
+            "input": {},
+            "expected": {
+                "passed": False,
+                "rules": {"summary-present": {"passed": False, "reason_code": "FIELD_MISSING"}},
+            },
+        }
+        outside = "../" * (len(runner.REPO_ROOT.resolve().parts) + 1) + "policy.json"
+        mutations = {
+            "non-string policy_path": lambda case: case.update(policy_path=5),
+            "empty policy_path": lambda case: case.update(policy_path=""),
+            "absolute policy_path": lambda case: case.update(
+                policy_path=str(runner.REPO_ROOT.resolve() / "examples" / "policy.json")),
+            "rooted policy_path": lambda case: case.update(policy_path="/examples/policy.json"),
+            "parent policy_path": lambda case: case.update(policy_path="../policy.json"),
+            "escaping policy_path": lambda case: case.update(policy_path=outside),
+            "non-object input": lambda case: case.update(input=[]),
+            "missing expected.passed": lambda case: case["expected"].pop("passed"),
+            "extra expected key": lambda case: case["expected"].update(note="x"),
+            "non-object rule entry": lambda case: case["expected"]["rules"].update(
+                {"summary-present": True}),
+            "extra rule entry key": lambda case: case["expected"]["rules"]["summary-present"].update(
+                note="x"),
+            "missing reason_code": lambda case: case["expected"]["rules"]["summary-present"].pop(
+                "reason_code"),
+            "non-string reason_code": lambda case: case["expected"]["rules"]["summary-present"].update(
+                reason_code=1),
+            "unknown top-level key": lambda case: case.update(notes="x"),
+            "id differs from stem": lambda case: case.update(id="other"),
+            "missing id": lambda case: case.pop("id"),
+            "non-string id": lambda case: case.update(id=1),
+            "non-string source": lambda case: case.update(source=["x"]),
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            path = self._write(directory, json.dumps(valid))
+            self.assertEqual(runner.load_case_document(path), valid)
+            for label, mutate in mutations.items():
+                with self.subTest(mutation=label):
+                    case = copy.deepcopy(valid)
+                    mutate(case)
+                    path = self._write(directory, json.dumps(case))
+                    with self.assertRaises(runner.EvalCaseError) as raised:
+                        runner.load_case_document(path)
+                    self.assertIn("case.json", str(raised.exception))
+
+    def test_policy_path_resolves_inside_the_repository(self) -> None:
+        resolved = runner.case_policy_path("examples/policy.json", "case.json")
+        self.assertEqual(resolved, (runner.REPO_ROOT / "examples" / "policy.json").resolve())
 
     def test_numeric_zero_and_one_are_not_pass_states(self) -> None:
         for actual, expected in ((True, 1), (False, 0), (True, 1.0), (False, 0.0)):

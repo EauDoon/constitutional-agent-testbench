@@ -24,24 +24,71 @@ from constitutional_agent_testbench.common import load_json  # noqa: E402
 
 
 class EvalCaseError(Exception):
-    """Raised when an eval case file is not a usable JSON object."""
+    """Raised when an eval case file is not a usable case document."""
+
+
+CASE_KEYS = frozenset({"id", "source", "policy_path", "input", "expected"})
+EXPECTED_KEYS = frozenset({"passed", "rules"})
+RULE_EXPECTATION_KEYS = frozenset({"passed", "reason_code"})
+
+
+def case_policy_path(value, name: str) -> Path:
+    """Resolve a case's policy_path, refusing anything outside the repository."""
+
+    if not isinstance(value, str) or not value:
+        raise EvalCaseError(f"{name} policy_path must be a non-empty string")
+    if Path(value).is_absolute() or Path(value).anchor:
+        raise EvalCaseError(f"{name} policy_path must be relative to the repository root")
+    root = REPO_ROOT.resolve()
+    resolved = (root / value).resolve()
+    if not resolved.is_relative_to(root):
+        raise EvalCaseError(f"{name} policy_path must stay inside the repository")
+    return resolved
 
 
 def load_case_document(path: Path) -> dict:
-    """Load one case file. Non-object fixtures are rejected before subscripting."""
+    """Load one case file and reject malformed fields before they are used.
+
+    Non-object fixtures are rejected before subscripting, unknown keys are
+    refused, and every field the runner reads is type-checked here so a bad
+    fixture raises EvalCaseError naming the file and field.
+    """
 
     document = load_json(path)
     name = path.name
     if not isinstance(document, dict):
         raise EvalCaseError(f"{name} must be a JSON object")
+    unknown = sorted(set(document) - CASE_KEYS)
+    if unknown:
+        raise EvalCaseError(f"{name} has unsupported keys: {', '.join(unknown)}")
     expected = document.get("expected")
     if not isinstance(expected, dict):
         raise EvalCaseError(f"{name} expected must be a JSON object")
+    unknown = sorted(set(expected) - EXPECTED_KEYS)
+    if unknown:
+        raise EvalCaseError(f"{name} expected has unsupported keys: {', '.join(unknown)}")
     rules = expected.get("rules", {})
     if not isinstance(rules, dict):
         raise EvalCaseError(f"{name} expected.rules must be a JSON object")
+    for rule_id, expectation in rules.items():
+        if not isinstance(expectation, dict) or set(expectation) != RULE_EXPECTATION_KEYS:
+            raise EvalCaseError(
+                f"{name} expected.rules.{rule_id} must be a JSON object with exactly "
+                "passed and reason_code"
+            )
+        if not isinstance(expectation["reason_code"], str):
+            raise EvalCaseError(f"{name} expected.rules.{rule_id}.reason_code must be a string")
+    if "passed" not in expected:
+        raise EvalCaseError(f"{name} expected.passed is required")
     if "policy_path" not in document or "input" not in document:
         raise EvalCaseError(f"{name} requires policy_path and input")
+    if document.get("id") != path.stem:
+        raise EvalCaseError(f"{name} id must be the string {path.stem!r}")
+    if "source" in document and not isinstance(document["source"], str):
+        raise EvalCaseError(f"{name} source must be a string")
+    case_policy_path(document["policy_path"], name)
+    if not isinstance(document["input"], dict):
+        raise EvalCaseError(f"{name} input must be a JSON object")
     return document
 
 
@@ -72,7 +119,7 @@ class _CaseAssertion(unittest.TestCase):
     def setUp(self) -> None:
         self.case_path = Path(getattr(self, "_case_path"))
         self.case = _load_case(self.case_path)
-        self.policy_path = REPO_ROOT / self.case["policy_path"]
+        self.policy_path = case_policy_path(self.case["policy_path"], self.case_path.name)
         self.policy = load_policy_document(self.policy_path)
         self.result = evaluate_response(self.policy, self.case["input"])
 

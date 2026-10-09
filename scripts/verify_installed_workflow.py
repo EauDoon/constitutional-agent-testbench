@@ -19,6 +19,12 @@ import tempfile
 MARKER = "SYNTHETIC_PRIVATE_é雪💡"
 
 
+def require(condition, label):
+    """Fail even under ``python -O``, which strips bare assert statements."""
+    if not condition:
+        raise AssertionError(f"Installed workflow check failed: {label}")
+
+
 def verify_adopter_oracle(checkout, save, run):
     """Check frozen, independently authored outcomes without capturing assertions."""
     fixtures = checkout / "examples" / "release-approval"
@@ -145,13 +151,13 @@ def main():
         run("check-suite", "policy.json", "suite.json", "--strict-exit")
         comparison, _ = run("compare-policies", "policy.json", "candidate.json", "suite.json",
                             "--strict-exit", expected=1)
-        assert comparison["verdict_change_count"] == 0
-        assert comparison["after_matches_expectations"] is False
+        require(comparison["verdict_change_count"] == 0, "migration keeps every verdict")
+        require(comparison["after_matches_expectations"] is False, "candidate breaks a rule assertion")
         migration, _ = run("migration-expectations", "policy.json", "candidate.json", "suite.json",
                            "--strict-exit", expected=1)
-        assert migration["regressions"] == ["numeric-zero"]
+        require(migration["regressions"] == ["numeric-zero"], "migration regression set")
         run("create-suite-receipt", "policy.json", "suite.json", "--output", "receipt.json")
-        assert MARKER not in (root / "receipt.json").read_text(encoding="utf-8")
+        require(MARKER not in (root / "receipt.json").read_text(encoding="utf-8"), "receipt omits response values")
         run("verify-suite-receipt", "policy.json", "suite.json", "receipt.json", "--strict-exit")
         run("create-replay", "policy.json", "suite.json", "--output", "exported.json")
         exported = (root / "exported.json").read_bytes()
@@ -159,13 +165,13 @@ def main():
         # Stdout redirection, explicit export and repeated invocations must agree byte-for-byte.
         for encoding in ("utf-8", "ascii", "ascii:replace", "ascii:ignore", "latin-1:replace", "utf-16"):
             bundle, serialized = run("create-replay", "policy.json", "suite.json", encoding=encoding, values=True)
-            assert bundle["suite"] == suite
-            assert serialized == exported
+            require(bundle["suite"] == suite, f"{encoding} bundle suite")
+            require(serialized == exported, f"{encoding} stdout matches export")
             (root / "portable.json").write_bytes(serialized)
             replay, _ = run("replay", "portable.json", "--strict-exit", encoding=encoding)
-            assert replay["verified"] is True and replay["replay_passed"] is True
+            require(replay["verified"] is True and replay["replay_passed"] is True, f"{encoding} replay")
         _, repeated = run("create-replay", "policy.json", "suite.json", values=True)
-        assert repeated == exported
+        require(repeated == exported, "repeated export is byte-identical")
         run("replay", "-", "--strict-exit", stdin=exported)
 
         # Neither changed assertion intent nor altered result fields may pass old evidence.
@@ -182,8 +188,9 @@ def main():
             mutate(tampered)
             save("tampered.json", tampered)
             report, _ = run("replay", "tampered.json", "--strict-exit", expected=1)
-            assert report["verified"] is False and report["matches_expectations"] is None
-            assert report["replay_passed"] is False
+            require(report["verified"] is False and report["matches_expectations"] is None,
+                    "tampered bundle is unverified")
+            require(report["replay_passed"] is False, "tampered bundle fails replay")
             # Exporting a failing result must retain the negative strict exit.
             run("replay", "tampered.json", "--strict-exit", "--output", "negative.json", expected=1)
 
@@ -193,21 +200,22 @@ def main():
         save("regression.json", bad_suite)
         run("create-replay", "policy.json", "regression.json", "--output", "regression-replay.json")
         report, _ = run("replay", "regression-replay.json", "--strict-exit", expected=1)
-        assert report["verified"] is True and report["matches_expectations"] is False
+        require(report["verified"] is True and report["matches_expectations"] is False,
+                "consistent receipt with failing assertions")
 
         # Strict JSON and export guards stay fail-closed, retaining existing files.
         previous = (root / "exported.json").read_bytes()
         for malformed in (b'{"suite_version":"1.1","suite_version":"1.1","cases":[]}', b'{"x":NaN}'):
             run("validate-suite", "-", "--output", "exported.json", stdin=malformed, expected=2)
-            assert (root / "exported.json").read_bytes() == previous
+            require((root / "exported.json").read_bytes() == previous, "malformed input keeps export")
         bad_suite["cases"][0]["expected_passed"] = 1
         save("invalid.json", bad_suite)
         run("validate-suite", "invalid.json", expected=2)
         run("replay", "absent.json", "--output", "exported.json", expected=2)
-        assert (root / "exported.json").read_bytes() == previous
+        require((root / "exported.json").read_bytes() == previous, "missing input keeps export")
         source = (root / "suite.json").read_bytes()
         run("create-replay", "policy.json", "suite.json", "--output", "suite.json", expected=2)
-        assert (root / "suite.json").read_bytes() == source
+        require((root / "suite.json").read_bytes() == source, "output never overwrites an input")
 
     print(json.dumps({"passed": True, "fixture_kind": "synthetic", "values_included": False,
                       "independent_adopter_cases": adopter_case_count,
