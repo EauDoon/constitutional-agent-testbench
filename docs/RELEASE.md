@@ -1,54 +1,107 @@
-# Constitutional Agent Testbench v0.5.19 release assets
+# Release guide
 
-The v0.5.19 package metadata is recorded in
-`release/v0.5.19-manifest.json`. The pinned release workflow builds a wheel and
-source distribution, lists both archives, writes SHA-256 files, and retains the
-assets for 14 days. It does not create or publish a remote release.
+This guide covers how a version is chosen, prepared, tagged, published and
+verified. What each version changed is recorded in the
+[changelog](../CHANGELOG.md), not here.
 
-Eval pass states must be JSON booleans. A numeric `1` or `0` no longer matches `true` or `false`.
+## Versioning
 
-Eval case files and their policies reject duplicate JSON object members instead of keeping the last value.
+The package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+While the major version is 0, a minor bump marks backward-compatible features or
+a wave of related changes, and a patch bump marks fixes only. Declaring a stable
+1.0.0 API is a separate, explicit decision.
 
-The eval runner rejects a case file that is not a JSON object, including a boolean document and a non-object `expected` or `expected.rules` value, instead of raising `TypeError`.
+The package version is independent of the schema versions: policy `1.0`, suite
+`1.0` and `1.1`, report `1.0`, receipt `1.0`, suite receipt `1.0`, replay `1.0`
+and the `sha256-canonical-json-v1` digest algorithm. A schema version changes
+only through an explicit schema decision, never as a side effect of a release.
 
-`compare-policies` treats a reordered `one_of` allowed set as the same rule. A wider set is still modified, and an `equals` array reorder is still modified.
+`src/constitutional_agent_testbench/_version.py` is the single source of the
+package version. `pyproject.toml` reads it at build time, the package re-exports
+it as `__version__`, and `constitutional-agent-testbench --version` prints it.
 
-Validated `equals` and `one_of` values copy each nested occurrence separately, so a repeated object does not stay shared inside the policy.
+## Prepare the release pull request
 
-A validated suite case copies each nested value separately. A repeated object under two response keys no longer stays shared.
+1. Set `__version__` in `_version.py` to the new `X.Y.Z`.
+2. In `CHANGELOG.md`, move the `## [Unreleased]` entries into a new
+   `## [X.Y.Z] - YYYY-MM-DD` section grouped as Added, Changed and Fixed. Leave
+   `## [Unreleased]` empty above it and update the link references at the end
+   of the file.
+3. Add `release/vX.Y.Z-manifest.json` in the same shape as the previous
+   manifest: version, Python requirement, pinned build backend, the two
+   artifact names and the `SHA256SUMS` sidecar.
+4. Update the `Current package version` line in `README.md`.
+5. Run `python scripts/check_version.py`. It must report that every surface
+   agrees; the "Lint and metadata" CI job runs the same check.
 
-A disjoint-constraint finding names only the rules that have finite domains. A presence rule on the same path stays out of that finding. The conflict itself still fails `--strict-exit`.
+## Merge and tag
 
-An unknown option is reported as an unknown option when it follows `--output`
-or appears before a token that is not a command. A real flag such as
-`--strict-exit` without its value is still a missing argument.
+1. Merge the release pull request with a merge commit once every CI check is
+   green.
+2. Wait for the CI run on the merge commit on `main` to finish green.
+3. Dry-run the release workflow from `main`. The build job must pass and the
+   publish job must be skipped:
 
-A numeric literal that overflows to a non-finite value, such as `1e309`, is
-rejected as invalid strict JSON. It is not reported as a structural size limit.
-The `Infinity` token stays invalid strict JSON as well.
+   ```text
+   gh workflow run release-assets.yml --ref main
+   ```
 
-`--output` rejects a whitespace-only path, including Unicode spaces and format
-characters, with the same empty-path error as `""`. The check happens before
-any JSON input is read.
+4. Create an annotated tag on the merge commit and push it. The tag is
+   `vX.Y.Z` and must equal the package version:
 
-`diff-suites` sets `order_changed` only when case ids present in both corpora
-change relative order. Adding or removing a case is not a reorder.
+   ```text
+   git tag -a vX.Y.Z -m "constitutional-agent-testbench X.Y.Z" <merge-commit>
+   git push origin vX.Y.Z
+   ```
 
-The exhaustive and `INCONCLUSIVE_NONDETERMINISTIC` PrecedenceTrace reports share one
-`coverage` contract, so a consumer can read the same fields from either. Values that
-cannot be known after an early stop, such as incomplete-order counts, are reported as
-`null` alongside the unresolved `conforms_within_coverage`.
+A GitHub Release is public. Do not tag before the merge commit's CI is green.
+
+## What the release workflow does
+
+`.github/workflows/release-assets.yml` runs on every pushed `vX.Y.Z` tag and on
+manual dispatch.
+
+The build job has a read-only token. It:
+
+1. runs `scripts/check_version.py --tag vX.Y.Z` and stops on any mismatch;
+2. builds the wheel and source distribution with the pinned `build` and
+   setuptools releases, and requires exactly the two expected archive names;
+3. installs the wheel, checks `--version`, and runs the unit suite and the
+   installed adopter check;
+4. writes `SHA256SUMS` inside `dist/` with relative file names and verifies it
+   with `sha256sum -c`;
+5. extracts the release notes from the `## [X.Y.Z]` changelog section and
+   retains everything as a 14-day workflow artifact.
+
+The publish job runs only for tags and is the only job with `contents: write`.
+It downloads the verified artifact and creates the GitHub Release with
+`gh release create vX.Y.Z --verify-tag`, attaching the wheel, the source
+distribution and `SHA256SUMS`.
+
+If publishing fails after the tag exists, fix the cause and re-run the failed
+job. Do not move or recreate a pushed tag.
+
+## Verify a published release
+
+```text
+gh release download vX.Y.Z -R EauDoon/constitutional-agent-testbench
+sha256sum -c SHA256SUMS
+```
+
+Both archives must report `OK`. Installing the wheel and running
+`constitutional-agent-testbench --version` must print the tagged version.
+
+## Distribution contents
 
 The distribution installs two console commands, `constitutional-agent-testbench`
-and `constitutional-agent-testbench-playground`. A third entry point that pointed
-at the repository-only `evals` package was removed in 0.5.2 because the package is
-outside `src/` and is not part of the wheel; the source distribution includes it so
-its tests can run, and the evaluation runner stays available inside a checkout or an
-unpacked source distribution as `python -m evals.runner`.
+and `constitutional-agent-testbench-playground`, and runs as
+`python -m constitutional_agent_testbench`. The repository-only `evals` package
+is outside `src/` and is not part of the wheel; the source distribution includes
+it so its tests can run, and the evaluation runner stays available inside a
+checkout or an unpacked source distribution as `python -m evals.runner`.
 
-The strict-exit contract is backwards compatible: existing commands keep exit code zero for valid output unless `--strict-exit` is supplied. With the flag, conformance is zero, valid nonconformance or drift is one, and invalid or unresolved input is two.
+## Not automated
 
-The offline playground uses the same policy and evaluator semantics. Labeled
-editors show a live pass/fail verdict plus the JSON result. It never writes
-during evaluation. The Export result button opens an explicit save dialog and
-is the only write path.
+Publication to PyPI is not automated and remains a separate decision. Versions
+before 0.6.0 have per-version manifests under `release/` but no tags or GitHub
+Releases, because no artifacts were retained for them.

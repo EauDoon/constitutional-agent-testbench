@@ -79,8 +79,8 @@ call a model or establish that a real deployment is safe. See the
 - [Corpus and replay guide](docs/CORPUS.md): explicit assertions, curation,
   receipts, and portable replay bundles.
 - [Contributor guide](CONTRIBUTING.md): source-checkout setup and validation.
-- [Release guide](docs/RELEASE.md): local build and package verification;
-  publication is a separate action.
+- [Release guide](docs/RELEASE.md): versioning, tagging and GitHub Release
+  publication.
 
 The offline playground reuses the evaluator. Start it with
 `constitutional-agent-testbench playground`; `--smoke-test` runs a headless

@@ -190,6 +190,23 @@ class WorkflowPolicyTests(unittest.TestCase):
         self.assertIn(pins.pop(), (ROOT / "CONTRIBUTING.md").read_text("utf-8"))
         self.assertIn("python -m coverage report", self.workflow)
 
+    def test_release_workflow_is_tag_driven_and_version_agnostic(self):
+        release = (ROOT / ".github" / "workflows" / "release-assets.yml").read_text("utf-8")
+        self.assertIn('tags: ["v*.*.*"]', release)
+        # Archive names come from check_version.py, never from a literal.
+        self.assertNotRegex(release, r"constitutional_agent_testbench-\d")
+        self.assertIn('python scripts/check_version.py --tag "$GITHUB_REF_NAME"', release)
+        self.assertIn("sha256sum -c SHA256SUMS", release)
+        # Only the tag-gated publish job may write to the repository.
+        self.assertEqual(release.count("contents: write"), 1)
+        publish = release.split("\n  publish:\n", 1)[1]
+        self.assertIn("contents: write", publish)
+        self.assertIn("if: github.ref_type == 'tag'", publish)
+        self.assertIn("--verify-tag", publish)
+        for action in re.findall(r"uses: (\S+)", release):
+            with self.subTest(action=action):
+                self.assertRegex(action, r"@[0-9a-f]{40}$")
+
     def test_dependabot_tracks_pinned_actions(self):
         config = (ROOT / ".github" / "dependabot.yml").read_text("utf-8")
         self.assertIn("package-ecosystem: github-actions", config)
