@@ -39,11 +39,11 @@ Operational results and controlled errors are JSON with sorted object keys;
 help remains plain text. Unknown commands or options and missing or extra
 arguments return `INVALID_COMMAND` with a usage hint without echoing tokens.
 
-For `validate-policy`, `evaluate`, `check-order`, and `generate-synthetic`, policy
-and response arguments accept `-` for bounded strict JSON on standard input.
-At most one input argument may use standard input. The same 1,000,000-byte and
-structural limits apply to files and standard input. `--output` selects a file
-and does not accept `-`; playground inputs are file paths only.
+Every JSON input argument of every command except `playground` accepts `-` for
+bounded strict JSON on standard input. At most one input argument may use
+standard input. The same 1,000,000-byte and structural limits apply to files and
+standard input. `--output` selects a file, does not accept `-`, and creates any
+missing parent directories; playground inputs are file paths only.
 
 Inputs must be UTF-8 without a byte order mark. On Windows, PowerShell 5.1
 `Out-File` and the `>` redirection write UTF-16 with a byte order mark, which is
@@ -197,12 +197,22 @@ With `--strict-exit`, exit 1 means:
 
 | Command | Condition |
 | --- | --- |
+| `evaluate` | The response failed at least one rule. |
+| `check-order` | The report does not conform within coverage, including order drift and inconclusive nondeterministic results. |
 | `lint-policy` | A conflict was found; duplicate-only findings do not fail. |
 | `explain` | The response failed at least one rule. |
 | `run-suite` | At least one expected pass state did not match. |
 | `suite-coverage` | At least one rule lacks an observed pass or fail. |
 | `compare-policies` | At least one fixture verdict or rule result changed. Definition-only changes may still exit 0. |
 | `verify-receipt` | At least one digest or evaluation binding did not match. |
+| `inspect-suite` | Duplicate responses carry conflicting expectations. |
+| `triage-suite` | At least one explicit expectation or rule assertion did not match. |
+| `verify-suite-receipt` | At least one suite receipt binding did not match. |
+| `replay` | The bundle bindings are inconsistent or its fixture expectations did not match. |
+| `diff-suites` | The two corpora differ in any way, including case order alone. |
+| `audit-assertions` | At least one rule assertion is incompatible with the policy or the expected verdict. |
+| `migration-expectations` | At least one case newly mismatches its expectations under the candidate policy. |
+| `check-suite` | Any of the lint, consistency, assertion or regression preflight checks failed. |
 
 All JSON input arguments accept `-`, with at most one stdin input per invocation.
 Existing playground and output-path exceptions remain unchanged. Inputs retain

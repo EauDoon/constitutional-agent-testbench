@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import argparse
 import codecs
 import io
 import json
+import re
 import sys
 import tempfile
 import unittest
@@ -10,6 +12,7 @@ from contextlib import nullcontext, redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
+from constitutional_agent_testbench import cli
 from constitutional_agent_testbench.cli import main
 from constitutional_agent_testbench.common import (
     ENCODING_MESSAGE,
@@ -670,6 +673,57 @@ class CliTests(unittest.TestCase):
             payload = json.loads(stderr)["error"]
             self.assertEqual(payload["code"], "INVALID_DATA")
             self.assertNotIn("internal detail", stderr)
+
+
+def _subcommands() -> tuple[dict[str, argparse.ArgumentParser], dict[str, str]]:
+    """Return each subparser and its --help listing entry."""
+
+    parser = cli._build_parser()
+    action = next(
+        item for item in parser._actions if isinstance(item, argparse._SubParsersAction)
+    )
+    listing = {choice.dest: choice.help or "" for choice in action._choices_actions}
+    return dict(action.choices), listing
+
+
+def _strict_exit_actions(parser: argparse.ArgumentParser) -> list[argparse.Action]:
+    return [item for item in parser._actions if "--strict-exit" in item.option_strings]
+
+
+class HelpContractTests(unittest.TestCase):
+    """The CLI and the operator guide must describe the same command surface."""
+
+    def test_every_command_has_specific_help_and_a_description(self) -> None:
+        commands, listing = _subcommands()
+        self.assertEqual(set(commands), set(listing))
+        for name, command_parser in commands.items():
+            with self.subTest(command=name):
+                self.assertTrue(listing[name].strip())
+                self.assertNotIn("locally.", listing[name])
+                self.assertTrue((command_parser.description or "").strip())
+
+    def test_every_strict_exit_flag_explains_its_condition(self) -> None:
+        commands, _ = _subcommands()
+        for name, command_parser in commands.items():
+            for action in _strict_exit_actions(command_parser):
+                with self.subTest(command=name):
+                    self.assertTrue((action.help or "").strip())
+
+    def test_operator_guide_lists_every_strict_exit_command(self) -> None:
+        commands, _ = _subcommands()
+        gated = {name for name, item in commands.items() if _strict_exit_actions(item)}
+        self.assertEqual(len(gated), 16)
+        guide = (ROOT / "docs" / "OPERATOR.md").read_text(encoding="utf-8")
+        section = guide.split("## Exit codes and boundaries", 1)[1].split("\n## ", 1)[0]
+        documented = set(re.findall(r"^\| `([a-z-]+)` \|", section, re.MULTILINE))
+        self.assertEqual(documented, gated)
+
+    def test_top_level_help_documents_output_for_every_command(self) -> None:
+        exit_code, stdout, stderr = run_cli(["--help"])
+        self.assertEqual((exit_code, stderr), (0, ""))
+        self.assertIn("--output", stdout)
+        self.assertIn("creates missing parent directories", stdout)
+        self.assertNotIn("locally.", stdout)
 
 
 class StreamFailureTests(unittest.TestCase):

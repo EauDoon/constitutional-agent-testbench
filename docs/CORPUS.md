@@ -79,7 +79,9 @@ an existing file only after the temporary write succeeds. The prior file survive
 write/replace errors. This is atomic replacement, not a cross-filesystem backup or
 power-loss guarantee. Output paths equal to an input, including resolved and
 hard-link aliases, are rejected before any JSON input is read. `--output -` is
-invalid. These local preflight checks do not provide a sandbox against a separate
+invalid. Missing parent directories of the destination are created, so check the
+path before relying on it; a mistyped directory is created rather than rejected.
+These local preflight checks do not provide a sandbox against a separate
 process concurrently changing paths or directories.
 
 Without `--output`, commands print JSON. With it, they print a path-free

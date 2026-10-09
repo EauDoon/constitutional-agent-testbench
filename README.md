@@ -38,7 +38,7 @@ This is useful for development checks, regression suites, demonstrations, and pr
 | Stable JSON output | Emits sorted JSON object keys and stable public reason codes. |
 | Synthetic fixture generation | Builds and re-evaluates one passing case and one failing case from a valid policy. |
 | PrecedenceTrace | Exhaustively permutes two to seven peer rules and emits bounded order-drift evidence plus a reproducible swap-path witness. |
-| Local operation | Makes no network or model calls and writes a file only when `--output` or the playground export action is explicitly supplied. |
+| Local operation | Makes no network or model calls and writes a file only when `--output` or the playground export action is explicitly supplied; `--output` creates missing parent directories. |
 
 ## Quick start
 

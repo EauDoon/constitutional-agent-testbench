@@ -75,10 +75,13 @@ def _build_parser() -> argparse.ArgumentParser:
         description="Evaluate structured JSON responses against declared rules.",
         epilog=(
             "Results are JSON on stdout. Controlled errors are JSON on stderr "
-            "with exit code 2. Policy and response paths accept '-' for "
+            "with exit code 2. Every JSON input path accepts '-' for "
             "standard input; at most one argument per command may use it. "
-            "playground does not read '-' as standard input. generate-synthetic "
-            "--output writes a file and does not accept '-'."
+            "playground does not read '-' as standard input. Every command "
+            "except playground accepts --output PATH to write the JSON result "
+            "atomically instead of printing it; --output never accepts '-' and "
+            "creates missing parent directories. Commands with --strict-exit "
+            "return 1 for a valid negative result."
         ),
         allow_abbrev=False,
     )
