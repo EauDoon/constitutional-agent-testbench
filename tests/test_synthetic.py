@@ -198,5 +198,66 @@ class SyntheticGenerationTests(unittest.TestCase):
         self.assertEqual(full_evaluation.call_count, 0)
 
 
+def path_policy(*rules: dict) -> dict:
+    return {
+        "schema_version": "1.0",
+        "policy_id": "constraint-policy",
+        "rules": [
+            {"rule_id": f"rule-{index}", **rule} for index, rule in enumerate(rules)
+        ],
+    }
+
+
+class ConstraintIntersectionTests(unittest.TestCase):
+    """Fail-closed branches of per-path candidate selection."""
+
+    def test_several_one_of_sets_use_the_first_common_candidate(self) -> None:
+        cases = generate_synthetic_cases(
+            path_policy(
+                {"kind": "one_of", "path": "x", "values": [1, 2, 3]},
+                {"kind": "one_of", "path": "x", "values": [3, 2]},
+            )
+        )
+        # 2 is the first value of the first group that every group allows.
+        self.assertEqual(cases["passing_case"]["response"], {"x": 2})
+        self.assertTrue(cases["passing_case"]["evaluation"]["passed"])
+
+    def test_disjoint_one_of_sets_fail_closed(self) -> None:
+        with self.assertRaisesRegex(SyntheticGenerationError, "conflicting constraints"):
+            generate_synthetic_cases(
+                path_policy(
+                    {"kind": "one_of", "path": "x", "values": [1, 2]},
+                    {"kind": "one_of", "path": "x", "values": [3, 4]},
+                )
+            )
+
+    def test_fixed_value_outside_a_one_of_set_fails_closed(self) -> None:
+        with self.assertRaisesRegex(SyntheticGenerationError, "conflicting constraints"):
+            generate_synthetic_cases(
+                path_policy(
+                    {"kind": "equals", "path": "x", "value": 5},
+                    {"kind": "one_of", "path": "x", "values": [1, 2]},
+                )
+            )
+
+    def test_ancestor_already_satisfied_by_a_descendant_is_kept(self) -> None:
+        cases = generate_synthetic_cases(
+            path_policy(
+                {"kind": "required_field", "path": "x.y"},
+                {"kind": "required_field", "path": "x"},
+            )
+        )
+        self.assertEqual(cases["passing_case"]["response"], {"x": {"y": None}})
+        self.assertTrue(cases["passing_case"]["evaluation"]["passed"])
+
+    def test_assign_path_refuses_to_descend_through_a_scalar(self) -> None:
+        # Paths are processed deepest first, so no public policy reaches this
+        # guard; it is exercised directly to keep the fail-closed branch honest.
+        document = {"a": 1}
+        with self.assertRaisesRegex(SyntheticGenerationError, "incompatible nested paths"):
+            synthetic._assign_path(document, "a.b", 0)
+        self.assertEqual(document, {"a": 1})
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -56,6 +56,17 @@ python -m pip install mypy==2.3.1
 python -m mypy --python-version 3.11 --follow-imports=silent tests/static_typing/public_api.py
 ```
 
+Measure branch coverage against the installed package. The settings live in
+`pyproject.toml`, and `coverage report` fails below the 95 percent floor. Raise
+the floor with tests; never lower it to make a change pass:
+
+```text
+python -m pip install --no-deps .
+python -m pip install coverage==7.16.1
+python -m coverage run -m unittest discover -s tests
+python -m coverage report
+```
+
 Build and inspect both distribution formats before release:
 
 ```text

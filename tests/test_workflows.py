@@ -197,6 +197,18 @@ class ReceiptTests(unittest.TestCase):
             with self.assertRaises(ReceiptInputError):
                 verify_receipt(raw, {}, receipt)
 
+    def test_rejects_unsupported_versions_and_non_strict_receipts(self):
+        raw = policy(rule())
+        for field, value in (("receipt_version", "2.0"), ("digest_algorithm", "md5")):
+            receipt = create_receipt(raw, {})
+            receipt[field] = value
+            with self.subTest(field=field), self.assertRaisesRegex(ReceiptInputError, "unsupported"):
+                verify_receipt(raw, {}, receipt)
+        receipt = create_receipt(raw, {})
+        receipt["evaluation"]["passed"] = float("nan")
+        with self.assertRaisesRegex(ReceiptInputError, "strict JSON"):
+            verify_receipt(raw, {}, receipt)
+
     def test_policy_identity_and_rule_order_are_bound(self):
         raw = policy(rule(), rule("present", "required_field"))
         receipt = parse_json_text(stable_json(create_receipt(raw, {"action": False})))

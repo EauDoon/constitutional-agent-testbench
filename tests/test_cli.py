@@ -656,6 +656,47 @@ class CliTests(unittest.TestCase):
         self.assertEqual(stdout, "")
         self.assertEqual(json.loads(stderr)["error"]["code"], "ORDER_CHECK_TOO_LARGE")
 
+    def test_uncontrolled_data_errors_exit_two_with_invalid_data(self) -> None:
+        # Any data error that escapes a command's own validation must still
+        # produce the documented JSON error and exit 2, never a traceback.
+        for error in (ValueError, TypeError, OverflowError, RecursionError):
+            with self.subTest(error=error.__name__), patch(
+                "constitutional_agent_testbench.cli._run_command",
+                side_effect=error("internal detail"),
+            ):
+                exit_code, stdout, stderr = run_cli(["validate-policy", str(POLICY)])
+            self.assertEqual(exit_code, 2)
+            self.assertEqual(stdout, "")
+            payload = json.loads(stderr)["error"]
+            self.assertEqual(payload["code"], "INVALID_DATA")
+            self.assertNotIn("internal detail", stderr)
+
+
+class StreamFailureTests(unittest.TestCase):
+    """Unreadable streams fail closed with the generic read message."""
+
+    def test_stream_read_errors_and_unexpected_payloads_fail_closed(self) -> None:
+        class FailingStream:
+            def read(self, _size: int) -> bytes:
+                raise OSError("device detached")
+
+        class NonTextStream:
+            def read(self, _size: int) -> object:
+                return 42
+
+        surrogate_text = io.StringIO('"\ud800"')
+        for label, stream in (
+            ("read error", FailingStream()),
+            ("non-text payload", NonTextStream()),
+            ("lone surrogate text", surrogate_text),
+        ):
+            with self.subTest(stream=label):
+                with self.assertRaises(JsonInputError) as raised:
+                    load_json_stream(stream)  # type: ignore[arg-type]
+                self.assertEqual(
+                    str(raised.exception), "Unable to read the requested JSON input."
+                )
+
 
 class EncodingErrorTests(unittest.TestCase):
     """Encoding problems are named instead of looking like a missing file."""

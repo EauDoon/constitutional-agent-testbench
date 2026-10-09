@@ -161,6 +161,16 @@ class WorkflowPolicyTests(unittest.TestCase):
         self.assertIn(pins.pop(), (ROOT / "CONTRIBUTING.md").read_text("utf-8"))
         self.assertIn("python -m ruff check --no-cache .", self.workflow)
 
+    def test_coverage_floor_is_enforced_with_the_documented_pin(self):
+        config = tomllib.loads((ROOT / "pyproject.toml").read_text("utf-8"))["tool"]["coverage"]
+        self.assertTrue(config["run"]["branch"])
+        self.assertEqual(config["run"]["source_pkgs"], ["constitutional_agent_testbench"])
+        self.assertGreaterEqual(config["report"]["fail_under"], 95)
+        pins = set(re.findall(r"coverage==[0-9.]+", self.workflow))
+        self.assertEqual(len(pins), 1)
+        self.assertIn(pins.pop(), (ROOT / "CONTRIBUTING.md").read_text("utf-8"))
+        self.assertIn("python -m coverage report", self.workflow)
+
     def test_dependabot_tracks_pinned_actions(self):
         config = (ROOT / ".github" / "dependabot.yml").read_text("utf-8")
         self.assertIn("package-ecosystem: github-actions", config)
