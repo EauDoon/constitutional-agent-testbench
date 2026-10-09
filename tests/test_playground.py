@@ -23,8 +23,8 @@ FAILING = ROOT / "examples" / "failing-response.json"
 def _headless_playground(response_text: str):
     """Run the playground against a fake Tk and return its window controls.
 
-    Returns the Export result callback, the verdict variable, the messagebox
-    module, and the three text widgets in creation order (policy, response,
+    Returns the Export result callback, the verdict variable, the dialog
+    modules, the root window, and the three text widgets (policy, response,
     result). The fake lets the real export path run without a display.
     """
 
@@ -45,9 +45,17 @@ def _headless_playground(response_text: str):
         run_playground(None, None)
     commands = {call.kwargs["text"]: call.kwargs["command"]
                 for call in fake.Button.call_args_list}
-    return {"export": commands["Export result"], "verdict": verdict,
+    return {"export": commands["Export result"], "evaluate": commands["Evaluate"],
+            "verdict": verdict,
             "filedialog": module.filedialog, "messagebox": module.messagebox,
-            "result_box": result_box}
+            "result_box": result_box, "root": fake.Tk.return_value,
+            "policy_editor": policy_editor, "response_editor": response_editor,
+            "labels": [call.kwargs.get("text") for call in fake.Label.call_args_list],
+            "buttons": list(commands)}
+
+
+def _bindings(widget) -> dict:
+    return {call.args[0]: call.args[1] for call in widget.bind.call_args_list}
 
 
 class PlaygroundTests(unittest.TestCase):
@@ -117,6 +125,70 @@ class PlaygroundTests(unittest.TestCase):
             window["export"]()
             self.assertFalse(window["filedialog"].asksaveasfilename.called)
             self.assertFalse(writer.called)
+        self.assertEqual([call.args[0] for call in window["messagebox"].showerror.call_args_list],
+                         ["Invalid input"])
+        self.assertTrue(window["verdict"].set.call_args.args[0].startswith("INVALID — "))
+        window["result_box"].delete.assert_called_once_with("1.0", "end")
+
+
+class PlaygroundKeyboardTests(unittest.TestCase):
+    def test_editors_move_focus_and_evaluate_from_the_keyboard(self) -> None:
+        window = _headless_playground(PASSING.read_text(encoding="utf-8"))
+        for name in ("policy_editor", "response_editor"):
+            with self.subTest(editor=name):
+                bindings = _bindings(window[name])
+                self.assertEqual(
+                    set(bindings), {"<Tab>", "<Shift-Tab>", "<Control-Return>"}
+                )
+                event = MagicMock(name="event")
+                self.assertEqual(bindings["<Tab>"](event), "break")
+                event.widget.tk_focusNext.return_value.focus_set.assert_called_once_with()
+                self.assertEqual(bindings["<Shift-Tab>"](event), "break")
+                event.widget.tk_focusPrev.return_value.focus_set.assert_called_once_with()
+
+    def test_root_shortcuts_evaluate_and_export(self) -> None:
+        window = _headless_playground(PASSING.read_text(encoding="utf-8"))
+        bindings = _bindings(window["root"])
+        self.assertEqual(set(bindings), {"<Control-Return>", "<Control-s>"})
+        window["verdict"].set.reset_mock()
+        self.assertEqual(
+            _bindings(window["response_editor"])["<Control-Return>"](MagicMock()), "break"
+        )
+        self.assertEqual(window["verdict"].set.call_args.args[0],
+                         "PASS — 5 of 5 rules satisfied")
+        window["filedialog"].asksaveasfilename.return_value = ""
+        self.assertEqual(bindings["<Control-s>"](MagicMock()), "break")
+        window["filedialog"].asksaveasfilename.assert_called_once()
+        self.assertFalse(window["messagebox"].showerror.called)
+
+    def test_button_labels_stay_stable_and_shortcuts_are_shown(self) -> None:
+        window = _headless_playground(PASSING.read_text(encoding="utf-8"))
+        # README and the export tests refer to these exact labels.
+        self.assertEqual(window["buttons"], ["Evaluate", "Export result"])
+        self.assertIn(
+            "Ctrl+Enter evaluates; Ctrl+S exports; Tab moves between fields.",
+            window["labels"],
+        )
+
+    def test_window_opens_with_the_verdict_for_the_loaded_documents(self) -> None:
+        window = _headless_playground(PASSING.read_text(encoding="utf-8"))
+        self.assertEqual(window["verdict"].set.call_args.args[0],
+                         "PASS — 5 of 5 rules satisfied")
+        self.assertIn("RULE_SATISFIED", window["result_box"].insert.call_args.args[1])
+        self.assertFalse(window["messagebox"].showerror.called)
+
+        failing = _headless_playground(FAILING.read_text(encoding="utf-8"))
+        self.assertTrue(failing["verdict"].set.call_args.args[0].startswith("FAIL — 4 of 5"))
+
+    def test_invalid_input_on_open_sets_the_verdict_without_a_dialog(self) -> None:
+        window = _headless_playground("{ not json")
+        self.assertTrue(window["verdict"].set.call_args.args[0].startswith("INVALID — "))
+        self.assertFalse(window["messagebox"].showerror.called)
+        self.assertFalse(window["result_box"].delete.called)
+
+    def test_explicit_evaluate_still_reports_invalid_input_in_a_dialog(self) -> None:
+        window = _headless_playground("{ not json")
+        window["evaluate"]()
         self.assertEqual([call.args[0] for call in window["messagebox"].showerror.call_args_list],
                          ["Invalid input"])
         self.assertTrue(window["verdict"].set.call_args.args[0].startswith("INVALID — "))

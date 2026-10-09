@@ -89,7 +89,8 @@ def run_playground(policy_path: str | None, response_path: str | None, *, smoke_
 
     policy_box = labeled_text("Policy", 12)
     response_box = labeled_text("Response", 12)
-    verdict_var = tk.StringVar(value="Idle — evaluate to see a live verdict")
+    # Replaced by the verdict for the loaded documents before the window shows.
+    verdict_var = tk.StringVar(value="Evaluating…")
     tk.Label(root, textvariable=verdict_var, anchor="w").pack(fill="x", padx=8, pady=(8, 0))
     result_box = labeled_text("Result", 8, disabled=True)
     policy_box.insert("1.0", stable_json(policy))
@@ -130,10 +131,52 @@ def run_playground(policy_path: str | None, response_path: str | None, *, smoke_
             # A failed write is not a rejected input; keep the live verdict.
             messagebox.showerror("Export failed", str(exc))
 
+    def evaluate_quietly() -> None:
+        """Show the opening verdict without a dialog or clearing the result box."""
+
+        try:
+            result = evaluate_documents(policy_box.get("1.0", "end"), response_box.get("1.0", "end"))
+        except (TestbenchError, ValueError, TypeError) as exc:
+            verdict_var.set(f"INVALID — {exc}")
+            return
+        verdict_var.set(format_verdict(result))
+        set_result(stable_json(result))
+
+    def focus_next(event: Any) -> str:
+        event.widget.tk_focusNext().focus_set()
+        return "break"
+
+    def focus_previous(event: Any) -> str:
+        event.widget.tk_focusPrev().focus_set()
+        return "break"
+
+    def evaluate_shortcut(_event: Any) -> str:
+        evaluate()
+        return "break"
+
+    def export_shortcut(_event: Any) -> str:
+        export()
+        return "break"
+
+    # Text widgets otherwise insert a tab character and a newline. Binding the
+    # editors directly, with "break", runs before the Text class bindings.
+    for editor in (policy_box, response_box):
+        editor.bind("<Tab>", focus_next)
+        editor.bind("<Shift-Tab>", focus_previous)
+        editor.bind("<Control-Return>", evaluate_shortcut)
+    root.bind("<Control-Return>", evaluate_shortcut)
+    root.bind("<Control-s>", export_shortcut)
+
     buttons = tk.Frame(root)
     buttons.pack(fill="x", padx=8, pady=8)
     tk.Button(buttons, text="Evaluate", command=evaluate).pack(side="left")
     tk.Button(buttons, text="Export result", command=export).pack(side="left")
+    tk.Label(
+        buttons,
+        text="Ctrl+Enter evaluates; Ctrl+S exports; Tab moves between fields.",
+        anchor="w",
+    ).pack(side="left", padx=(12, 0))
+    evaluate_quietly()
     root.mainloop()
     return {"playground": "closed", "offline": True}
 

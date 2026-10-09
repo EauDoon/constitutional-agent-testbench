@@ -84,7 +84,9 @@ call a model or establish that a real deployment is safe. See the
 
 The offline playground reuses the evaluator. Start it with
 `constitutional-agent-testbench playground`; `--smoke-test` runs a headless
-check. The **Export result** save dialog is its only write path. The separate
+check. The window opens with the verdict for the loaded policy and response.
+Ctrl+Enter re-evaluates, Ctrl+S exports, and Tab moves from the editors to the
+buttons. The **Export result** save dialog is its only write path. The separate
 `constitutional-agent-testbench-playground` entry point accepts the same optional
 policy and response paths and `--smoke-test` flag.
 
