@@ -11,15 +11,73 @@ original wording.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-09
+
+### Added
+
+- `constitutional-agent-testbench --version` and
+  `python -m constitutional_agent_testbench`. The playground entry point also
+  accepts `--version`.
+- Specific `--help` text and a description for every command, and help for
+  every `--strict-exit` flag. Twenty commands previously read "Run X locally."
+- Playground keyboard support: Ctrl+Enter evaluates, Ctrl+S exports, Tab and
+  Shift+Tab move between the editors and the buttons, and the window opens with
+  the verdict for the loaded policy and response.
+- Tag-driven GitHub Releases. A pushed `vX.Y.Z` tag builds and tests the wheel
+  and source distribution and publishes them with a `SHA256SUMS` file whose
+  relative names verify with `sha256sum -c`. `scripts/check_version.py`
+  refuses a release when the tag, `_version.py`, the changelog, the release
+  manifest and the README disagree.
+- Continuous integration gates: pinned ruff lint, a mypy check of the public
+  API as a downstream consumer, a 95 percent branch-coverage floor, the
+  unpacked source distribution's own test suite, and Dependabot updates for
+  pinned actions. CI no longer cancels in-progress runs on `main`.
 - Add independently authored synthetic release-approval expectations to the
   installed adopter workflow, covering all rule outcomes under both sides of a
   policy migration plus receipt and replay checks. Runtime semantics are unchanged.
-- Lead onboarding with an installed strict-exit example, move the full command
-  catalog to the operator guide, and align version and symlink documentation
-  with the current package contract.
+
+### Changed
+
 - Relicense from MIT to the Apache License 2.0 and ship NOTICE in both
   distributions; package metadata now declares Apache-2.0. Source revisions up
   to 0.5.19 remain available under MIT.
+- Package metadata adds project URLs, keywords and classifiers for Python 3.11
+  to 3.14 and `Typing :: Typed`.
+- The package version is defined once, in
+  `src/constitutional_agent_testbench/_version.py`; `pyproject.toml` reads it
+  at build time.
+- `CHANGELOG.md` follows Keep a Changelog with ISO dates; earlier entries keep
+  their wording. `docs/RELEASE.md` is now a release procedure.
+- Lead onboarding with an installed strict-exit example, move the full command
+  catalog to the operator guide, and align version and symlink documentation
+  with the current package contract.
+
+### Fixed
+
+- The source distribution's own tests failed with `No module named 'evals'`;
+  the source distribution now includes `evals/`.
+- `INCONCLUSIVE_NONDETERMINISTIC` PrecedenceTrace reports now include
+  `presentation_follows_requested_order` as `null`, so both report shapes carry
+  every top-level field.
+- The public `Evaluator` type accepts evaluators that return
+  `EvaluationResult`, including `evaluate_response` itself, so type-checked
+  callers of `check_order_conformance` pass mypy. Runtime checks are unchanged.
+- Input with a byte order mark or in UTF-16 or UTF-32 now fails with "The
+  requested input is not UTF-8 JSON without a byte order mark." instead of the
+  missing-file message, and oversized input is reported as oversized even when
+  the read limit falls inside a multi-byte character. Such input is still
+  rejected with `INVALID_JSON_INPUT` and exit code 2.
+- The eval runner rejects malformed case files (unknown keys, an `id` that
+  differs from the file name, a non-string, absolute or escaping `policy_path`,
+  a non-object `input`, a missing `expected.passed` or a malformed rule
+  expectation) with `EvalCaseError`. The installed adopter check no longer uses
+  `assert`, so `python -O` checks as much as a normal run.
+- The operator guide said only four commands accept `-` and listed 6 of the 16
+  `--strict-exit` gates; it now matches the CLI. The CLI help and guides state
+  that `--output` creates missing parent directories.
+- The README now states the numeric equality rule: an integer literal such as
+  `1` never equals `1.0` or `1e0`, and `0.0` never equals `-0.0`. Evaluation
+  behavior is unchanged.
 
 ## [0.5.19] - 2026-09-28
 
@@ -253,3 +311,6 @@ Public source release on 27 July 2026.
 - Added deterministic complete rule evaluation and stable reason codes.
 - Added verified synthetic passing and failing case generation.
 - Added the local standard-library-only command-line interface.
+
+[Unreleased]: https://github.com/EauDoon/constitutional-agent-testbench/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/EauDoon/constitutional-agent-testbench/releases/tag/v0.6.0

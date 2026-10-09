@@ -57,7 +57,7 @@ reports `"passed": false` and exits `1`. Invalid commands or inputs exit `2` wit
 a JSON error on standard error. Keep `--strict-exit` when using evaluation as an
 automation gate; without it, a completed failing evaluation exits `0`.
 
-Current package version: **0.5.19**. See [the version source](src/constitutional_agent_testbench/_version.py) and
+Current package version: **0.6.0**. See [the version source](src/constitutional_agent_testbench/_version.py) and
 [the changelog](CHANGELOG.md) for the version and changes. Policy schema `1.0`
 and optional suite schema `1.1` are separate from the package version.
 

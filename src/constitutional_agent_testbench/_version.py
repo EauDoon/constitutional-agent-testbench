@@ -7,4 +7,4 @@ Schema versions (policy, suite, report, receipt, replay, digest) are separate
 and are not derived from it.
 """
 
-__version__ = "0.5.19"
+__version__ = "0.6.0"
