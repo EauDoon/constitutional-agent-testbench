@@ -1,6 +1,15 @@
 # Changelog
 
-## Unreleased
+All notable changes to this project are documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The package version is independent of the policy, suite, report, receipt,
+replay and digest schema versions, which change only through an explicit
+schema decision. Entries before 0.6.0 predate this format and keep their
+original wording.
+
+## [Unreleased]
 
 - Add independently authored synthetic release-approval expectations to the
   installed adopter workflow, covering all rule outcomes under both sides of a
@@ -12,14 +21,14 @@
   distributions; package metadata now declares Apache-2.0. Source revisions up
   to 0.5.19 remain available under MIT.
 
-## Version 0.5.19 - 28-09-2026
+## [0.5.19] - 2026-09-28
 
 - Do not treat JSON numbers as eval pass states. The runner compared verdicts
   with Python equality, so an expected `passed` of `1` or `0` matched a boolean
   `true` or `false`. Both sides must be JSON booleans. Checked-in boolean
   expectations are unchanged. Reason-code comparisons are unchanged.
 
-## Version 0.5.18 - 28-09-2026
+## [0.5.18] - 2026-09-28
 
 - Reject duplicate JSON object members in eval case and policy files. The
   runner used `json.load`, which keeps the last duplicate and continues, so a
@@ -27,7 +36,7 @@
   dropped. Those files now use the strict loader. A boolean case file is still
   `EvalCaseError`, not a JSON syntax error.
 
-## Version 0.5.17 - 28-09-2026
+## [0.5.17] - 2026-09-28
 
 - Reject a non-object eval case before the runner subscripts it. A boolean,
   null, array, number, or string case file raised `TypeError`. An `expected`
@@ -35,7 +44,7 @@
   later in the case. Those fixtures now raise `EvalCaseError`. Checked-in
   object cases are unchanged.
 
-## Version 0.5.16 - 28-09-2026
+## [0.5.16] - 2026-09-28
 
 - Do not report a reordered `one_of` allowed set as a modified rule.
   Membership does not depend on order, but `compare-policies` compared the
@@ -43,7 +52,7 @@
   wider set is still modified. An `equals` array reorder is still modified,
   because array order is part of that constraint. Added rules stay in `added`.
 
-## Version 0.5.15 - 28-09-2026
+## [0.5.15] - 2026-09-28
 
 - Copy each nested constraint value on its own. `deepcopy` memos a repeated
   object, so one nested object used in two places inside an `equals` value or
@@ -51,7 +60,7 @@
   changed the other and could change a later evaluation. The caller's original
   objects stay untouched, and exported rules are copied the same way.
 
-## Version 0.5.14 - 28-09-2026
+## [0.5.14] - 2026-09-28
 
 - Copy each nested JSON value inside a validated suite case on its own.
   `deepcopy` memos a repeated object, so one nested object stored under two
@@ -59,14 +68,14 @@
   the other and could change a later evaluation. The caller's original objects
   stay untouched.
 
-## Version 0.5.13 - 28-09-2026
+## [0.5.13] - 2026-09-28
 
 - List only finite-domain rules in a `DISJOINT_CONSTRAINTS` finding. A
   `required_field` on the same path was included even though it has no allowed
   set and does not make the domains disjoint. The conflict is unchanged, so
   `--strict-exit` still fails. Duplicate-only findings still do not.
 
-## Version 0.5.12 - 28-09-2026
+## [0.5.12] - 2026-09-28
 
 - Classify an unknown option before a missing `--output` value or an invalid
   command. `evaluate policy response --output --bogus` was reported as a missing
@@ -74,14 +83,14 @@
   `--output --strict-exit` is still a missing argument because both flags are
   real. Help text and exit code 2 are unchanged.
 
-## Version 0.5.11 - 28-09-2026
+## [0.5.11] - 2026-09-28
 
 - Report an overflowing numeric literal as invalid strict JSON. `1e309` becomes
   a non-finite float after parsing, so it never hits the `Infinity` token
   rejection and was labeled as a structural size limit. Nesting, node, and byte
   limits still use the structural-limit error. The `Infinity` token is unchanged.
 
-## Version 0.5.10 - 28-09-2026
+## [0.5.10] - 2026-09-28
 
 - Reject a whitespace-only `--output` path. An empty string was already an
   error, but a path of spaces, tabs, newlines, Unicode spaces, a zero-width
@@ -91,7 +100,7 @@
 - A path that contains a real filename character, including spaces around that
   name, is unchanged. `-` remains the separate dash error.
 
-## Version 0.5.9 - 28-09-2026
+## [0.5.9] - 2026-09-28
 
 - Report `diff-suites` `order_changed` from the relative order of case ids that
   exist in both corpora. Adding or removing a case made the full id lists
@@ -99,7 +108,7 @@
   their order. Added and removed ids stay in their own fields. Reversing shared
   cases is still an order change. Strict exit still follows `identical`.
 
-## Version 0.5.8 - 28-09-2026
+## [0.5.8] - 2026-09-28
 
 - Report `order_changed` from the relative order of rules that exist in both
   policies. Adding or inserting a rule made the full identifier lists differ, so
@@ -107,7 +116,7 @@
   their order. Added and removed rules stay in their own fields. A real swap of
   shared rules is still `order_changed`.
 
-## Version 0.5.7 - 28-09-2026
+## [0.5.7] - 2026-09-28
 
 - Treat `one_of` rules with the same allowed set as duplicate constraints even
   when the values are listed in different orders. Membership does not depend on
@@ -116,7 +125,7 @@
 - A strictly wider allowed set is still a different constraint. Duplicate-only
   findings still do not fail `--strict-exit`.
 
-## Version 0.5.6 - 28-09-2026
+## [0.5.6] - 2026-09-28
 
 - Copy each suite case on its own. `validate_suite` used one `deepcopy`, which
   keeps a repeated object shared, so two cases built from the same response
@@ -124,7 +133,7 @@
   later evaluation of both.
 - The caller's original objects stay untouched, and JSON-loaded suites are unchanged.
 
-## Version 0.5.5 - 28-09-2026
+## [0.5.5] - 2026-09-28
 
 - Keep an unknown assertion identifier out of `contradictory_verdict`. A stale
   rule asserted as failed was treated as a verdict contradiction even when every
@@ -132,7 +141,7 @@
   `unknown_rule_ids`, so the assertion gate still fails.
 - A declared rule that disagrees with the overall verdict is still contradictory.
 
-## Version 0.5.4 - 28-09-2026
+## [0.5.4] - 2026-09-28
 
 - Report an unknown option as an unknown option even when a required path is also
   absent. argparse mentions the missing positional first, so `evaluate --bogus`
@@ -141,7 +150,7 @@
 - Preserve exit code 2, the path-free `INVALID_COMMAND` contract, and the missing-argument
   message for a real flag such as `--strict-exit` that is present without its paths.
 
-## Version 0.5.3 - 28-09-2026
+## [0.5.3] - 2026-09-28
 
 - Give the exhaustive and `INCONCLUSIVE_NONDETERMINISTIC` PrecedenceTrace reports one
   `coverage` contract. Both are stamped `report_schema_version` 1.0, but the
@@ -156,7 +165,7 @@
   verdicts, witnesses, and the two console commands. This patch changes the reported
   `coverage` fields of `check-order` only.
 
-## Version 0.5.2 - 28-09-2026
+## [0.5.2] - 2026-09-28
 
 - Remove the `constitutional-agent-testbench-evals` console script. It pointed at
   the repository-only `evals` package, which is outside `src/` and ships in neither
@@ -168,7 +177,7 @@
 - Preserve policy and suite schemas, evaluation semantics, reason codes, and the two
   remaining console commands. This patch changes the installed command surface only.
 
-## Version 0.5.1 - 26-09-2026
+## [0.5.1] - 2026-09-26
 
 - Emit CLI JSON as UTF-8 with LF directly to binary process streams, preserving
   Unicode fixtures and receipt bindings even when the terminal encoding would
@@ -179,7 +188,7 @@
 - Preserve policy/suite formats, receipt digests, public reason codes and strict
   regression exit semantics. This patch changes transport, not evaluation.
 
-## Version 0.5.0 - 11-09-2026
+## [0.5.0] - 2026-09-11
 
 - Validate and import explicit fixture batches without deriving expected outcomes.
 - Capture complete rule assertions only after existing expectations match.
@@ -191,7 +200,7 @@
 - Exercise preparation through replay with CLI error, recovery, and export protection checks.
 - Preserve policy and suite schemas, evaluator behavior, offline runtime, and atomic export permissions.
 
-## Version 0.4.0 - 10-09-2026
+## [0.4.0] - 2026-09-10
 
 - Inspect policy structure and fixture duplication without candidate values.
 - Merge, select, triage, and deterministically reduce regression corpora.
@@ -200,7 +209,7 @@
 - Export JSON atomically while rejecting input-path aliases before reading inputs.
 - Preserve policy/evaluator semantics, standard-library runtime, and offline operation.
 
-## Version 0.3.0 - 09-09-2026
+## [0.3.0] - 2026-09-09
 
 - Added conservative authoring diagnostics and value-free traversal explanations.
 - Added strict, bounded fixture suites, observed outcome coverage, and policy migration comparisons.
@@ -210,7 +219,7 @@
 - Preserved policy schema 1.0, existing evaluation results, and PrecedenceTrace semantics.
 - Added executable synthetic fixtures and documented limits, strict exits, and receipt trust boundaries.
 
-## Version 0.2.0 - 27 July 2026
+## [0.2.0] - 2026-07-27
 
 - Added PrecedenceTrace as an exhaustive peer-rule order-conformance mode.
 - Added separate projections for semantic outcome, reason evidence,
@@ -238,7 +247,7 @@
 
 Public source release on 27 July 2026.
 
-## Version 0.1.0
+## [0.1.0]
 
 - Added strict version 1.0 policy validation.
 - Added deterministic complete rule evaluation and stable reason codes.

@@ -80,9 +80,14 @@ python -m tarfile -l dist/*.tar.gz
 
 A proposed change should describe its public behavior, tests, compatibility impact, and any new limitation. Generated examples must remain fully synthetic. Changes to the policy schema or output contract require an explicit versioning decision.
 
+Every user-facing change adds a line under `## [Unreleased]` in
+`CHANGELOG.md`, which follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+
 Edit the version only in `src/constitutional_agent_testbench/_version.py`;
 `pyproject.toml` reads it at build time and the package re-exports it as
-`__version__`. Keep the changelog entry in step with it.
+`__version__`. `python scripts/check_version.py` confirms that the version, the
+first `CHANGELOG.md` release heading, `release/vX.Y.Z-manifest.json` and the
+README version line agree; CI runs it on every pull request.
 
 By contributing, contributors agree that accepted changes are distributed under the Apache License 2.0.
 
