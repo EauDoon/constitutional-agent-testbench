@@ -38,7 +38,7 @@ This is useful for development checks, regression suites, demonstrations, and pr
 | Stable JSON output | Emits sorted JSON object keys and stable public reason codes. |
 | Synthetic fixture generation | Builds and re-evaluates one passing case and one failing case from a valid policy. |
 | PrecedenceTrace | Exhaustively permutes two to seven peer rules and emits bounded order-drift evidence plus a reproducible swap-path witness. |
-| Local operation | Makes no network or model calls and writes a file only when `--output` or the playground export action is explicitly supplied. |
+| Local operation | Makes no network or model calls and writes a file only when `--output` or the playground export action is explicitly supplied; `--output` creates missing parent directories. |
 
 ## Quick start
 
@@ -57,7 +57,7 @@ reports `"passed": false` and exits `1`. Invalid commands or inputs exit `2` wit
 a JSON error on standard error. Keep `--strict-exit` when using evaluation as an
 automation gate; without it, a completed failing evaluation exits `0`.
 
-Current package version: **0.5.19**. See [package metadata](pyproject.toml) and
+Current package version: **0.6.0**. See [the version source](src/constitutional_agent_testbench/_version.py) and
 [the changelog](CHANGELOG.md) for the version and changes. Policy schema `1.0`
 and optional suite schema `1.1` are separate from the package version.
 
@@ -79,12 +79,14 @@ call a model or establish that a real deployment is safe. See the
 - [Corpus and replay guide](docs/CORPUS.md): explicit assertions, curation,
   receipts, and portable replay bundles.
 - [Contributor guide](CONTRIBUTING.md): source-checkout setup and validation.
-- [Release guide](docs/RELEASE.md): local build and package verification;
-  publication is a separate action.
+- [Release guide](docs/RELEASE.md): versioning, tagging and GitHub Release
+  publication.
 
 The offline playground reuses the evaluator. Start it with
 `constitutional-agent-testbench playground`; `--smoke-test` runs a headless
-check. The **Export result** save dialog is its only write path. The separate
+check. The window opens with the verdict for the loaded policy and response.
+Ctrl+Enter re-evaluates, Ctrl+S exports, and Tab moves from the editors to the
+buttons. The **Export result** save dialog is its only write path. The separate
 `constitutional-agent-testbench-playground` entry point accepts the same optional
 policy and response paths and `--smoke-test` flag.
 
@@ -211,8 +213,9 @@ to 1,000,000 bytes, repeats every order three times, and applies a
 evaluator output. Reports expose unique orders, total evaluator calls,
 input-work estimates, returned-result bytes, charged work, incomplete-order
 counts, and the per-result and report limits. Every report carries the same
-`coverage` fields whether it is exhaustive or stops early, and a coverage field
-that cannot be known after an early stop is reported as `null`. A valid evaluation can therefore
+top-level fields and the same `coverage` fields whether it is exhaustive or
+stops early, and a field that cannot be known after an early stop, such as
+`variance` or `presentation_follows_requested_order`, is reported as `null`. A valid evaluation can therefore
 still fail closed with `ORDER_CHECK_TOO_LARGE` if its bounded witness report
 would exceed the separate report limit. A custom evaluator can still consume unbounded time,
 memory, network, or external resources before it returns; callers that do not
@@ -250,8 +253,8 @@ A path contains dot-separated object-key segments. Each segment starts with a le
 | Kind | Required rule fields | Pass condition |
 | --- | --- | --- |
 | `required_field` | `rule_id`, `kind`, `path` | The path exists, including when its value is null. |
-| `equals` | `rule_id`, `kind`, `path`, `value` | The path value is JSON-equal to `value`. |
-| `one_of` | `rule_id`, `kind`, `path`, `values` | The path value is JSON-equal to one listed value. |
+| `equals` | `rule_id`, `kind`, `path`, `value` | The path value is equal to `value` under canonical JSON (sorted keys; `1` and `1.0` differ). |
+| `one_of` | `rule_id`, `kind`, `path`, `values` | The path value is equal to one listed value under canonical JSON (sorted keys; `1` and `1.0` differ). |
 | `false` | `rule_id`, `kind`, `path` | The path value is the JSON boolean false. |
 | `empty_list` | `rule_id`, `kind`, `path` | The path value is an empty JSON array. |
 
@@ -286,8 +289,9 @@ All rules are evaluated even after one fails. This preserves a complete, inspect
 
 Determinism comes from explicit constraints rather than hidden model behavior:
 
-- Input files are decoded as UTF-8 JSON, with duplicate object members and non-finite numbers rejected.
+- Input files are decoded as UTF-8 JSON, with duplicate object members and non-finite numbers rejected. A byte order mark or a UTF-16/32 encoding is rejected with an encoding-specific error rather than the missing-file message.
 - JSON equality uses a canonical, key-sorted representation. Python coercions do not apply, so the JSON boolean `true` is not equal to the JSON number `1`.
+- Numeric literal form is significant. An integer literal such as `1` or `100` never equals a literal with a fraction or exponent such as `1.0`, `1e0` or `1e2`, and `0.0` and `-0.0` are different values; `1.0` and `1e0` are the same value. This is the same rule receipt digests apply. A policy that declares `1` rejects a response containing `1.0`, so emit numbers in the form the policy declares.
 - Rules are evaluated in declared order, while emitted object keys are sorted.
 - Evaluation adds no timestamps, randomness, external data, or model output.
 - Nested policy values are copied during validation so later mutation of the source object cannot silently change the validated policy.
@@ -309,6 +313,7 @@ Keep these boundaries in view:
 - PrecedenceTrace additionally limits each in-memory policy, response, and returned evaluator result to 1,000,000 serialized UTF-8 bytes.
 - Policies are limited to 256 rules, `one_of` rules are limited to 256 candidate values, and field paths are limited to 32 segments.
 - Input paths and ancestor directories can follow symbolic links. Atomic exports replace the final destination link without changing its target; see [Security](SECURITY.md).
+- Atomic exports preserve an existing regular file's POSIX read/write/execute permission bits; special bits are cleared. New exports remain private (0600 on POSIX). Destination symlinks are replaced without reading or changing their targets. Ownership and ACL preservation are outside this local export interface; platform filesystem rules still apply.
 - Generated output is written only when an operator supplies `--output`, and the operator is responsible for selecting an intended destination.
 - Personal data, credentials, access tokens, and confidential material should be kept out of policies, responses, examples, and issue reports.
 
@@ -331,6 +336,12 @@ JSON and exit-code contracts.
 Continuous integration installs the package and runs the complete suite on Python 3.11 through 3.14. It also verifies the installed console command and builds and inspects both wheel and source-distribution artifacts.
 
 Runtime imports are limited to the Python standard library and local package modules. The package declares no runtime dependencies.
+
+The [installed adopter check](docs/CORPUS.md#verify-an-installed-package-with-a-unicode-corpus)
+runs validation, an assertion-sensitive policy migration, receipt export, and
+independent replay through the installed command outside the checkout. CLI JSON
+streams use UTF-8 with LF so Unicode fixtures retain their digest bindings even
+under non-UTF-8 process encodings.
 
 ## Repository map
 
@@ -358,12 +369,4 @@ the complete statement.
 
 ## License
 
-Released under the MIT License. See [`LICENSE`](LICENSE).
-
-Atomic exports preserve an existing regular file's POSIX read/write/execute permission bits; special bits are cleared. New exports remain private (0600 on POSIX). Destination symlinks are replaced without reading or changing their targets. Ownership and ACL preservation are outside this local export interface; platform filesystem rules still apply.
-
-The [installed adopter check](docs/CORPUS.md#verify-an-installed-package-with-a-unicode-corpus)
-runs validation, an assertion-sensitive policy migration, receipt export, and
-independent replay through the installed command outside the checkout. CLI JSON
-streams use UTF-8 with LF so Unicode fixtures retain their digest bindings even
-under non-UTF-8 process encodings.
+Released under the Apache License 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE). Source revisions up to and including 0.5.19 were published under the MIT License.

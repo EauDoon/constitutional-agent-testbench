@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 import itertools
+import typing
 import unittest
 
 import constitutional_agent_testbench.precedence as precedence_module
 from constitutional_agent_testbench.common import MAX_JSON_INPUT_BYTES
-from constitutional_agent_testbench.evaluator import evaluate_response
+from constitutional_agent_testbench.evaluator import (
+    EvaluationInputError,
+    EvaluationResult,
+    evaluate_response,
+)
 from constitutional_agent_testbench.policy import Policy, Rule
 from constitutional_agent_testbench.precedence import (
     OrderCheckTooLargeError,
@@ -52,6 +57,14 @@ def one_failure_response() -> dict:
 
 
 class PrecedenceTraceTests(unittest.TestCase):
+    def test_evaluator_alias_accepts_the_public_result_type(self) -> None:
+        _parameters, returned = typing.get_args(precedence_module.Evaluator)
+        self.assertIn(EvaluationResult, typing.get_args(returned))
+        report = check_order_conformance(
+            three_rule_policy(), passing_response(), evaluator=evaluate_response
+        )
+        self.assertTrue(report["conforms_within_coverage"])
+
     def test_exhausts_three_rule_permutations_without_semantic_drift(self) -> None:
         report = check_order_conformance(three_rule_policy(), passing_response())
 
@@ -209,10 +222,14 @@ class PrecedenceTraceTests(unittest.TestCase):
             exhaustive["report_schema_version"],
             inconclusive["report_schema_version"],
         )
+        self.assertEqual(sorted(exhaustive), sorted(inconclusive))
         self.assertEqual(
             sorted(exhaustive["coverage"]),
             sorted(inconclusive["coverage"]),
         )
+        self.assertIsNone(inconclusive["presentation_follows_requested_order"])
+        self.assertIsNone(inconclusive["conforms_within_coverage"])
+        self.assertIsNone(inconclusive["variance"])
 
         clean = exhaustive["coverage"]
         self.assertEqual(clean["orders_attempted"], clean["orders_evaluated"])
@@ -572,6 +589,73 @@ class PrecedenceTraceTests(unittest.TestCase):
                 passing_response(),
                 evaluator=hidden_decision,
             )
+
+    def test_malformed_evaluator_results_fail_closed(self) -> None:
+        # Each mutation breaks one clause of the evaluator result contract that
+        # PrecedenceTrace's safety claims rest on.
+        def set_row(field, value):
+            return lambda result: result["rule_results"][0].__setitem__(field, value)
+
+        mutations = {
+            "non-object result": lambda result: [],
+            "non-boolean passed": lambda result: result.__setitem__("passed", "yes"),
+            "non-list rule_results": lambda result: result.__setitem__("rule_results", "x"),
+            "non-object row": lambda result: result["rule_results"].__setitem__(0, 1),
+            "extra row key": set_row("note", "x"),
+            "non-string rule_id": set_row("rule_id", 5),
+            "non-string kind": set_row("kind", None),
+            "empty reason_code": set_row("reason_code", ""),
+            "oversized reason_code": set_row(
+                "reason_code", "X" * (precedence_module.MAX_REASON_CODE_LENGTH + 1)
+            ),
+            "lone surrogate reason_code": set_row("reason_code", "\ud800"),
+        }
+        for label, mutate in mutations.items():
+            with self.subTest(mutation=label):
+                def invalid(policy, response, _mutate=mutate):
+                    result = evaluate_response(policy, response)
+                    replaced = _mutate(result)
+                    return result if replaced is None else replaced
+
+                with self.assertRaises(PrecedenceTraceError) as raised:
+                    check_order_conformance(
+                        three_rule_policy(), passing_response(), evaluator=invalid
+                    )
+                self.assertEqual(raised.exception.code, "ORDER_CHECK_INVALID")
+
+    def test_lone_surrogate_result_is_reported_as_non_strict_json(self) -> None:
+        def surrogate(policy, response):
+            result = evaluate_response(policy, response)
+            result["rule_results"][0]["reason_code"] = "\ud800"
+            return result
+
+        with self.assertRaisesRegex(PrecedenceTraceError, "not strict JSON"):
+            check_order_conformance(
+                three_rule_policy(), passing_response(), evaluator=surrogate
+            )
+
+    def test_evaluator_exceptions_are_wrapped_but_testbench_errors_propagate(
+        self,
+    ) -> None:
+        def crashes(_policy, _response):
+            raise RuntimeError("evaluator bug")
+
+        with self.assertRaises(PrecedenceTraceError) as raised:
+            check_order_conformance(
+                three_rule_policy(), passing_response(), evaluator=crashes
+            )
+        self.assertEqual(str(raised.exception), "Evaluator failed during order checking.")
+        self.assertIsInstance(raised.exception.__cause__, RuntimeError)
+
+        def rejects_input(_policy, _response):
+            raise EvaluationInputError("Candidate response must be a JSON object.")
+
+        with self.assertRaises(EvaluationInputError) as propagated:
+            check_order_conformance(
+                three_rule_policy(), passing_response(), evaluator=rejects_input
+            )
+        self.assertNotIsInstance(propagated.exception, PrecedenceTraceError)
+        self.assertEqual(propagated.exception.code, "INVALID_RESPONSE")
 
     def test_mismatched_result_policy_identity_fails_closed(self) -> None:
         def changed_policy_id(policy, response):

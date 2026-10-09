@@ -181,3 +181,17 @@ class CorpusAuthoringTests(unittest.TestCase):
                                  ([{}] * 257, [False] * 257), ({}, [False])):
             with self.assertRaises(WorkflowInputError):
                 import_responses(batch, expected)
+
+    def test_numeric_literal_form_is_significant_for_lint_and_synthesis(self):
+        from constitutional_agent_testbench import generate_synthetic_cases, lint_policy
+        numeric = {"schema_version": "1.0", "policy_id": "numeric", "rules": [
+            {"rule_id": "as-int", "kind": "equals", "path": "x", "value": 1},
+            {"rule_id": "as-float", "kind": "equals", "path": "x", "value": 1.0}]}
+        report = lint_policy(numeric)
+        self.assertTrue(report["has_conflicts"])
+        self.assertIn({"code": "DISJOINT_CONSTRAINTS", "path": "x", "rule_ids": ["as-float", "as-int"]},
+                      report["findings"])
+        single = {**numeric, "rules": numeric["rules"][:1]}
+        generated = generate_synthetic_cases(single)["passing_case"]["response"]["x"]
+        self.assertIs(type(generated), int)
+        self.assertEqual(generated, 1)

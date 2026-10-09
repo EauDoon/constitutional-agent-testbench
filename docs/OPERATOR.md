@@ -7,7 +7,8 @@ assertion, receipt, replay, and atomic-export workflow.
 
 Use the installed `constitutional-agent-testbench` command after
 `python -m pip install --no-deps .`. For source-only development, set
-`PYTHONPATH=src` and use `python -m constitutional_agent_testbench.cli` instead.
+`PYTHONPATH=src` and use `python -m constitutional_agent_testbench` instead.
+`constitutional-agent-testbench --version` prints the installed package version.
 
 | Command | Purpose |
 | --- | --- |
@@ -39,11 +40,17 @@ Operational results and controlled errors are JSON with sorted object keys;
 help remains plain text. Unknown commands or options and missing or extra
 arguments return `INVALID_COMMAND` with a usage hint without echoing tokens.
 
-For `validate-policy`, `evaluate`, `check-order`, and `generate-synthetic`, policy
-and response arguments accept `-` for bounded strict JSON on standard input.
-At most one input argument may use standard input. The same 1,000,000-byte and
-structural limits apply to files and standard input. `--output` selects a file
-and does not accept `-`; playground inputs are file paths only.
+Every JSON input argument of every command except `playground` accepts `-` for
+bounded strict JSON on standard input. At most one input argument may use
+standard input. The same 1,000,000-byte and structural limits apply to files and
+standard input. `--output` selects a file, does not accept `-`, and creates any
+missing parent directories; playground inputs are file paths only.
+
+Inputs must be UTF-8 without a byte order mark. On Windows, PowerShell 5.1
+`Out-File` and the `>` redirection write UTF-16 with a byte order mark, which is
+rejected as `INVALID_JSON_INPUT` with a message naming the encoding. Use
+PowerShell 7 `Set-Content -Encoding utf8NoBOM`, or let the command write its
+result with `--output`.
 
 For `evaluate` and `check-order`, a completed nonconformance result returns `0`
 unless `--strict-exit` is supplied. With it, conformance returns `0`, valid
@@ -172,7 +179,9 @@ The explicit shell redirection saves the receipt. Commands otherwise print JSON
 and do not persist inputs. Verification recomputes policy and response digests
 and every evaluation field, including rule order. Canonical JSON uses sorted
 object keys, compact separators, UTF-8, and strict finite numbers; array order
-and numeric representations remain significant. Policy digests include policy
+and numeric representations remain significant. The same canonical form decides
+`equals` and `one_of` evaluation, not only digests: an integer literal such as
+`1` never equals `1.0` or `1e0`, and `0.0` never equals `-0.0`. Policy digests include policy
 identifiers and declared rule order. Whitespace and object member order do not
 change digests.
 
@@ -189,12 +198,22 @@ With `--strict-exit`, exit 1 means:
 
 | Command | Condition |
 | --- | --- |
+| `evaluate` | The response failed at least one rule. |
+| `check-order` | The report does not conform within coverage, including order drift and inconclusive nondeterministic results. |
 | `lint-policy` | A conflict was found; duplicate-only findings do not fail. |
 | `explain` | The response failed at least one rule. |
 | `run-suite` | At least one expected pass state did not match. |
 | `suite-coverage` | At least one rule lacks an observed pass or fail. |
 | `compare-policies` | At least one fixture verdict or rule result changed. Definition-only changes may still exit 0. |
 | `verify-receipt` | At least one digest or evaluation binding did not match. |
+| `inspect-suite` | Duplicate responses carry conflicting expectations. |
+| `triage-suite` | At least one explicit expectation or rule assertion did not match. |
+| `verify-suite-receipt` | At least one suite receipt binding did not match. |
+| `replay` | The bundle bindings are inconsistent or its fixture expectations did not match. |
+| `diff-suites` | The two corpora differ in any way, including case order alone. |
+| `audit-assertions` | At least one rule assertion is incompatible with the policy or the expected verdict. |
+| `migration-expectations` | At least one case newly mismatches its expectations under the candidate policy. |
+| `check-suite` | Any of the lint, consistency, assertion or regression preflight checks failed. |
 
 All JSON input arguments accept `-`, with at most one stdin input per invocation.
 Existing playground and output-path exceptions remain unchanged. Inputs retain

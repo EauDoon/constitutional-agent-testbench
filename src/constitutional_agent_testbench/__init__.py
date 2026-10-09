@@ -1,5 +1,6 @@
 """Public API for Constitutional Agent Testbench."""
 
+from ._version import __version__ as __version__
 from .evaluator import (
     EvaluationInputError,
     EvaluationResult,
@@ -81,6 +82,3 @@ __all__ = [
     "generate_synthetic_cases",
     "validate_policy",
 ]
-
-__version__ = "0.5.19"
-

@@ -33,10 +33,39 @@ python -m evals.runner
 Also exercise every public command against the bundled examples:
 
 ```text
-python -m constitutional_agent_testbench.cli validate-policy examples/policy.json
-python -m constitutional_agent_testbench.cli evaluate examples/policy.json examples/passing-response.json
-python -m constitutional_agent_testbench.cli check-order examples/policy.json examples/passing-response.json
-python -m constitutional_agent_testbench.cli generate-synthetic examples/policy.json
+python -m constitutional_agent_testbench --version
+python -m constitutional_agent_testbench validate-policy examples/policy.json
+python -m constitutional_agent_testbench evaluate examples/policy.json examples/passing-response.json
+python -m constitutional_agent_testbench check-order examples/policy.json examples/passing-response.json
+python -m constitutional_agent_testbench generate-synthetic examples/policy.json
+```
+
+Lint with the same pinned ruff release and rule set as CI. The rules are
+declared in `pyproject.toml`:
+
+```text
+python -m pip install ruff==0.16.8
+python -m ruff check --no-cache .
+```
+
+Type-check the public API the way a downstream consumer sees it. Install the
+package first, so mypy reads the installed copy and its `py.typed` marker:
+
+```text
+python -m pip install --no-deps .
+python -m pip install mypy==2.3.1
+python -m mypy --python-version 3.11 --follow-imports=silent tests/static_typing/public_api.py
+```
+
+Measure branch coverage against the installed package. The settings live in
+`pyproject.toml`, and `coverage report` fails below the 95 percent floor. Raise
+the floor with tests; never lower it to make a change pass:
+
+```text
+python -m pip install --no-deps .
+python -m pip install coverage==7.16.1
+python -m coverage run -m unittest discover -s tests
+python -m coverage report
 ```
 
 Build and inspect both distribution formats before release:
@@ -51,8 +80,14 @@ python -m tarfile -l dist/*.tar.gz
 
 A proposed change should describe its public behavior, tests, compatibility impact, and any new limitation. Generated examples must remain fully synthetic. Changes to the policy schema or output contract require an explicit versioning decision.
 
-Keep the version in `pyproject.toml`, `__version__` in the public package, and
-the changelog entry synchronized.
+Every user-facing change adds a line under `## [Unreleased]` in
+`CHANGELOG.md`, which follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-By contributing, contributors agree that accepted changes are distributed under the MIT License.
+Edit the version only in `src/constitutional_agent_testbench/_version.py`;
+`pyproject.toml` reads it at build time and the package re-exports it as
+`__version__`. `python scripts/check_version.py` confirms that the version, the
+first `CHANGELOG.md` release heading, `release/vX.Y.Z-manifest.json` and the
+README version line agree; CI runs it on every pull request.
+
+By contributing, contributors agree that accepted changes are distributed under the Apache License 2.0.
 

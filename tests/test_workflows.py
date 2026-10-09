@@ -1,4 +1,5 @@
 import copy
+import importlib.metadata
 import unittest
 from unittest.mock import patch
 from pathlib import Path
@@ -197,6 +198,18 @@ class ReceiptTests(unittest.TestCase):
             with self.assertRaises(ReceiptInputError):
                 verify_receipt(raw, {}, receipt)
 
+    def test_rejects_unsupported_versions_and_non_strict_receipts(self):
+        raw = policy(rule())
+        for field, value in (("receipt_version", "2.0"), ("digest_algorithm", "md5")):
+            receipt = create_receipt(raw, {})
+            receipt[field] = value
+            with self.subTest(field=field), self.assertRaisesRegex(ReceiptInputError, "unsupported"):
+                verify_receipt(raw, {}, receipt)
+        receipt = create_receipt(raw, {})
+        receipt["evaluation"]["passed"] = float("nan")
+        with self.assertRaisesRegex(ReceiptInputError, "strict JSON"):
+            verify_receipt(raw, {}, receipt)
+
     def test_policy_identity_and_rule_order_are_bound(self):
         raw = policy(rule(), rule("present", "required_field"))
         receipt = parse_json_text(stable_json(create_receipt(raw, {"action": False})))
@@ -243,7 +256,19 @@ class OperatorBoundaryTests(unittest.TestCase):
 
     def test_public_api_and_version(self):
         import constitutional_agent_testbench as package
-        self.assertEqual(package.__version__, "0.5.19")
+        from constitutional_agent_testbench import _version
+        self.assertRegex(package.__version__, r"^\d+\.\d+\.\d+$")
+        self.assertIs(package.__version__, _version.__version__)
+        # Compare installed metadata only when it describes the imported copy;
+        # PYTHONPATH=src can shadow an older installed distribution.
+        try:
+            dist = importlib.metadata.distribution("constitutional-agent-testbench")
+        except importlib.metadata.PackageNotFoundError:
+            dist = None
+        if dist is not None:
+            located = Path(dist.locate_file("constitutional_agent_testbench/__init__.py"))
+            if located.resolve() == Path(package.__file__).resolve():
+                self.assertEqual(dist.version, package.__version__)
         for name in ("lint_policy", "explain_response", "evaluate_suite", "suite_coverage",
                      "compare_policies", "generate_rule_probes", "create_receipt", "verify_receipt"):
             self.assertTrue(callable(getattr(package, name)))

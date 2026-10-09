@@ -35,15 +35,71 @@ COMMANDS["migration-expectations"] = (('policy', 'candidate', 'suite'), migratio
 COMMANDS["check-suite"] = (('policy', 'suite'), check_suite, 'ready')
 COMMANDS["import-responses"] = (('responses', 'expectations'), import_responses, None)
 
+# One-line purpose per table-driven command, worded from docs/OPERATOR.md and
+# docs/CORPUS.md. Used as both the --help listing entry and the description.
+COMMAND_HELP = {
+    "inspect-policy": "Inventory rule kinds, paths and ancestors without values.",
+    "inspect-suite": (
+        "Find repeated responses and conflicting expectations without values; "
+        "strict exit fails on conflicting expectations."
+    ),
+    "merge-suites": "Append two same-version suites; duplicate case IDs fail closed.",
+    "select-suite": "Select exact case IDs from a suite, preserving source order.",
+    "triage-suite": (
+        "Group failed expectations by rule, path and reason; strict exit fails "
+        "on mismatched expectations."
+    ),
+    "reduce-suite": "Keep a deterministic subset that preserves every observed outcome.",
+    "create-suite-receipt": "Bind a suite and its results to a recomputable receipt.",
+    "verify-suite-receipt": (
+        "Recompute a suite receipt; strict exit fails on inconsistent bindings."
+    ),
+    "create-replay": "Package policy, suite and receipt into one portable replay bundle.",
+    "replay": (
+        "Recompute a replay bundle; strict exit needs valid bindings and "
+        "matching expectations."
+    ),
+    "validate-suite": "Validate a version 1.0 or 1.1 suite without evaluating a policy.",
+    "capture-assertions": (
+        "Record observed rule results as version 1.1 assertions once existing "
+        "expectations match."
+    ),
+    "diff-suites": (
+        "Report case, field and order changes without values; strict exit fails "
+        "on any difference."
+    ),
+    "shard-suite": "Split a suite into one round-robin shard.",
+    "select-outcomes": "Select matched, mismatched, passed or failed cases into a new suite.",
+    "deduplicate-suite": "Keep the first case of each identical response and expectation.",
+    "audit-assertions": (
+        "Check rule assertions against the policy; strict exit fails on "
+        "incompatible assertions."
+    ),
+    "migration-expectations": (
+        "Compare expectation outcomes between two policies; strict exit fails "
+        "on regressions."
+    ),
+    "check-suite": (
+        "Run lint, consistency, assertion and regression preflight; strict exit "
+        "requires all four."
+    ),
+    "import-responses": "Import a response array with an explicit expected-verdict array.",
+}
+
 
 def add_operation_parsers(subparsers):
     for name, (fields, _, strict_field) in COMMANDS.items():
-        parser = subparsers.add_parser(name, help=f"Run {name} locally.", allow_abbrev=False)
+        summary = COMMAND_HELP[name]
+        parser = subparsers.add_parser(name, help=summary, description=summary, allow_abbrev=False)
         for field in fields:
             parser.add_argument(field, help=f"{field} JSON path, or - for stdin")
         parser.add_argument("--output", metavar="PATH", help="atomically export JSON; never overwrite an input")
         if strict_field:
-            parser.add_argument("--strict-exit", action="store_true")
+            parser.add_argument(
+                "--strict-exit",
+                action="store_true",
+                help=f"return 1 unless the result's {strict_field} is true",
+            )
 
 
 def run_operation(arguments, load):

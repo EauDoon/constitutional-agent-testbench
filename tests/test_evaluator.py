@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import unittest
 from importlib.resources import files
 
@@ -341,6 +342,71 @@ class EvaluatorTests(unittest.TestCase):
                     result["rule_results"][0]["reason_code"],
                     "RULE_SATISFIED" if expected else "VALUE_NOT_ALLOWED",
                 )
+
+
+def single_rule_policy(rule: dict) -> dict:
+    return {
+        "schema_version": "1.0",
+        "policy_id": "numeric-literal-policy",
+        "rules": [{"rule_id": "x-rule", "path": "x", **rule}],
+    }
+
+
+class NumericLiteralTests(unittest.TestCase):
+    """Pin the documented contract: the numeric literal form decides equality.
+
+    Equality is canonical-JSON equality, the same representation receipt
+    digests bind, so 1 and 1.0, 1e2 and 100, and 0.0 and -0.0 are different
+    values. Changing this would invalidate existing receipts and replay bundles.
+    """
+
+    def outcome(self, rule: dict, observed) -> tuple[bool, str]:
+        result = evaluate_response(single_rule_policy(rule), {"x": observed})
+        row = result["rule_results"][0]
+        return row["passed"], row["reason_code"]
+
+    def test_equals_integer_rejects_the_float_literal(self) -> None:
+        rule = {"kind": "equals", "value": 1}
+        self.assertEqual(self.outcome(rule, 1), (True, "RULE_SATISFIED"))
+        self.assertEqual(self.outcome(rule, 1.0), (False, "VALUE_NOT_EQUAL"))
+
+    def test_one_of_integer_rejects_an_exponent_literal(self) -> None:
+        observed = json.loads('{"x": 1e2}')["x"]
+        self.assertEqual(
+            self.outcome({"kind": "one_of", "values": [100]}, observed),
+            (False, "VALUE_NOT_ALLOWED"),
+        )
+
+    def test_fraction_and_exponent_literals_of_one_value_are_equal(self) -> None:
+        # Both parse to the same float, so only the integer/non-integer split
+        # and the sign of zero are significant, not the spelling.
+        rule = {"kind": "equals", "value": 1.0}
+        for text in ("1.0", "1e0", "1E0", "10e-1"):
+            with self.subTest(literal=text):
+                observed = json.loads(f'{{"x": {text}}}')["x"]
+                self.assertEqual(self.outcome(rule, observed), (True, "RULE_SATISFIED"))
+
+    def test_equals_zero_rejects_negative_zero(self) -> None:
+        self.assertEqual(
+            self.outcome({"kind": "equals", "value": 0.0}, -0.0),
+            (False, "VALUE_NOT_EQUAL"),
+        )
+
+    def test_one_of_keeps_integer_and_float_literals_as_two_values(self) -> None:
+        validated = cat.validate_policy(
+            single_rule_policy({"kind": "one_of", "values": [1, 1.0]})
+        )
+        self.assertEqual(len(validated.rules[0].values), 2)
+
+    def test_boolean_true_and_number_one_stay_unequal(self) -> None:
+        self.assertEqual(
+            self.outcome({"kind": "equals", "value": True}, 1),
+            (False, "VALUE_NOT_EQUAL"),
+        )
+        self.assertEqual(
+            self.outcome({"kind": "equals", "value": 1}, True),
+            (False, "VALUE_NOT_EQUAL"),
+        )
 
 
 class ReasonCodeVocabularyTests(unittest.TestCase):

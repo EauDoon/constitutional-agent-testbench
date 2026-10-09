@@ -25,7 +25,7 @@ A clear and concise description of what you expected to happen.
 **Environment**
 
 - Python version: 
-- Package version: 
+- Package version (output of `constitutional-agent-testbench --version`): 
 - Operating system: 
 
 **Minimal policy and response**

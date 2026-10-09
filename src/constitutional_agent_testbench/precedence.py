@@ -17,7 +17,7 @@ from .common import (
     canonical_json,
     ensure_json_value,
 )
-from .evaluator import evaluate_response
+from .evaluator import EvaluationResult, evaluate_response
 from .policy import (
     Policy,
     PolicyValidationError,
@@ -36,7 +36,10 @@ MAX_REPORT_BYTES = 1_000_000
 MIN_REASON_CODE_LENGTH = 1
 MAX_REASON_CODE_LENGTH = 128
 
-Evaluator = Callable[[Policy, Any], dict[str, Any]]
+# A custom evaluator may return the public EvaluationResult TypedDict or a plain
+# dict. mypy treats a TypedDict as incompatible with dict[str, Any], so both
+# are named; _validate_evaluation still enforces the exact contract at runtime.
+Evaluator = Callable[[Policy, Any], EvaluationResult | dict[str, Any]]
 
 
 class PrecedenceTraceError(TestbenchError):
@@ -462,6 +465,7 @@ def _nondeterministic_report(
             "work_budget_bytes": MAX_EXHAUSTIVE_WORK_BYTES,
         },
         "policy_id": policy.policy_id,
+        "presentation_follows_requested_order": None,
         "report_schema_version": REPORT_SCHEMA_VERSION,
         "status": "INCONCLUSIVE_NONDETERMINISTIC",
         "variance": None,

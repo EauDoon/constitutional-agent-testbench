@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import argparse
+import codecs
 import io
 import json
+import re
+import runpy
 import sys
 import tempfile
 import unittest
@@ -9,8 +13,10 @@ from contextlib import nullcontext, redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
+from constitutional_agent_testbench import __version__, cli
 from constitutional_agent_testbench.cli import main
 from constitutional_agent_testbench.common import (
+    ENCODING_MESSAGE,
     MAX_JSON_INPUT_BYTES,
     JsonInputError,
     load_json,
@@ -653,6 +659,199 @@ class CliTests(unittest.TestCase):
         self.assertEqual(exit_code, 2)
         self.assertEqual(stdout, "")
         self.assertEqual(json.loads(stderr)["error"]["code"], "ORDER_CHECK_TOO_LARGE")
+
+    def test_uncontrolled_data_errors_exit_two_with_invalid_data(self) -> None:
+        # Any data error that escapes a command's own validation must still
+        # produce the documented JSON error and exit 2, never a traceback.
+        for error in (ValueError, TypeError, OverflowError, RecursionError):
+            with self.subTest(error=error.__name__), patch(
+                "constitutional_agent_testbench.cli._run_command",
+                side_effect=error("internal detail"),
+            ):
+                exit_code, stdout, stderr = run_cli(["validate-policy", str(POLICY)])
+            self.assertEqual(exit_code, 2)
+            self.assertEqual(stdout, "")
+            payload = json.loads(stderr)["error"]
+            self.assertEqual(payload["code"], "INVALID_DATA")
+            self.assertNotIn("internal detail", stderr)
+
+
+def _subcommands() -> tuple[dict[str, argparse.ArgumentParser], dict[str, str]]:
+    """Return each subparser and its --help listing entry."""
+
+    parser = cli._build_parser()
+    action = next(
+        item for item in parser._actions if isinstance(item, argparse._SubParsersAction)
+    )
+    listing = {choice.dest: choice.help or "" for choice in action._choices_actions}
+    return dict(action.choices), listing
+
+
+def _strict_exit_actions(parser: argparse.ArgumentParser) -> list[argparse.Action]:
+    return [item for item in parser._actions if "--strict-exit" in item.option_strings]
+
+
+class HelpContractTests(unittest.TestCase):
+    """The CLI and the operator guide must describe the same command surface."""
+
+    def test_every_command_has_specific_help_and_a_description(self) -> None:
+        commands, listing = _subcommands()
+        self.assertEqual(set(commands), set(listing))
+        for name, command_parser in commands.items():
+            with self.subTest(command=name):
+                self.assertTrue(listing[name].strip())
+                self.assertNotIn("locally.", listing[name])
+                self.assertTrue((command_parser.description or "").strip())
+
+    def test_every_strict_exit_flag_explains_its_condition(self) -> None:
+        commands, _ = _subcommands()
+        for name, command_parser in commands.items():
+            for action in _strict_exit_actions(command_parser):
+                with self.subTest(command=name):
+                    self.assertTrue((action.help or "").strip())
+
+    def test_operator_guide_lists_every_strict_exit_command(self) -> None:
+        commands, _ = _subcommands()
+        gated = {name for name, item in commands.items() if _strict_exit_actions(item)}
+        self.assertEqual(len(gated), 16)
+        guide = (ROOT / "docs" / "OPERATOR.md").read_text(encoding="utf-8")
+        section = guide.split("## Exit codes and boundaries", 1)[1].split("\n## ", 1)[0]
+        documented = set(re.findall(r"^\| `([a-z-]+)` \|", section, re.MULTILINE))
+        self.assertEqual(documented, gated)
+
+    def test_top_level_help_documents_output_for_every_command(self) -> None:
+        exit_code, stdout, stderr = run_cli(["--help"])
+        self.assertEqual((exit_code, stderr), (0, ""))
+        self.assertIn("--output", stdout)
+        self.assertIn("creates missing parent directories", stdout)
+        self.assertNotIn("locally.", stdout)
+
+
+class VersionTests(unittest.TestCase):
+    """Bug reports and scripts can state the installed version."""
+
+    EXPECTED = f"constitutional-agent-testbench {__version__}\n"
+
+    def test_version_prints_exactly_once(self) -> None:
+        for arguments in (["--version"], ["--version", "validate-policy"]):
+            with self.subTest(arguments=arguments):
+                exit_code, stdout, stderr = run_cli(arguments)
+                self.assertEqual((exit_code, stdout, stderr), (0, self.EXPECTED, ""))
+
+    def test_version_after_a_command_is_an_unknown_option(self) -> None:
+        for arguments in (["evaluate", "--version"],
+                          ["validate-policy", str(POLICY), "--version"]):
+            with self.subTest(arguments=arguments):
+                exit_code, stdout, stderr = run_cli(arguments)
+                self.assertEqual((exit_code, stdout), (2, ""))
+                self.assertEqual(json.loads(stderr)["error"]["code"], "INVALID_COMMAND")
+
+    def test_python_dash_m_runs_the_cli(self) -> None:
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with patch.object(sys, "argv", ["constitutional_agent_testbench", "--version"]), \
+                redirect_stdout(stdout), redirect_stderr(stderr), \
+                self.assertRaises(SystemExit) as raised:
+            runpy.run_module("constitutional_agent_testbench", run_name="__main__")
+        self.assertEqual(raised.exception.code, 0)
+        self.assertEqual((stdout.getvalue(), stderr.getvalue()), (self.EXPECTED, ""))
+
+    def test_playground_entry_point_reports_the_version(self) -> None:
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            exit_code = playground_main(["--version"])
+        self.assertEqual((exit_code, stdout.getvalue(), stderr.getvalue()),
+                         (0, self.EXPECTED, ""))
+
+
+class StreamFailureTests(unittest.TestCase):
+    """Unreadable streams fail closed with the generic read message."""
+
+    def test_stream_read_errors_and_unexpected_payloads_fail_closed(self) -> None:
+        class FailingStream:
+            def read(self, _size: int) -> bytes:
+                raise OSError("device detached")
+
+        class NonTextStream:
+            def read(self, _size: int) -> object:
+                return 42
+
+        surrogate_text = io.StringIO('"\ud800"')
+        for label, stream in (
+            ("read error", FailingStream()),
+            ("non-text payload", NonTextStream()),
+            ("lone surrogate text", surrogate_text),
+        ):
+            with self.subTest(stream=label):
+                with self.assertRaises(JsonInputError) as raised:
+                    load_json_stream(stream)  # type: ignore[arg-type]
+                self.assertEqual(
+                    str(raised.exception), "Unable to read the requested JSON input."
+                )
+
+
+class EncodingErrorTests(unittest.TestCase):
+    """Encoding problems are named instead of looking like a missing file."""
+
+    SAMPLES = {
+        "utf-8-bom": codecs.BOM_UTF8 + b"{}",
+        "utf-16-powershell": "{}".encode("utf-16"),
+        "utf-16-be-bom": codecs.BOM_UTF16_BE + "{}".encode("utf-16-be"),
+        "utf-32": "{}".encode("utf-32"),
+        "invalid-utf-8": bytes([0x22, 0xFF, 0x22]),
+    }
+
+    def assert_encoding_error(self, exit_code: int, stdout: str, stderr: str) -> None:
+        self.assertEqual(exit_code, 2)
+        self.assertEqual(stdout, "")
+        error = json.loads(stderr)["error"]
+        self.assertEqual(error["code"], "INVALID_JSON_INPUT")
+        self.assertEqual(error["message"], ENCODING_MESSAGE)
+        self.assertIn("byte order mark", error["message"])
+
+    def test_file_inputs_report_an_encoding_specific_error(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            for name, payload in self.SAMPLES.items():
+                with self.subTest(sample=name):
+                    path = Path(directory) / f"{name}.json"
+                    path.write_bytes(payload)
+                    exit_code, stdout, stderr = run_cli(["validate-policy", str(path)])
+                    self.assert_encoding_error(exit_code, stdout, stderr)
+                    self.assertNotIn(str(path), stderr)
+
+    def test_missing_file_keeps_the_read_failure_message(self) -> None:
+        missing = ROOT / "examples" / "does-not-exist.json"
+        exit_code, _stdout, stderr = run_cli(["validate-policy", str(missing)])
+        self.assertEqual(exit_code, 2)
+        self.assertEqual(
+            json.loads(stderr)["error"]["message"],
+            "Unable to read the requested JSON input.",
+        )
+
+    def test_binary_standard_input_with_a_bom_is_named(self) -> None:
+        stdin = io.TextIOWrapper(io.BytesIO(codecs.BOM_UTF8 + POLICY.read_bytes()), encoding="utf-8")
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with patch.object(sys, "stdin", stdin), redirect_stdout(stdout), redirect_stderr(stderr):
+            exit_code = main(["validate-policy", "-"])
+        self.assert_encoding_error(exit_code, stdout.getvalue(), stderr.getvalue())
+
+    def test_text_standard_input_with_a_bom_is_named(self) -> None:
+        exit_code, stdout, stderr = run_cli(
+            ["validate-policy", "-"],
+            stdin_text=chr(0xFEFF) + POLICY.read_text(encoding="utf-8"),
+        )
+        self.assert_encoding_error(exit_code, stdout, stderr)
+
+    def test_undecodable_text_stream_is_named(self) -> None:
+        stream = io.TextIOWrapper(io.BytesIO(bytes([0x22, 0xFF, 0x22])), encoding="utf-8")
+        with self.assertRaisesRegex(JsonInputError, "byte order mark"):
+            load_json_stream(stream)
+
+    def test_oversized_input_reports_the_limit_even_inside_a_character(self) -> None:
+        # The bounded read stops inside a two-byte character; the limit, not a
+        # decoding failure, is the accurate diagnosis.
+        payload = b'"a' + chr(0xE9).encode("utf-8") * (MAX_JSON_INPUT_BYTES // 2) + b'"'
+        with self.assertRaisesRegex(JsonInputError, "1,000,000-byte"):
+            load_json_stream(io.BytesIO(payload))
 
 
 if __name__ == "__main__":
