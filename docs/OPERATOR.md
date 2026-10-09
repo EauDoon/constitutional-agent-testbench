@@ -7,7 +7,8 @@ assertion, receipt, replay, and atomic-export workflow.
 
 Use the installed `constitutional-agent-testbench` command after
 `python -m pip install --no-deps .`. For source-only development, set
-`PYTHONPATH=src` and use `python -m constitutional_agent_testbench.cli` instead.
+`PYTHONPATH=src` and use `python -m constitutional_agent_testbench` instead.
+`constitutional-agent-testbench --version` prints the installed package version.
 
 | Command | Purpose |
 | --- | --- |

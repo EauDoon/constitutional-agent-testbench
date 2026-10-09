@@ -187,6 +187,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     from .cli import main as cli_main
 
     arguments = list(sys.argv[1:] if argv is None else argv)
+    if arguments == ["--version"]:
+        return cli_main(["--version"])
     return cli_main(["playground", *arguments])
 
 

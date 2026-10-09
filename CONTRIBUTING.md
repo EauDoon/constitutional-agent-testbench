@@ -33,10 +33,11 @@ python -m evals.runner
 Also exercise every public command against the bundled examples:
 
 ```text
-python -m constitutional_agent_testbench.cli validate-policy examples/policy.json
-python -m constitutional_agent_testbench.cli evaluate examples/policy.json examples/passing-response.json
-python -m constitutional_agent_testbench.cli check-order examples/policy.json examples/passing-response.json
-python -m constitutional_agent_testbench.cli generate-synthetic examples/policy.json
+python -m constitutional_agent_testbench --version
+python -m constitutional_agent_testbench validate-policy examples/policy.json
+python -m constitutional_agent_testbench evaluate examples/policy.json examples/passing-response.json
+python -m constitutional_agent_testbench check-order examples/policy.json examples/passing-response.json
+python -m constitutional_agent_testbench generate-synthetic examples/policy.json
 ```
 
 Lint with the same pinned ruff release and rule set as CI. The rules are

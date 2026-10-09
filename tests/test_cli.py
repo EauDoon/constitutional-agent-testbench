@@ -5,6 +5,7 @@ import codecs
 import io
 import json
 import re
+import runpy
 import sys
 import tempfile
 import unittest
@@ -12,7 +13,7 @@ from contextlib import nullcontext, redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
-from constitutional_agent_testbench import cli
+from constitutional_agent_testbench import __version__, cli
 from constitutional_agent_testbench.cli import main
 from constitutional_agent_testbench.common import (
     ENCODING_MESSAGE,
@@ -724,6 +725,42 @@ class HelpContractTests(unittest.TestCase):
         self.assertIn("--output", stdout)
         self.assertIn("creates missing parent directories", stdout)
         self.assertNotIn("locally.", stdout)
+
+
+class VersionTests(unittest.TestCase):
+    """Bug reports and scripts can state the installed version."""
+
+    EXPECTED = f"constitutional-agent-testbench {__version__}\n"
+
+    def test_version_prints_exactly_once(self) -> None:
+        for arguments in (["--version"], ["--version", "validate-policy"]):
+            with self.subTest(arguments=arguments):
+                exit_code, stdout, stderr = run_cli(arguments)
+                self.assertEqual((exit_code, stdout, stderr), (0, self.EXPECTED, ""))
+
+    def test_version_after_a_command_is_an_unknown_option(self) -> None:
+        for arguments in (["evaluate", "--version"],
+                          ["validate-policy", str(POLICY), "--version"]):
+            with self.subTest(arguments=arguments):
+                exit_code, stdout, stderr = run_cli(arguments)
+                self.assertEqual((exit_code, stdout), (2, ""))
+                self.assertEqual(json.loads(stderr)["error"]["code"], "INVALID_COMMAND")
+
+    def test_python_dash_m_runs_the_cli(self) -> None:
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with patch.object(sys, "argv", ["constitutional_agent_testbench", "--version"]), \
+                redirect_stdout(stdout), redirect_stderr(stderr), \
+                self.assertRaises(SystemExit) as raised:
+            runpy.run_module("constitutional_agent_testbench", run_name="__main__")
+        self.assertEqual(raised.exception.code, 0)
+        self.assertEqual((stdout.getvalue(), stderr.getvalue()), (self.EXPECTED, ""))
+
+    def test_playground_entry_point_reports_the_version(self) -> None:
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            exit_code = playground_main(["--version"])
+        self.assertEqual((exit_code, stdout.getvalue(), stderr.getvalue()),
+                         (0, self.EXPECTED, ""))
 
 
 class StreamFailureTests(unittest.TestCase):

@@ -9,6 +9,7 @@ from pathlib import Path
 from collections.abc import Sequence
 from typing import Any
 
+from ._version import __version__
 from .common import (
     TestbenchError,
     load_json,
@@ -84,6 +85,12 @@ def _build_parser() -> argparse.ArgumentParser:
             "return 1 for a valid negative result."
         ),
         allow_abbrev=False,
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"constitutional-agent-testbench {__version__}",
+        help="print the installed package version and exit",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
     add_operation_parsers(subparsers)
@@ -302,9 +309,24 @@ def _scan_unknown_option(tokens: list[str]) -> bool:
     return False
 
 
+def _requests_version(tokens: list[str]) -> bool:
+    """True when --version precedes the command, where it is a top-level flag."""
+
+    for token in tokens:
+        if token == "--version":
+            return True
+        if token == "--" or not _is_option_token(token):
+            return False
+    return False
+
+
 def _unknown_arguments(argv: Sequence[str] | None) -> bool:
     tokens = list(sys.argv[1:] if argv is None else argv)
     if any(token in {"-h", "--help"} for token in tokens):
+        return False
+    # The probe parse below would run the version action and print it a second
+    # time. After a command, --version stays an unknown option.
+    if _requests_version(tokens):
         return False
     if _scan_unknown_option(tokens):
         return True
