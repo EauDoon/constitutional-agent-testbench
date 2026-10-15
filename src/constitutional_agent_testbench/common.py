@@ -61,39 +61,42 @@ def _reject_duplicate_members(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 def load_json_stream(input_file: BinaryIO | TextIO) -> Any:
     """Load bounded strict JSON from a binary or text input stream."""
 
-    try:
-        data = input_file.read(MAX_JSON_INPUT_BYTES + 1)
-    except UnicodeError as exc:
-        raise JsonInputError(ENCODING_MESSAGE) from exc
-    except OSError as exc:
-        raise JsonInputError("Unable to read the requested JSON input.") from exc
-
-    if isinstance(data, bytes):
-        size = len(data)
-    elif isinstance(data, str):
+    data = bytearray()
+    stream_is_binary = None
+    while True:
         try:
-            size = len(data.encode("utf-8"))
-        except UnicodeError as exc:
-            raise JsonInputError("Unable to read the requested JSON input.") from exc
-    else:
-        raise JsonInputError("Unable to read the requested JSON input.")
-
-    # The bounded read may end inside a multi-byte character, so the size limit
-    # is reported before any decoding is attempted.
-    if size > MAX_JSON_INPUT_BYTES:
-        raise JsonInputError(
-            "The requested input exceeds the 1,000,000-byte file-size limit."
-        )
-
-    if isinstance(data, bytes):
-        if data.startswith(_BYTE_ORDER_MARKS):
-            raise JsonInputError(ENCODING_MESSAGE)
-        try:
-            text = data.decode("utf-8")
+            chunk = input_file.read(MAX_JSON_INPUT_BYTES + 1 - len(data))
         except UnicodeError as exc:
             raise JsonInputError(ENCODING_MESSAGE) from exc
-    else:
-        text = data
+        except OSError as exc:
+            raise JsonInputError("Unable to read the requested JSON input.") from exc
+
+        binary = isinstance(chunk, bytes)
+        if not binary and not isinstance(chunk, str):
+            raise JsonInputError("Unable to read the requested JSON input.")
+        if stream_is_binary is not None and binary != stream_is_binary:
+            raise JsonInputError("Unable to read the requested JSON input.")
+        stream_is_binary = binary
+        if not chunk:
+            break
+        try:
+            raw = chunk if isinstance(chunk, bytes) else chunk.encode("utf-8")
+        except UnicodeError as exc:
+            raise JsonInputError("Unable to read the requested JSON input.") from exc
+        # A short read is not EOF. Keep a cumulative byte budget and decode only
+        # the complete snapshot, since a chunk can split a UTF-8 character.
+        if len(data) + len(raw) > MAX_JSON_INPUT_BYTES:
+            raise JsonInputError(
+                "The requested input exceeds the 1,000,000-byte file-size limit."
+            )
+        data.extend(raw)
+
+    if data.startswith(_BYTE_ORDER_MARKS):
+        raise JsonInputError(ENCODING_MESSAGE)
+    try:
+        text = data.decode("utf-8")
+    except UnicodeError as exc:
+        raise JsonInputError(ENCODING_MESSAGE) from exc
 
     return parse_json_text(text)
 
