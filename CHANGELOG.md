@@ -11,6 +11,13 @@ original wording.
 
 ## [Unreleased]
 
+### Fixed
+
+- Strict JSON stream loading now consumes short reads through EOF while enforcing
+  the cumulative UTF-8 byte limit. A complete JSON prefix no longer hides trailing
+  data or a later read error, and valid JSON split across reads is accepted,
+  including multi-byte characters split between binary chunks.
+
 ## [0.6.0] - 2026-10-09
 
 ### Added
