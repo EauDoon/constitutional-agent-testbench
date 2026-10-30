@@ -1,0 +1,47 @@
+{
+  "id": "typed-failing",
+  "source": "examples/typed-policy.json",
+  "policy_path": "examples/typed-policy.json",
+  "input": {
+    "actions": [
+      "a",
+      "b",
+      "c",
+      "d",
+      "e",
+      "f"
+    ],
+    "blocked": false,
+    "confidence": 1.5,
+    "summary": 12
+  },
+  "expected": {
+    "passed": false,
+    "rules": {
+      "summary-is-text": {
+        "passed": false,
+        "reason_code": "VALUE_WRONG_TYPE"
+      },
+      "summary-not-empty": {
+        "passed": false,
+        "reason_code": "VALUE_LENGTH_OUT_OF_RANGE"
+      },
+      "confidence-in-unit-interval": {
+        "passed": false,
+        "reason_code": "VALUE_OUT_OF_RANGE"
+      },
+      "actions-is-array": {
+        "passed": true,
+        "reason_code": "RULE_SATISFIED"
+      },
+      "at-most-five-actions": {
+        "passed": false,
+        "reason_code": "VALUE_LENGTH_OUT_OF_RANGE"
+      },
+      "blocked-is-false": {
+        "passed": true,
+        "reason_code": "RULE_SATISFIED"
+      }
+    }
+  }
+}

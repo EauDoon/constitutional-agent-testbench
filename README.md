@@ -31,7 +31,7 @@ This is useful for development checks, regression suites, demonstrations, and pr
 
 | Capability | Behavior |
 | --- | --- |
-| Strict policy validation | Accepts version 1.0 policies with only declared fields and supported rule kinds. |
+| Strict policy validation | Accepts version 1.0 and 1.1 policies with only declared fields and supported rule kinds. Version 1.1 adds `type`, `range` and `length` rules. |
 | Structured path evaluation | Resolves validated dot-separated paths through nested JSON objects. |
 | Complete rule results | Evaluates every rule in policy order and reports a pass state and reason code for each one. |
 | Fail-closed checks | Treats every missing evaluation path as a failed rule. |
@@ -58,8 +58,8 @@ a JSON error on standard error. Keep `--strict-exit` when using evaluation as an
 automation gate; without it, a completed failing evaluation exits `0`.
 
 Current package version: **0.6.0**. See [the version source](src/constitutional_agent_testbench/_version.py) and
-[the changelog](CHANGELOG.md) for the version and changes. Policy schema `1.0`
-and optional suite schema `1.1` are separate from the package version.
+[the changelog](CHANGELOG.md) for the version and changes. Policy schemas `1.0`
+and `1.1` and optional suite schema `1.1` are separate from the package version.
 
 To exercise a complete installed workflow, including independently authored
 synthetic expectations, migration, receipts, and replay:
@@ -173,7 +173,7 @@ resolver. For one fixed policy and response it:
    identity disappears between the differing regions.
 
 Invoking the mode is the operator's declaration that the supplied rules should
-be tested as peers. Policy schema 1.0 is unchanged and has no priority or
+be tested as peers. Policy schemas 1.0 and 1.1 have no priority or
 equal-authority field; undeclared fields still fail validation. The mode tests
 behavior and does not infer institutional authority.
 
@@ -258,6 +258,28 @@ A path contains dot-separated object-key segments. Each segment starts with a le
 | `false` | `rule_id`, `kind`, `path` | The path value is the JSON boolean false. |
 | `empty_list` | `rule_id`, `kind`, `path` | The path value is an empty JSON array. |
 
+Policy schema `1.1` accepts every `1.0` rule unchanged and adds three kinds. A
+`1.0` policy that uses one of them fails with the usual unknown-kind error.
+
+| Kind (1.1) | Rule fields | Pass condition |
+| --- | --- | --- |
+| `type` | `rule_id`, `kind`, `path`, `types` | The path value has one of the listed JSON types: `array`, `boolean`, `integer`, `null`, `number`, `object` or `string`. |
+| `range` | `rule_id`, `kind`, `path`, and `minimum`, `maximum` or both | The path value is a JSON number within the inclusive bounds. |
+| `length` | `rule_id`, `kind`, `path`, and `minimum`, `maximum` or both | The path value is a string, array or object whose length is within the inclusive bounds. |
+
+- `integer` means an integer literal such as `1` or `100`; `1.0` and `1e2` are
+  numbers but not integers, the same literal-form rule `equals` applies.
+  `number` admits every number literal, integers included, so `types` may not
+  list `integer` beside it. A boolean is never a number. A `types` list that
+  admits every JSON value is rejected: use `required_field` for presence alone.
+- `range` compares numeric values, unlike `equals`: `0`, `0.0` and `-0.0` all fall
+  inside `[0, 0]`, and a large integer is compared exactly against a float
+  bound. Bounds are finite numbers, not booleans, with `minimum` at most
+  `maximum`. Every non-number fails.
+- `length` counts Unicode code points in a string, items in an array and members
+  in an object. Bounds are integers from 0 to 1,000,000, the input byte limit,
+  with `minimum` at most `maximum`. Every other value fails.
+
 Validation rejects:
 
 - unsupported schema versions;
@@ -282,6 +304,9 @@ The evaluator uses a small, stable reason-code vocabulary:
 | `VALUE_NOT_ALLOWED` | A `one_of` rule observed a value outside its allowed set. |
 | `VALUE_NOT_FALSE` | A `false` rule did not observe the JSON boolean false. |
 | `VALUE_NOT_EMPTY_LIST` | An `empty_list` rule did not observe an empty JSON array. |
+| `VALUE_WRONG_TYPE` | A `type` rule (schema 1.1) observed a value of an unlisted JSON type. |
+| `VALUE_OUT_OF_RANGE` | A `range` rule (schema 1.1) observed a non-number or a number outside its bounds. |
+| `VALUE_LENGTH_OUT_OF_RANGE` | A `length` rule (schema 1.1) observed a value with no length or a length outside its bounds. |
 
 All rules are evaluated even after one fails. This preserves a complete, inspectable record instead of returning only the first error.
 
@@ -297,7 +322,7 @@ Determinism comes from explicit constraints rather than hidden model behavior:
 - Nested policy values are copied during validation so later mutation of the source object cannot silently change the validated policy.
 - Synthetic paths are processed in a stable order, and both generated cases are evaluated before they are returned.
 
-Synthetic generation derives values from policy constraints and fixed neutral defaults. If constraints conflict, nested paths are incompatible, or a passing and failing pair cannot be verified, generation fails instead of labeling an invalid fixture as valid.
+Synthetic generation derives values from policy constraints and fixed neutral defaults. If constraints conflict, nested paths are incompatible, or a passing and failing pair cannot be verified, generation fails instead of labeling an invalid fixture as valid. For schema 1.1, `type`, `range` and `length` rules filter the finite candidates of `equals`, `one_of`, `false` and `empty_list`; a path they alone constrain tries a short fixed menu of neutral values and bounds. This is not a solver, so some satisfiable combinations fail closed: an object length minimum that its descendants do not already meet, an `integer` type with a narrow fractional range, or an array minimum above the 100,000-node limit.
 
 ## Safety and limitations
 
@@ -308,7 +333,7 @@ Keep these boundaries in view:
 - Policy quality and completeness remain the user's responsibility.
 - Input authenticity and downstream consequences are outside the evaluator's scope.
 - The built-in evaluator does not inspect prompts, free-form reasoning, model internals, or training data.
-- The rule language does not provide array traversal, regular expressions, numeric ranges, arithmetic, or cross-field logic.
+- The rule language does not provide array traversal, arithmetic, or cross-field logic. It deliberately has no regular expressions: Python's `re` has no timeout, and a policy pattern over untrusted responses could backtrack catastrophically.
 - JSON input files, validated policies, and candidate responses are limited to 1,000,000 bytes. In-memory JSON values are limited to 32 container levels and 100,000 nodes.
 - PrecedenceTrace additionally limits each in-memory policy, response, and returned evaluator result to 1,000,000 serialized UTF-8 bytes.
 - Policies are limited to 256 rules, `one_of` rules are limited to 256 candidate values, and field paths are limited to 32 segments.
@@ -325,7 +350,7 @@ From the repository root, expose `src` on `PYTHONPATH`, then run:
 python -m unittest discover -s tests -v
 ```
 
-The test suite covers all supported rule kinds, strict policy validation,
+The test suite covers all supported rule kinds in both policy schemas, strict policy validation,
 missing-field failure, stable reason codes, JSON type distinctions, duplicate
 object members, nested-value isolation, input limits, deterministic synthetic
 generation, fail-closed handling of conflicting synthetic constraints,

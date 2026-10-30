@@ -5,13 +5,40 @@ from typing import Any
 
 from .common import (MAX_JSON_INPUT_BYTES, bounded_canonical_json_size, canonical_json,
                      ensure_json_value, stable_json)
-from .evaluator import _compile
-from .policy import Policy, validate_policy
-from .synthetic import (SyntheticGenerationError, _assign_path, _delete_path, _verify,
-                        generate_synthetic_cases)
+from .evaluator import _compile, _evaluate_rule
+from .policy import Policy, Rule, validate_policy
+from .synthetic import (SyntheticGenerationError, _assign_path, _candidate_view, _delete_path,
+                        _verify, generate_synthetic_cases)
 from .suite import SuiteInputError, validate_suite
 
 MAX_PROBE_RULES = 64
+#: The longest boundary string or array a length probe builds.
+MAX_LENGTH_PROBE = 4096
+_PROBE_MENU: tuple[Any, ...] = (None, False, 0, 0.5, "synthetic-probe", [], {})
+
+
+def _filter_probe_value(rule: Rule) -> Any:
+    """First value verified to fail a type, range or length rule; boundaries first.
+
+    One always exists: a type rule cannot admit every JSON value, every
+    non-number fails a range rule, and every number fails a length rule.
+    """
+
+    boundaries: list[Any] = []
+    if rule.kind == "range":
+        if rule.maximum is not None:
+            boundaries.append(rule.maximum + 1)
+        if rule.minimum is not None:
+            boundaries.append(rule.minimum - 1)
+    elif rule.kind == "length":
+        if rule.maximum is not None and rule.maximum + 1 <= MAX_LENGTH_PROBE:
+            boundaries.extend(["s" * (int(rule.maximum) + 1), [None] * (int(rule.maximum) + 1)])
+        if rule.minimum:
+            boundaries.append("")
+    for value in (*boundaries, *_PROBE_MENU):
+        if not _evaluate_rule(rule, _candidate_view(rule.path, value))["passed"]:
+            return value
+    raise SyntheticGenerationError("A targeted failure could not be verified.")
 
 
 def generate_rule_probes(policy: Policy | dict[str, Any]) -> dict[str, Any]:
@@ -40,6 +67,8 @@ def generate_rule_probes(policy: Policy | dict[str, Any]) -> dict[str, Any]:
                     value: Any = True
                 elif rule.kind == "empty_list":
                     value = [None]
+                elif rule.kind in ("type", "range", "length"):
+                    value = _filter_probe_value(rule)
                 else:
                     forbidden = {canonical_json(v) for v in
                                  (rule.values if rule.kind == "one_of" else [rule.value])}

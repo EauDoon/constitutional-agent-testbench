@@ -78,6 +78,12 @@ jobs:
           constitutional-agent-testbench validate-policy examples/policy.json
           constitutional-agent-testbench evaluate examples/policy.json examples/passing-response.json
           constitutional-agent-testbench evaluate examples/policy.json examples/failing-response.json
+          constitutional-agent-testbench validate-policy examples/typed-policy.json
+          constitutional-agent-testbench evaluate examples/typed-policy.json examples/typed-passing-response.json --strict-exit
+          status=0; constitutional-agent-testbench evaluate examples/typed-policy.json examples/typed-failing-response.json --strict-exit > /dev/null || status=$?; test "$status" -eq 1
+          constitutional-agent-testbench generate-synthetic examples/typed-policy.json
+          constitutional-agent-testbench generate-probes examples/typed-policy.json
+          constitutional-agent-testbench lint-policy examples/typed-policy.json --strict-exit
           constitutional-agent-testbench generate-synthetic examples/policy.json
           constitutional-agent-testbench playground --smoke-test
           constitutional-agent-testbench lint-policy examples/policy.json --strict-exit

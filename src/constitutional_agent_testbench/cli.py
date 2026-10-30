@@ -129,8 +129,8 @@ def _build_parser() -> argparse.ArgumentParser:
 
     validate_parser = subparsers.add_parser(
         "validate-policy",
-        help="Validate a version 1.0 policy.",
-        description="Validate a version 1.0 policy and report its identifier and schema version.",
+        help="Validate a version 1.0 or 1.1 policy.",
+        description="Validate a version 1.0 or 1.1 policy and report its identifier and schema version.",
         allow_abbrev=False,
     )
     validate_parser.add_argument("policy", help="policy path, or - for standard input")
@@ -139,7 +139,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "evaluate",
         help="Evaluate a candidate response.",
         description=(
-            "Evaluate a candidate response against a version 1.0 policy. "
+            "Evaluate a candidate response against a version 1.0 or 1.1 policy. "
             "Completed evaluations return exit code 0 even when passed is false "
             "unless --strict-exit is supplied."
         ),

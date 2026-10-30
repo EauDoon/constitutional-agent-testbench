@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import math
 from copy import deepcopy
 from typing import Any, TypedDict
 
-from .common import TestbenchError, canonical_json
+from .common import MAX_JSON_NODES, TestbenchError, canonical_json
 from .evaluator import (
     EvaluationInputError,
     EvaluationResult,
@@ -23,6 +24,9 @@ from .policy import (
 )
 
 _MAX_COMPATIBILITY_WORK = MAX_POLICY_RULES * MAX_ONE_OF_VALUES
+#: Schema 1.1 kinds that admit many values; they filter candidates, never supply them.
+_FILTER_KINDS = frozenset({"type", "range", "length"})
+_CONFLICT_MESSAGE = "Policy has conflicting constraints and no synthetic pass can be verified."
 
 
 class SyntheticGenerationError(TestbenchError):
@@ -72,7 +76,7 @@ def _compatibility_cost(rule: Rule | None) -> int:
     return 1
 
 
-def _candidate_values(rules: list[Rule]) -> list[Any]:
+def _finite_candidates(rules: list[Rule]) -> list[Any]:
     fixed_values: list[Any] = []
     allowed_groups: list[tuple[Any, ...]] = []
     for rule in rules:
@@ -118,6 +122,52 @@ def _candidate_values(rules: list[Rule]) -> list[Any]:
         )
 
     return [None]
+
+
+def _filter_menu(filters: list[Rule]) -> list[Any]:
+    """Fixed candidates for a path that only type, range and length rules constrain.
+
+    This is a short deterministic menu, not a solver: a satisfiable combination
+    that none of these values meets fails closed. Objects are never padded and
+    arrays never exceed the node limit.
+    """
+
+    menu: list[Any] = [None, False, 0]
+    for rule in filters:
+        if rule.kind == "range":
+            if rule.minimum is not None:
+                menu.append(math.ceil(rule.minimum))
+            if rule.maximum is not None:
+                menu.append(math.floor(rule.maximum))
+            menu.extend(bound for bound in (rule.minimum, rule.maximum) if bound is not None)
+    lengths = [int(rule.minimum) for rule in filters
+               if rule.kind == "length" and rule.minimum]
+    menu.append("")
+    menu.extend("s" * length for length in lengths)
+    menu.append([])
+    menu.extend([None] * length for length in lengths if length < MAX_JSON_NODES)
+    menu.append({})
+    return menu
+
+
+def _candidate_values(rules: list[Rule]) -> list[Any]:
+    """Finite-domain candidates, filtered through the path's type, range and length rules."""
+
+    filters = [rule for rule in rules if rule.kind in _FILTER_KINDS]
+    finite = [rule for rule in rules if rule.kind not in _FILTER_KINDS]
+    candidates = _finite_candidates(finite)
+    if not filters:
+        return candidates
+    if all(rule.kind == "required_field" for rule in finite):
+        candidates = _filter_menu(filters)
+    kept = [
+        candidate for candidate in candidates
+        if all(_evaluate_rule(rule, _candidate_view(rule.path, candidate))["passed"]
+               for rule in filters)
+    ]
+    if not kept:
+        raise SyntheticGenerationError(_CONFLICT_MESSAGE)
+    return kept
 
 
 def _candidate_view(path: str, value: Any) -> dict[str, Any]:

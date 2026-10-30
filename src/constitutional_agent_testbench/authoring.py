@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Any
 
 from .common import TestbenchError, canonical_json
@@ -9,6 +10,8 @@ from .evaluator import _evaluate_rule
 from .policy import Policy, Rule, validate_policy
 
 MAX_AUTHORING_WORK_BYTES = 32_000_000
+#: Schema 1.1 kinds with no finite domain; they narrow a finite domain instead.
+_FILTER_KINDS = frozenset({"type", "range", "length"})
 
 
 class AuthoringLimitError(TestbenchError):
@@ -18,6 +21,10 @@ class AuthoringLimitError(TestbenchError):
 def _constraint_marker(rule: Rule) -> str:
     """Identity of a constraint. ``one_of`` is a set, so value order is ignored."""
 
+    if rule.kind == "type":
+        return canonical_json([rule.kind, sorted(rule.types)])
+    if rule.kind in ("range", "length"):
+        return canonical_json([rule.kind, rule.minimum, rule.maximum])
     domain = _domain(rule)
     if rule.kind == "one_of" and domain is not None:
         domain = sorted(canonical_json(value) for value in domain)
@@ -56,11 +63,26 @@ def lint_policy(policy: Policy | dict[str, Any]) -> dict[str, Any]:
             allowed = set(map(canonical_json, finite[0][1]))
             for _rule, domain in finite[1:]:
                 allowed.intersection_update(map(canonical_json, domain))
+            filters = [rule for rule in rules if rule.kind in _FILTER_KINDS]
             if not allowed:
                 # A required_field has no finite domain, so it cannot be one of
                 # the constraints that failed to intersect.
                 findings.append({"code": "DISJOINT_CONSTRAINTS", "path": path,
                                  "rule_ids": sorted(rule.rule_id for rule, _domain in finite)})
+            elif filters:
+                # Narrow the shared finite domain through the path's type, range
+                # and length rules, charging every value checked to the budget.
+                survivors = [value for value in finite[0][1] if canonical_json(value) in allowed]
+                work_bytes += len(filters) * sum(
+                    len(canonical_json(value).encode("utf-8")) for value in survivors)
+                if work_bytes > MAX_AUTHORING_WORK_BYTES:
+                    raise AuthoringLimitError(
+                        "Authoring comparison work exceeds the 32,000,000-byte limit.")
+                if not any(all(_evaluate_rule(replace(rule, path="value"), {"value": value})["passed"]
+                               for rule in filters) for value in survivors):
+                    findings.append({"code": "DISJOINT_CONSTRAINTS", "path": path,
+                                     "rule_ids": sorted([rule.rule_id for rule, _domain in finite]
+                                                        + [rule.rule_id for rule in filters])})
         seen: dict[str, str] = {}
         for rule in rules:
             marker = _constraint_marker(rule)
@@ -86,9 +108,9 @@ def lint_policy(policy: Policy | dict[str, Any]) -> dict[str, Any]:
                 raise AuthoringLimitError("Authoring comparison work exceeds the 32,000,000-byte limit.")
             if descendants and not any(
                 isinstance(value, dict) and all(
-                    _evaluate_rule(Rule(child.rule_id, child.kind,
-                                        child.path[len(path) + 1:], child.value,
-                                        child.values), value)["passed"]
+                    # replace() keeps every field, including 1.1 types and bounds.
+                    _evaluate_rule(replace(child, path=child.path[len(path) + 1:]),
+                                   value)["passed"]
                     for child in descendants)
                 for value in domain
             ):

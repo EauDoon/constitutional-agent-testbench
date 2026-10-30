@@ -8,11 +8,15 @@ from .suite import evaluate_suite, validate_suite
 
 
 def _rule_signature(rule: dict[str, Any]) -> str:
-    """Identity of a declared rule. ``one_of`` membership does not depend on order."""
+    """Identity of a declared rule. ``one_of`` and ``type`` sets do not depend on order."""
 
     if rule.get("kind") == "one_of" and isinstance(rule.get("values"), list):
         ordered = dict(rule)
         ordered["values"] = sorted(rule["values"], key=canonical_json)
+        return canonical_json(ordered)
+    if rule.get("kind") == "type" and isinstance(rule.get("types"), list):
+        ordered = dict(rule)
+        ordered["types"] = sorted(rule["types"])
         return canonical_json(ordered)
     return canonical_json(rule)
 

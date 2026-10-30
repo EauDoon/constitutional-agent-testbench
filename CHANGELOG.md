@@ -11,6 +11,25 @@ original wording.
 
 ## [Unreleased]
 
+### Added
+
+- Policy schema `1.1`, beside an unchanged `1.0`, with three rule kinds for the
+  most common output contracts. `type` requires one of the listed JSON types
+  (`integer` is an integer literal; `number` admits every number). `range`
+  requires a number within inclusive `minimum` and `maximum` bounds, compared
+  numerically, so `0`, `0.0` and `-0.0` all fall inside `[0, 0]`. `length`
+  bounds the code points of a string, the items of an array or the members of
+  an object. They emit `VALUE_WRONG_TYPE`, `VALUE_OUT_OF_RANGE` and
+  `VALUE_LENGTH_OUT_OF_RANGE`. Before this, `required_field` accepted
+  `{"summary": ""}`, `null` or `12`, and numeric ranges were a documented
+  limitation. Validation rejects a type list that admits every value, `integer`
+  beside `number`, inverted bounds and length bounds above the 1,000,000-byte
+  input limit. Synthesis, targeted probes, lint, `compare-policies`,
+  `audit-assertions` and suite `1.1` assertions all handle the new kinds;
+  synthesis fails closed with `SYNTHETIC_GENERATION_FAILED` on combinations its
+  fixed candidate menu cannot meet. `examples/typed-policy.json` and two typed
+  responses show each kind. Every `1.0` output and digest is unchanged.
+
 ### Changed
 
 - Every function exported in `__all__` now carries complete type annotations.

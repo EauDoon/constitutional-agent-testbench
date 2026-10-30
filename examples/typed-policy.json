@@ -1,0 +1,47 @@
+{
+  "policy_id": "public-typed-example-policy",
+  "rules": [
+    {
+      "kind": "type",
+      "path": "summary",
+      "rule_id": "summary-is-text",
+      "types": [
+        "string"
+      ]
+    },
+    {
+      "kind": "length",
+      "maximum": 500,
+      "minimum": 1,
+      "path": "summary",
+      "rule_id": "summary-not-empty"
+    },
+    {
+      "kind": "range",
+      "maximum": 1,
+      "minimum": 0,
+      "path": "confidence",
+      "rule_id": "confidence-in-unit-interval"
+    },
+    {
+      "kind": "type",
+      "path": "actions",
+      "rule_id": "actions-is-array",
+      "types": [
+        "array"
+      ]
+    },
+    {
+      "kind": "length",
+      "maximum": 5,
+      "path": "actions",
+      "rule_id": "at-most-five-actions"
+    },
+    {
+      "kind": "false",
+      "path": "blocked",
+      "rule_id": "blocked-is-false"
+    }
+  ],
+  "schema_version": "1.1"
+}

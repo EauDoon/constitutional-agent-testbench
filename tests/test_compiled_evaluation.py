@@ -153,6 +153,12 @@ class CheckOrderFastPathTests(unittest.TestCase):
                 report = self._assert_identical(subset, response)
                 self.assertEqual(report["coverage"]["orders_evaluated"], 120)
 
+    def test_fast_path_matches_on_the_schema_1_1_typed_example(self):
+        raw_policy = load_json(EXAMPLES / "typed-policy.json")
+        for name in ("typed-passing-response.json", "typed-failing-response.json"):
+            with self.subTest(response=name):
+                self._assert_identical(raw_policy, load_json(EXAMPLES / name))
+
     def test_builtin_identity_skips_guards_and_custom_evaluators_keep_them(self):
         raw_policy = load_json(EXAMPLES / "policy.json")
         response = load_json(EXAMPLES / "passing-response.json")

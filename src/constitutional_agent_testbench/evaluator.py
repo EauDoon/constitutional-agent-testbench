@@ -11,6 +11,7 @@ from .common import (
     canonical_json,
     ensure_json_value,
     get_field,
+    json_type_name,
 )
 from .policy import Policy, Rule, validate_policy
 
@@ -27,6 +28,9 @@ REASON_NOT_EQUAL = "VALUE_NOT_EQUAL"
 REASON_NOT_ALLOWED = "VALUE_NOT_ALLOWED"
 REASON_NOT_FALSE = "VALUE_NOT_FALSE"
 REASON_NOT_EMPTY_LIST = "VALUE_NOT_EMPTY_LIST"
+REASON_WRONG_TYPE = "VALUE_WRONG_TYPE"
+REASON_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
+REASON_LENGTH_OUT_OF_RANGE = "VALUE_LENGTH_OUT_OF_RANGE"
 
 ReasonCode = Literal[
     "RULE_SATISFIED",
@@ -35,6 +39,9 @@ ReasonCode = Literal[
     "VALUE_NOT_ALLOWED",
     "VALUE_NOT_FALSE",
     "VALUE_NOT_EMPTY_LIST",
+    "VALUE_WRONG_TYPE",
+    "VALUE_OUT_OF_RANGE",
+    "VALUE_LENGTH_OUT_OF_RANGE",
 ]
 
 #: The closed reason-code vocabulary, derived once from the constants above so
@@ -47,6 +54,9 @@ REASON_CODES = frozenset({
     REASON_NOT_ALLOWED,
     REASON_NOT_FALSE,
     REASON_NOT_EMPTY_LIST,
+    REASON_WRONG_TYPE,
+    REASON_OUT_OF_RANGE,
+    REASON_LENGTH_OUT_OF_RANGE,
 })
 
 #: The reason code that can be emitted when a rule kind's constraint is violated.
@@ -55,7 +65,22 @@ FAILURE_REASON_BY_KIND = {
     "one_of": REASON_NOT_ALLOWED,
     "false": REASON_NOT_FALSE,
     "empty_list": REASON_NOT_EMPTY_LIST,
+    "type": REASON_WRONG_TYPE,
+    "range": REASON_OUT_OF_RANGE,
+    "length": REASON_LENGTH_OUT_OF_RANGE,
 }
+
+
+def _within(observed: int | float, rule: Rule) -> bool:
+    """Inclusive bounds; Python compares int and float exactly, not by rounding."""
+
+    return ((rule.minimum is None or observed >= rule.minimum)
+            and (rule.maximum is None or observed <= rule.maximum))
+
+
+def _type_matches(observed: Any, types: tuple[str, ...]) -> bool:
+    observed_type = json_type_name(observed)
+    return observed_type in types or (observed_type == "integer" and "number" in types)
 
 
 class RuleResult(TypedDict):
@@ -148,6 +173,18 @@ def _evaluate_compiled_rule(compiled: _CompiledRule, response: dict[str, Any]) -
     elif rule.kind == "empty_list":
         passed = isinstance(observed, list) and not observed
         reason_code = REASON_SATISFIED if passed else REASON_NOT_EMPTY_LIST
+    elif rule.kind == "type":
+        passed = _type_matches(observed, rule.types)
+        reason_code = REASON_SATISFIED if passed else REASON_WRONG_TYPE
+    elif rule.kind == "range":
+        # Numeric, unlike equals: 0, 0.0 and -0.0 all fall inside [0, 0].
+        passed = (isinstance(observed, (int, float)) and not isinstance(observed, bool)
+                  and _within(observed, rule))
+        reason_code = REASON_SATISFIED if passed else REASON_OUT_OF_RANGE
+    elif rule.kind == "length":
+        # Strings count Unicode code points, arrays items and objects members.
+        passed = isinstance(observed, (str, list, dict)) and _within(len(observed), rule)
+        reason_code = REASON_SATISFIED if passed else REASON_LENGTH_OUT_OF_RANGE
     else:
         passed = False
         reason_code = REASON_MISSING

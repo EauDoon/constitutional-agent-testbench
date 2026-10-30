@@ -1,0 +1,13 @@
+{
+  "actions": [
+    "a",
+    "b",
+    "c",
+    "d",
+    "e",
+    "f"
+  ],
+  "blocked": false,
+  "confidence": 1.5,
+  "summary": 12
+}

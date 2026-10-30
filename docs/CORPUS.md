@@ -1,6 +1,7 @@
 # Author, curate, and replay a regression corpus
 
-Version 0.4.0 adds corpus workflows to the unchanged policy schema 1.0 evaluator.
+Version 0.4.0 added corpus workflows to the policy evaluator; they accept policy
+schemas 1.0 and 1.1 alike.
 All commands run locally. No artifact selects a plugin, evaluator, file path,
 shell command, network request, or model. Install with `pip install --no-deps .`.
 

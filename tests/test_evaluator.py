@@ -426,7 +426,7 @@ class ReasonCodeVocabularyTests(unittest.TestCase):
 
     def test_every_emitted_reason_code_is_declared(self) -> None:
         document = {
-            "schema_version": "1.0",
+            "schema_version": "1.1",
             "policy_id": "vocabulary",
             "rules": [
                 {"rule_id": "a", "kind": "equals", "path": "a", "value": 1},
@@ -434,11 +434,16 @@ class ReasonCodeVocabularyTests(unittest.TestCase):
                 {"rule_id": "c", "kind": "false", "path": "c"},
                 {"rule_id": "d", "kind": "empty_list", "path": "d"},
                 {"rule_id": "e", "kind": "required_field", "path": "e"},
+                {"rule_id": "f", "kind": "type", "path": "f", "types": ["string"]},
+                {"rule_id": "g", "kind": "range", "path": "g", "minimum": 0, "maximum": 1},
+                {"rule_id": "h", "kind": "length", "path": "h", "maximum": 1},
             ],
         }
         seen = set()
-        for response in ({}, {"a": 2, "b": "y", "c": True, "d": [1], "e": 0},
-                         {"a": 1, "b": "x", "c": False, "d": [], "e": 0}):
+        for response in ({}, {"a": 2, "b": "y", "c": True, "d": [1], "e": 0,
+                              "f": 1, "g": 2, "h": "xy"},
+                         {"a": 1, "b": "x", "c": False, "d": [], "e": 0,
+                          "f": "s", "g": 0.5, "h": []}):
             for row in evaluate_response(document, response)["rule_results"]:
                 seen.add(row["reason_code"])
         self.assertEqual(seen, set(evaluator.REASON_CODES))
