@@ -6,7 +6,14 @@ from copy import deepcopy
 from typing import Any, TypedDict
 
 from .common import TestbenchError, canonical_json
-from .evaluator import EvaluationResult, _compile, _evaluate_compiled, _evaluate_rule
+from .evaluator import (
+    EvaluationInputError,
+    EvaluationResult,
+    _compile,
+    _CompiledRule,
+    _evaluate_compiled,
+    _evaluate_rule,
+)
 from .policy import (
     MAX_ONE_OF_VALUES,
     MAX_POLICY_RULES,
@@ -37,6 +44,24 @@ class SyntheticCaseBundle(TypedDict):
     failing_case: SyntheticCase
     passing_case: SyntheticCase
     policy_id: str
+
+
+STRUCTURAL_LIMIT_MESSAGE = "Synthetic response exceeds JSON structural limits."
+
+
+def _verify(
+    policy_id: str, compiled: tuple[_CompiledRule, ...], response: dict[str, Any]
+) -> EvaluationResult:
+    """Evaluate a synthesized response; a limit breach is a generation failure.
+
+    The operator supplied no response, so a synthesized one that exceeds the
+    nesting, node or byte limits must not surface as ``INVALID_RESPONSE``.
+    """
+
+    try:
+        return _evaluate_compiled(policy_id, compiled, response)
+    except EvaluationInputError as exc:
+        raise SyntheticGenerationError(STRUCTURAL_LIMIT_MESSAGE) from exc
 
 
 def _compatibility_cost(rule: Rule | None) -> int:
@@ -195,7 +220,7 @@ def generate_synthetic_cases(
         constructed_rules.extend(path_rules)
 
     compiled = _compile(validated_policy)
-    passing_evaluation = _evaluate_compiled(
+    passing_evaluation = _verify(
         validated_policy.policy_id, compiled, passing_response
     )
     if not passing_evaluation["passed"]:
@@ -208,7 +233,7 @@ def generate_synthetic_cases(
         raise SyntheticGenerationError(
             "A verified synthetic failing case could not be constructed."
         )
-    failing_evaluation = _evaluate_compiled(
+    failing_evaluation = _verify(
         validated_policy.policy_id, compiled, failing_response
     )
     if failing_evaluation["passed"]:

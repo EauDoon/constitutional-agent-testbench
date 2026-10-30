@@ -5,9 +5,9 @@ from typing import Any
 
 from .common import (MAX_JSON_INPUT_BYTES, bounded_canonical_json_size, canonical_json,
                      ensure_json_value, stable_json)
-from .evaluator import _compile, _evaluate_compiled
+from .evaluator import _compile
 from .policy import Policy, validate_policy
-from .synthetic import (SyntheticGenerationError, _assign_path, _delete_path,
+from .synthetic import (SyntheticGenerationError, _assign_path, _delete_path, _verify,
                         generate_synthetic_cases)
 from .suite import SuiteInputError, validate_suite
 
@@ -46,7 +46,7 @@ def generate_rule_probes(policy: Policy | dict[str, Any]) -> dict[str, Any]:
                     value = next(f"synthetic-probe-{n}" for n in range(257)
                                  if canonical_json(f"synthetic-probe-{n}") not in forbidden)
                 _assign_path(response, rule.path, value)
-            evaluation = _evaluate_compiled(current.policy_id, compiled, response)
+            evaluation = _verify(current.policy_id, compiled, response)
             failed = sorted(r["rule_id"] for r in evaluation["rule_results"] if not r["passed"])
             if rule.rule_id not in failed:
                 raise SyntheticGenerationError("A targeted failure could not be verified.")

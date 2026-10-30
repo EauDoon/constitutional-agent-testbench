@@ -49,6 +49,13 @@ original wording.
 
 ### Fixed
 
+- `generate-synthetic` and `generate-probes` no longer report
+  `INVALID_RESPONSE` for a valid policy whose synthesized response exceeds the
+  32-level, 100,000-node or 1,000,000-byte limits, such as a 20-segment path
+  whose `equals` value nests 20 levels. The operator supplied no response, so
+  both commands, and `generate_synthetic_cases` and `generate_rule_probes` in
+  the library, now fail with `SYNTHETIC_GENERATION_FAILED` and exit code 2, as
+  the README promises for any pair that cannot be built.
 - Strict JSON stream loading now consumes short reads through EOF while enforcing
   the cumulative UTF-8 byte limit. A complete JSON prefix no longer hides trailing
   data or a later read error, and valid JSON split across reads is accepted,
