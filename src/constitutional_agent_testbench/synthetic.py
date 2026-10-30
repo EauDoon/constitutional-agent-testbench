@@ -6,7 +6,7 @@ from copy import deepcopy
 from typing import Any, TypedDict
 
 from .common import TestbenchError, canonical_json
-from .evaluator import EvaluationResult, _evaluate_rule, evaluate_response
+from .evaluator import EvaluationResult, _compile, _evaluate_compiled, _evaluate_rule
 from .policy import (
     MAX_ONE_OF_VALUES,
     MAX_POLICY_RULES,
@@ -194,7 +194,10 @@ def generate_synthetic_cases(
         _assign_path(passing_response, path, selected)
         constructed_rules.extend(path_rules)
 
-    passing_evaluation = evaluate_response(validated_policy, passing_response)
+    compiled = _compile(validated_policy)
+    passing_evaluation = _evaluate_compiled(
+        validated_policy.policy_id, compiled, passing_response
+    )
     if not passing_evaluation["passed"]:
         raise SyntheticGenerationError(
             "Policy constraints could not produce a verified synthetic passing case."
@@ -205,7 +208,9 @@ def generate_synthetic_cases(
         raise SyntheticGenerationError(
             "A verified synthetic failing case could not be constructed."
         )
-    failing_evaluation = evaluate_response(validated_policy, failing_response)
+    failing_evaluation = _evaluate_compiled(
+        validated_policy.policy_id, compiled, failing_response
+    )
     if failing_evaluation["passed"]:
         raise SyntheticGenerationError(
             "A verified synthetic failing case could not be constructed."

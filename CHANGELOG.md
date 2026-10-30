@@ -21,6 +21,21 @@ original wording.
   calls every exported function, and a unit test fails when an exported
   function loses an annotation or names a type that does not resolve. Runtime
   behaviour is unchanged.
+- Suites, probes, synthetic generation and order checks validate and compile the
+  policy once per run instead of once per evaluation; `equals` and `one_of`
+  constraints are serialized once. Every output is byte-identical. Measured on
+  Windows with Python 3.12: a 150-case suite against a 202,582-byte policy fell
+  from 9.04 s to 0.27 s, `check-order` on a typical seven-rule policy from
+  4.16 s to 1.16 s, seven `one_of` rules of 20 values from 8.56 s to 1.18 s, and
+  probes for 64 rules from 1.83 s to 0.28 s. `check-order` with the built-in
+  evaluator now skips the defensive copies and result-contract checks it applies
+  to a custom evaluator; custom evaluators keep every guard.
+- The 32,000,000-byte policy-work limits on suites and targeted probes are
+  retired, because per-case cost no longer grows with policy size. A
+  148,312-byte policy with 256 cases, previously refused, now runs in 0.04 s.
+  The 256-case, 64-probe-rule, 1,000,000-byte, 32-level and 100,000-node limits,
+  the lint budget and the order-check work budget are unchanged.
+  `MAX_SUITE_POLICY_BYTES` stays importable but is no longer enforced.
 
 ### Removed
 

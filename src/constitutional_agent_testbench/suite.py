@@ -7,10 +7,12 @@ from typing import Any
 
 from .common import (MAX_JSON_INPUT_BYTES, TestbenchError,
                      bounded_canonical_json_size, copy_json_tree, ensure_json_value)
-from .evaluator import REASON_CODES, evaluate_response
-from .policy import Policy, policy_to_dict, validate_policy
+from .evaluator import REASON_CODES, _compile, _evaluate_compiled
+from .policy import Policy, validate_policy
 
 MAX_SUITE_CASES = 256
+# Retired in 0.7.0: suites validate and compile the policy once, so per-case
+# cost no longer grows with policy size. Kept importable for compatibility.
 MAX_SUITE_POLICY_BYTES = 32_000_000
 
 
@@ -68,12 +70,11 @@ def evaluate_suite(policy: Policy | dict[str, Any], suite: Any) -> dict[str, Any
     """Evaluate all cases; expectation failures remain distinct from nonconformance."""
     current = validate_policy(policy)
     fixtures = validate_suite(suite)
-    size = bounded_canonical_json_size(policy_to_dict(current), label="Policy", limit=MAX_JSON_INPUT_BYTES)
-    if size * len(fixtures["cases"]) > MAX_SUITE_POLICY_BYTES:
-        raise SuiteInputError("Suite policy evaluation work exceeds the 32,000,000-byte limit.")
+    # Validate and compile once; every case reuses the serialized constraints.
+    compiled = _compile(current)
     cases = []
     for case in fixtures["cases"]:
-        evaluation = evaluate_response(current, case["response"])
+        evaluation = _evaluate_compiled(current.policy_id, compiled, case["response"])
         cases.append({"case_id": case["case_id"], "expected_passed": case["expected_passed"],
                       "matches_expectation": evaluation["passed"] == case["expected_passed"],
                       "evaluation": evaluation})

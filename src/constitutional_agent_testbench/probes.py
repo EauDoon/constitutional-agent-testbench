@@ -5,8 +5,8 @@ from typing import Any
 
 from .common import (MAX_JSON_INPUT_BYTES, bounded_canonical_json_size, canonical_json,
                      ensure_json_value, stable_json)
-from .evaluator import evaluate_response
-from .policy import Policy, policy_to_dict, validate_policy
+from .evaluator import _compile, _evaluate_compiled
+from .policy import Policy, validate_policy
 from .synthetic import (SyntheticGenerationError, _assign_path, _delete_path,
                         generate_synthetic_cases)
 from .suite import SuiteInputError, validate_suite
@@ -23,9 +23,9 @@ def generate_rule_probes(policy: Policy | dict[str, Any]) -> dict[str, Any]:
     current = validate_policy(policy)
     if len(current.rules) > MAX_PROBE_RULES:
         raise SyntheticGenerationError("Targeted probes support at most 64 rules.")
-    policy_bytes = bounded_canonical_json_size(policy_to_dict(current), label="Policy", limit=MAX_JSON_INPUT_BYTES)
-    if policy_bytes * (1 + 2 * len(current.rules)) > 32_000_000:
-        raise SyntheticGenerationError("Probe policy evaluation work exceeds the 32,000,000-byte limit.")
+    # Compile once: each probe evaluation reuses the serialized constraints, so the
+    # rule cap and the accumulating output cap bound the work, not policy size.
+    compiled = _compile(current)
     passing = generate_synthetic_cases(current)["passing_case"]["response"]
     cases = [{"case_id": "baseline", "response": passing, "expected_passed": True}]
     probes = []
@@ -46,7 +46,7 @@ def generate_rule_probes(policy: Policy | dict[str, Any]) -> dict[str, Any]:
                     value = next(f"synthetic-probe-{n}" for n in range(257)
                                  if canonical_json(f"synthetic-probe-{n}") not in forbidden)
                 _assign_path(response, rule.path, value)
-            evaluation = evaluate_response(current, response)
+            evaluation = _evaluate_compiled(current.policy_id, compiled, response)
             failed = sorted(r["rule_id"] for r in evaluation["rule_results"] if not r["passed"])
             if rule.rule_id not in failed:
                 raise SyntheticGenerationError("A targeted failure could not be verified.")

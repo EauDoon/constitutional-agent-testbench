@@ -98,8 +98,8 @@ class SyntheticGenerationTests(unittest.TestCase):
         with (
             patch.object(
                 synthetic,
-                "evaluate_response",
-                wraps=synthetic.evaluate_response,
+                "_evaluate_compiled",
+                wraps=synthetic._evaluate_compiled,
             ) as full_evaluation,
             patch.object(
                 synthetic,
@@ -149,8 +149,8 @@ class SyntheticGenerationTests(unittest.TestCase):
             patch.object(synthetic, "_MAX_COMPATIBILITY_WORK", 3),
             patch.object(
                 synthetic,
-                "evaluate_response",
-                wraps=synthetic.evaluate_response,
+                "_evaluate_compiled",
+                wraps=synthetic._evaluate_compiled,
             ) as full_evaluation,
             self.assertRaisesRegex(
                 SyntheticGenerationError,
@@ -185,8 +185,8 @@ class SyntheticGenerationTests(unittest.TestCase):
             patch.object(synthetic, "_MAX_COMPATIBILITY_WORK", 3),
             patch.object(
                 synthetic,
-                "evaluate_response",
-                wraps=synthetic.evaluate_response,
+                "_evaluate_compiled",
+                wraps=synthetic._evaluate_compiled,
             ) as full_evaluation,
             self.assertRaisesRegex(
                 SyntheticGenerationError,

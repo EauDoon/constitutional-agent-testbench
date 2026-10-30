@@ -222,10 +222,12 @@ With `--strict-exit`, exit 1 means:
 All JSON input arguments accept `-`, with at most one stdin input per invocation.
 Existing playground and output-path exceptions remain unchanged. Inputs retain
 the 1,000,000-byte, 32-level, and 100,000-node limits. Suites contain 1 to 256
-cases and charge at most 32,000,000 canonical policy bytes across evaluations.
-Lint charges at most 32,000,000 bytes of descendant comparison work. Targeted
-probes support at most 64 rules, charge at most 32,000,000 policy bytes, and cap
-formatted output at 1,000,000 bytes. Receipts have the same formatted output cap.
+cases. Suites, probes and order checks validate and compile the policy once and
+reuse it for every case, so per-case cost does not grow with policy size; the
+32,000,000-byte policy-work charges that suites and probes carried before 0.7.0
+are retired. Lint charges at most 32,000,000 bytes of descendant comparison work.
+Targeted probes support at most 64 rules and cap accumulating and formatted
+output at 1,000,000 bytes. Receipts have the same formatted output cap.
 These limits can reject otherwise valid large workloads; splitting fixtures or
 reducing synthetic domains is an explicit operator decision.
 

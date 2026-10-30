@@ -68,8 +68,9 @@ independent observations, proofs of safety, or evidence of real model behavior.
 
 Workflow artifacts must fit 1,000,000 formatted UTF-8 bytes, 32 nesting levels
 and 100,000 nodes. Bundling adds nesting and bytes, so separate valid inputs may
-not fit together. Existing suites retain the 256-case and 32,000,000 policy-byte
-evaluation-work limits. Oversized workflows fail closed, never silently sample.
+not fit together. Suites retain the 256-case limit; the policy is validated and
+compiled once per run, so the 32,000,000 policy-byte evaluation-work limit of
+earlier releases is retired. Oversized workflows fail closed, never silently sample.
 
 ## Files and automation
 

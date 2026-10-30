@@ -17,7 +17,13 @@ from .common import (
     canonical_json,
     ensure_json_value,
 )
-from .evaluator import EvaluationResult, evaluate_response
+from .evaluator import (
+    EvaluationResult,
+    _CompiledRule,
+    _compile,
+    _evaluate_checked,
+    evaluate_response,
+)
 from .policy import (
     Policy,
     PolicyValidationError,
@@ -151,6 +157,30 @@ def _run_evaluator(
             "Evaluator result policy_id does not match the requested policy."
         )
     return validated_result, result_bytes
+
+
+def _run_builtin(
+    compiled: tuple[_CompiledRule, ...],
+    policy: Policy,
+    response: dict[str, Any],
+) -> tuple[dict[str, Any], int]:
+    """Evaluate the built-in rules directly, without the custom-evaluator guards.
+
+    Only used when the evaluator is ``evaluate_response`` itself. The response
+    was checked once on entry, the permuted policy is built internally from
+    validated rules, and the built-in evaluator never mutates its inputs, so the
+    defensive copies and the result contract checks cannot change the outcome.
+    The result byte count is the same canonical serialization measured by
+    ``bounded_canonical_json_size``, so work accounting is unchanged.
+    """
+
+    result = dict(_evaluate_checked(policy.policy_id, compiled, response))
+    result_bytes = len(canonical_json(result).encode("utf-8"))
+    if result_bytes > MAX_EVALUATOR_RESULT_BYTES:
+        raise OrderCheckTooLargeError(
+            "Evaluator result exceeds the per-result byte limit."
+        )
+    return result, result_bytes
 
 
 def _counter_projection(counter: Counter[Any], labels: tuple[str, ...]) -> list[dict[str, Any]]:
@@ -557,6 +587,12 @@ def check_order_conformance(
         )
 
     rule_orders = list(permutations(validated_policy.rules))
+    # The built-in evaluator, passed by identity, takes a compiled fast path that
+    # produces byte-identical reports; any other callable keeps every guard.
+    builtin = evaluator is evaluate_response
+    compiled_by_id = {
+        item.rule.rule_id: item for item in _compile(validated_policy)
+    } if builtin else {}
     id_orders = [tuple(rule.rule_id for rule in order) for order in rule_orders]
     observations: dict[tuple[str, ...], dict[str, Any]] = {}
     evaluator_runs = 0
@@ -569,10 +605,16 @@ def check_order_conformance(
             schema_version=validated_policy.schema_version,
         )
         repeated_results: list[dict[str, Any]] = []
+        compiled_order = tuple(compiled_by_id[rule_id] for rule_id in order_ids) if builtin else ()
         for _ in range(ORDER_REPEATS):
-            result, result_bytes = _run_evaluator(
-                evaluator, permuted_policy, response
-            )
+            if builtin:
+                result, result_bytes = _run_builtin(
+                    compiled_order, permuted_policy, response
+                )
+            else:
+                result, result_bytes = _run_evaluator(
+                    evaluator, permuted_policy, response
+                )
             evaluator_runs += 1
             observed_result_bytes += result_bytes
             charged_work_bytes = (
