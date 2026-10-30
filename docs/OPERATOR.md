@@ -21,7 +21,7 @@ Use the installed `constitutional-agent-testbench` command after
 | `explain` | Show absent members, non-object parents, observed and expected JSON types and violated bounds without copying candidate values. |
 | `generate-probes` | Produce verified per-rule mutations and an executable fixture suite. |
 | `run-suite` | Compare every fixture result with its explicit expected pass state. |
-| `suite-coverage` | Count observed pass/fail outcomes and reason codes for each rule. |
+| `suite-coverage` | Count observed pass/fail outcomes and reason codes for each rule, and list reachable reason codes no case produced. |
 | `compare-policies` | Show definition changes and fixture impact between two independently evaluated policies. |
 | `create-receipt` | Bind policy and response digests to their deterministic evaluation. |
 | `verify-receipt` | Recompute and compare the complete receipt against supplied inputs. |
@@ -139,6 +139,7 @@ preserves assertions; changing suite versions is an explicit authoring decision.
 ```text
 constitutional-agent-testbench run-suite examples/policy.json examples/regression-suite.json --strict-exit
 constitutional-agent-testbench suite-coverage examples/policy.json examples/regression-suite.json --strict-exit
+constitutional-agent-testbench suite-coverage examples/policy.json examples/regression-suite.json --strict-reasons
 constitutional-agent-testbench compare-policies examples/policy.json examples/migration-policy.json examples/regression-suite.json
 ```
 
@@ -152,6 +153,15 @@ expectations are rejected.
 
 Coverage counts observed outcomes, even when a fixture expectation was wrong.
 An unexercised outcome is a corpus gap, not evidence that the rule is unreachable.
+Pass and fail counts alone can hide a gap: a corpus whose only failing case is
+`{}` fails every rule with `FIELD_MISSING`, so no value check ever runs. Each rule
+row therefore carries its `kind` and `unexercised_reason_codes`, the reason codes
+its kind can emit (`RULE_SATISFIED`, `FIELD_MISSING` and the kind's own failure
+code; `required_field` has only the first two) that no case produced. Every
+listed code is reachable for every valid rule. The report adds
+`rules_with_all_reason_codes` and `rules_missing_reason_codes`. `--strict-reasons`
+returns 1 when any rule has such a gap, a stricter gate than `--strict-exit`;
+with both flags, either gap returns 1.
 Migration comparisons list added, removed, modified, and reordered rules plus
 case verdict and rule-result changes. Both policies are evaluated independently.
 A result on the supplied corpus does not establish general equivalence or decide
@@ -214,7 +224,7 @@ With `--strict-exit`, exit 1 means:
 | `lint-policy` | A conflict was found; duplicate-only findings do not fail. |
 | `explain` | The response failed at least one rule. |
 | `run-suite` | At least one expected pass state did not match. |
-| `suite-coverage` | At least one rule lacks an observed pass or fail. |
+| `suite-coverage` | At least one rule lacks an observed pass or fail. With `--strict-reasons` instead or as well: at least one rule never produced a reason code its kind can emit. |
 | `compare-policies` | At least one fixture verdict or rule result changed. Definition-only changes may still exit 0. |
 | `verify-receipt` | At least one digest or evaluation binding did not match. |
 | `inspect-suite` | Duplicate responses carry conflicting expectations. |

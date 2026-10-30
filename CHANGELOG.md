@@ -38,6 +38,14 @@ original wording.
   `violated_bound` (`minimum` or `maximum`). No values, lengths or digests are
   added, and existing keys are unchanged. `explain_response` validates the
   policy once instead of twice.
+- `suite-coverage --strict-reasons` and reason-code coverage. Each rule row
+  gains `kind` and `unexercised_reason_codes`, the reason codes its kind can
+  emit that no case produced, and the report gains
+  `rules_with_all_reason_codes` and `rules_missing_reason_codes`. A corpus
+  whose only failing fixture is `{}` reported every rule as having both
+  outcomes, so `--strict-exit` passed although no value check ever ran;
+  `--strict-reasons` returns 1 for it. `--strict-exit` is unchanged, and with
+  both flags either gap returns 1.
 
 ### Changed
 
