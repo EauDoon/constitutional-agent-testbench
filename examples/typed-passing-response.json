@@ -1,0 +1,8 @@
+{
+  "actions": [
+    "synthetic-step"
+  ],
+  "blocked": false,
+  "confidence": 0.8,
+  "summary": "Synthetic example."
+}

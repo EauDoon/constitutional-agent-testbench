@@ -9,7 +9,9 @@ Checks:
 
 1. ``__version__`` is ``X.Y.Z`` and ``pyproject.toml`` declares no static version.
 2. ``CHANGELOG.md`` has ``## [Unreleased]`` above the first release heading, and
-   that heading is ``## [X.Y.Z] - YYYY-MM-DD`` for this version.
+   that heading is ``## [X.Y.Z] - YYYY-MM-DD`` for this version. The link
+   references end in ``/compare/vX.Y.Z...HEAD`` for ``[Unreleased]`` and in
+   ``/releases/tag/vX.Y.Z`` or ``/compare/...vX.Y.Z`` for ``[X.Y.Z]``.
 3. ``release/vX.Y.Z-manifest.json`` names this version, both artifact file names,
    ``requires-python`` and the pinned build backend from ``pyproject.toml``.
 4. ``README.md`` states ``Current package version: **X.Y.Z**``.
@@ -104,6 +106,31 @@ def _check_changelog(text: str, version: str, problems: list[str]) -> None:
         )
     if unreleased is not None and unreleased > release_index:
         problems.append(f"CHANGELOG.md '{UNRELEASED_HEADING}' must precede the first release")
+    _check_link_references(lines, version, problems)
+
+
+def _check_link_references(lines: list[str], version: str, problems: list[str]) -> None:
+    """Require the compare and release links that docs/RELEASE.md says to update."""
+
+    references = {}
+    for line in lines:
+        match = re.match(r"^\[([^\]]+)\]: (\S+)$", line)
+        if match:
+            references.setdefault(match.group(1), match.group(2))
+    unreleased = references.get("Unreleased")
+    if unreleased is None or not unreleased.endswith(f"/compare/v{version}...HEAD"):
+        problems.append(
+            f"CHANGELOG.md '[Unreleased]:' link must end in '/compare/v{version}...HEAD'"
+        )
+    release = references.get(version)
+    if release is None or not (
+        release.endswith(f"/releases/tag/v{version}")
+        or re.search(rf"/compare/\S+\.\.\.v{re.escape(version)}$", release)
+    ):
+        problems.append(
+            f"CHANGELOG.md '[{version}]:' link must end in '/releases/tag/v{version}' "
+            f"or '/compare/...v{version}'"
+        )
 
 
 def _check_manifest(root: Path, version: str, pyproject: dict, problems: list[str]) -> None:

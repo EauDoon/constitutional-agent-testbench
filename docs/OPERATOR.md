@@ -18,10 +18,10 @@ Use the installed `constitutional-agent-testbench` command after
 | `generate-synthetic` | Produce a verified passing and failing case, either on standard output or in an explicitly selected file. |
 | `playground` | Open the offline policy playground, or run its headless smoke check. |
 | `lint-policy` | Identify exact-path conflicts, incompatible descendants, and duplicate constraints. |
-| `explain` | Show absent members and non-object parents without copying candidate values. |
+| `explain` | Show absent members, non-object parents, observed and expected JSON types and violated bounds without copying candidate values. |
 | `generate-probes` | Produce verified per-rule mutations and an executable fixture suite. |
 | `run-suite` | Compare every fixture result with its explicit expected pass state. |
-| `suite-coverage` | Count observed pass/fail outcomes and reason codes for each rule. |
+| `suite-coverage` | Count observed pass/fail outcomes and reason codes for each rule, and list reachable reason codes no case produced. |
 | `compare-policies` | Show definition changes and fixture impact between two independently evaluated policies. |
 | `create-receipt` | Bind policy and response digests to their deterministic evaluation. |
 | `verify-receipt` | Recompute and compare the complete receipt against supplied inputs. |
@@ -91,8 +91,8 @@ relationships without displaying constraint values. The library equivalent is
 `inspect_policy`. Inspection supports up to 256 rules and a 1,000,000-byte
 formatted report; exceeding a workflow bound fails closed with `INVALID_WORKFLOW`.
 
-Authoring and regression tools use the schema 1.0
-evaluator. All rules still participate. Input content never selects authority,
+Authoring and regression tools use the same evaluator for policy schemas 1.0
+and 1.1. All rules still participate. Input content never selects authority,
 executes an action, or overrides another policy. Runtime dependencies remain
 limited to Python's standard library.
 
@@ -107,8 +107,15 @@ constitutional-agent-testbench generate-probes examples/policy.json
 Lint reports duplicate constraints, disjoint finite domains at identical paths,
 and a finite ancestor domain with no candidate satisfying all declared descendants.
 It does not rewrite rules or prove satisfiability when it finds no conflicts.
-Explanations distinguish a missing object member from a non-object parent. They
-include declared paths and rule identifiers, but no response or constraint values.
+Explanations distinguish a missing object member from a non-object parent. Each
+also lists `expected_types`, the JSON types that could satisfy the rule, derived
+from the policy alone (`null` for `required_field`, which accepts any type;
+`number` brings in `integer`). When the path resolves, `observed_type` names the
+type found there, so an observed type outside `expected_types` diagnoses a type
+failure, such as `0` under a `false` rule. A failed schema 1.1 `range` rule on a
+number, or `length` rule on a string, array or object, adds `violated_bound`:
+`minimum` or `maximum`. Explanations include declared paths, rule identifiers and
+type names, but no response or constraint values, lengths or digests.
 
 Probes start from a verified synthetic pass, then remove each rule's field and,
 where applicable, substitute a verified disallowed value. Each probe records all
@@ -132,6 +139,7 @@ preserves assertions; changing suite versions is an explicit authoring decision.
 ```text
 constitutional-agent-testbench run-suite examples/policy.json examples/regression-suite.json --strict-exit
 constitutional-agent-testbench suite-coverage examples/policy.json examples/regression-suite.json --strict-exit
+constitutional-agent-testbench suite-coverage examples/policy.json examples/regression-suite.json --strict-reasons
 constitutional-agent-testbench compare-policies examples/policy.json examples/migration-policy.json examples/regression-suite.json
 ```
 
@@ -145,6 +153,15 @@ expectations are rejected.
 
 Coverage counts observed outcomes, even when a fixture expectation was wrong.
 An unexercised outcome is a corpus gap, not evidence that the rule is unreachable.
+Pass and fail counts alone can hide a gap: a corpus whose only failing case is
+`{}` fails every rule with `FIELD_MISSING`, so no value check ever runs. Each rule
+row therefore carries its `kind` and `unexercised_reason_codes`, the reason codes
+its kind can emit (`RULE_SATISFIED`, `FIELD_MISSING` and the kind's own failure
+code; `required_field` has only the first two) that no case produced. Every
+listed code is reachable for every valid rule. The report adds
+`rules_with_all_reason_codes` and `rules_missing_reason_codes`. `--strict-reasons`
+returns 1 when any rule has such a gap, a stricter gate than `--strict-exit`;
+with both flags, either gap returns 1.
 Migration comparisons list added, removed, modified, and reordered rules plus
 case verdict and rule-result changes. Both policies are evaluated independently.
 A result on the supplied corpus does not establish general equivalence or decide
@@ -207,7 +224,7 @@ With `--strict-exit`, exit 1 means:
 | `lint-policy` | A conflict was found; duplicate-only findings do not fail. |
 | `explain` | The response failed at least one rule. |
 | `run-suite` | At least one expected pass state did not match. |
-| `suite-coverage` | At least one rule lacks an observed pass or fail. |
+| `suite-coverage` | At least one rule lacks an observed pass or fail. With `--strict-reasons` instead or as well: at least one rule never produced a reason code its kind can emit. |
 | `compare-policies` | At least one fixture verdict or rule result changed. Definition-only changes may still exit 0. |
 | `verify-receipt` | At least one digest or evaluation binding did not match. |
 | `inspect-suite` | Duplicate responses carry conflicting expectations. |
@@ -222,10 +239,12 @@ With `--strict-exit`, exit 1 means:
 All JSON input arguments accept `-`, with at most one stdin input per invocation.
 Existing playground and output-path exceptions remain unchanged. Inputs retain
 the 1,000,000-byte, 32-level, and 100,000-node limits. Suites contain 1 to 256
-cases and charge at most 32,000,000 canonical policy bytes across evaluations.
-Lint charges at most 32,000,000 bytes of descendant comparison work. Targeted
-probes support at most 64 rules, charge at most 32,000,000 policy bytes, and cap
-formatted output at 1,000,000 bytes. Receipts have the same formatted output cap.
+cases. Suites, probes and order checks validate and compile the policy once and
+reuse it for every case, so per-case cost does not grow with policy size; the
+32,000,000-byte policy-work charges that suites and probes carried before 0.7.0
+are retired. Lint charges at most 32,000,000 bytes of descendant comparison work.
+Targeted probes support at most 64 rules and cap accumulating and formatted
+output at 1,000,000 bytes. Receipts have the same formatted output cap.
 These limits can reject otherwise valid large workloads; splitting fixtures or
 reducing synthetic domains is an explicit operator decision.
 

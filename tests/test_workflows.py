@@ -8,7 +8,7 @@ from constitutional_agent_testbench.authoring import lint_policy
 from constitutional_agent_testbench.authoring import AuthoringLimitError
 from constitutional_agent_testbench.common import load_json, parse_json_text, stable_json
 from constitutional_agent_testbench.explain import explain_response
-from constitutional_agent_testbench.evaluator import EvaluationInputError
+from constitutional_agent_testbench.evaluator import EvaluationInputError, evaluate_response
 from constitutional_agent_testbench.suite import evaluate_suite, validate_suite, SuiteInputError
 from constitutional_agent_testbench.coverage import suite_coverage
 from constitutional_agent_testbench.compare import compare_policies
@@ -230,22 +230,50 @@ class OperatorBoundaryTests(unittest.TestCase):
             with self.assertRaises(AuthoringLimitError):
                 lint_policy(raw)
 
-    def test_suite_work_limit(self):
-        with patch("constitutional_agent_testbench.suite.MAX_SUITE_POLICY_BYTES", 1):
-            with self.assertRaises(SuiteInputError):
-                evaluate_suite(policy(rule()), suite())
+    def test_large_policy_suite_runs_past_the_retired_policy_work_cap(self):
+        # 256 one_of rules of 40 values exceed 125,000 bytes, so 256 cases were
+        # refused by the 32,000,000-byte policy-work cap before 0.7.0.
+        rules = [rule(f"r{index}", "one_of", f"field{index}",
+                      values=[f"value-{index}-{choice}" for choice in range(40)])
+                 for index in range(256)]
+        raw = policy(*rules)
+        self.assertGreater(len(stable_json(raw).encode("utf-8")), 32_000_000 // 256)
+        fixtures = {"suite_version": "1.0", "cases": [
+            {"case_id": f"case-{index}", "response": {}, "expected_passed": False}
+            for index in range(256)]}
+        report = evaluate_suite(raw, fixtures)
+        self.assertTrue(report["matches_expectations"])
+        self.assertEqual(report["case_count"], 256)
+        expected = evaluate_response(raw, {})
+        for case in report["cases"]:
+            self.assertEqual(case["evaluation"], expected)
 
     def test_probe_output_limit(self):
         with patch("constitutional_agent_testbench.probes.MAX_JSON_INPUT_BYTES", 300):
             with self.assertRaises(SyntheticGenerationError):
                 generate_rule_probes(policy(rule()))
 
-    def test_probe_policy_work_limit_with_a_real_policy(self):
-        # 64 rules cost 129 evaluations each, so a policy of about 250,000 bytes
-        # exceeds the documented 32,000,000-byte budget before any generation.
+    def test_probes_generate_past_the_retired_policy_work_cap(self):
+        # 64 rules cost 129 evaluations each, so the retired cap refused any policy
+        # above about 248,000 bytes. This one is about 360,000 bytes.
+        rules = [rule(f"r{index}", "one_of", f"field{index}",
+                      values=[f"candidate-{index:02d}-{choice:03d}-pad" for choice in range(256)])
+                 for index in range(64)]
+        raw = policy(*rules)
+        self.assertGreater(len(stable_json(raw).encode("utf-8")) * 129, 32_000_000)
+        report = generate_rule_probes(raw)
+        self.assertEqual(len(report["probes"]), 128)
+        for probe in report["probes"]:
+            self.assertIn(probe["target_rule_id"], probe["failed_rule_ids"])
+        self.assertTrue(evaluate_suite(raw, report["suite"])["matches_expectations"])
+
+    def test_probe_policy_with_a_large_value_stops_at_the_output_limit(self):
+        # The policy-work cap is retired; the accumulating output cap still stops
+        # a policy whose 250,000-byte value is copied into every probe.
         rules = [rule(f"r{index}", path=f"field{index}") for index in range(63)]
         rules.append(rule("large", "equals", "large", value="x" * 250_000))
-        with self.assertRaisesRegex(SyntheticGenerationError, "32,000,000-byte"):
+        with self.assertRaisesRegex(SyntheticGenerationError,
+                                    "Probe output exceeds the 1,000,000-byte limit"):
             generate_rule_probes(policy(*rules))
 
     def test_probe_cases_are_bounded_while_they_accumulate(self):

@@ -1,0 +1,42 @@
+{
+  "id": "typed-passing",
+  "source": "examples/typed-policy.json",
+  "policy_path": "examples/typed-policy.json",
+  "input": {
+    "actions": [
+      "synthetic-step"
+    ],
+    "blocked": false,
+    "confidence": 0.8,
+    "summary": "Synthetic example."
+  },
+  "expected": {
+    "passed": true,
+    "rules": {
+      "summary-is-text": {
+        "passed": true,
+        "reason_code": "RULE_SATISFIED"
+      },
+      "summary-not-empty": {
+        "passed": true,
+        "reason_code": "RULE_SATISFIED"
+      },
+      "confidence-in-unit-interval": {
+        "passed": true,
+        "reason_code": "RULE_SATISFIED"
+      },
+      "actions-is-array": {
+        "passed": true,
+        "reason_code": "RULE_SATISFIED"
+      },
+      "at-most-five-actions": {
+        "passed": true,
+        "reason_code": "RULE_SATISFIED"
+      },
+      "blocked-is-false": {
+        "passed": true,
+        "reason_code": "RULE_SATISFIED"
+      }
+    }
+  }
+}

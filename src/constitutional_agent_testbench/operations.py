@@ -1,5 +1,9 @@
 """CLI adapter for inspection and corpus workflows; all inputs are strict JSON."""
 
+import argparse
+from collections.abc import Callable
+from typing import Any
+
 from .inspection import inspect_policy, inspect_suite
 from .curation import merge_suites, select_suite, reduce_suite
 from .triage import triage_suite
@@ -14,7 +18,7 @@ from .compare import migration_expectations
 from .triage import check_suite
 
 # Command: (ordered JSON inputs, library function, strict success field).
-COMMANDS = {"inspect-policy": (("policy",), inspect_policy, None)}
+COMMANDS: dict[str, tuple[tuple[str, ...], Callable[..., Any], str | None]] = {"inspect-policy": (("policy",), inspect_policy, None)}
 COMMANDS["inspect-suite"] = (("suite",), inspect_suite, "consistent_expectations")
 COMMANDS["merge-suites"] = (("suite", "incoming"), merge_suites, None)
 COMMANDS["select-suite"] = (("suite", "selection"), select_suite, None)
@@ -87,7 +91,7 @@ COMMAND_HELP = {
 }
 
 
-def add_operation_parsers(subparsers):
+def add_operation_parsers(subparsers: Any) -> None:
     for name, (fields, _, strict_field) in COMMANDS.items():
         summary = COMMAND_HELP[name]
         parser = subparsers.add_parser(name, help=summary, description=summary, allow_abbrev=False)
@@ -102,6 +106,6 @@ def add_operation_parsers(subparsers):
             )
 
 
-def run_operation(arguments, load):
+def run_operation(arguments: argparse.Namespace, load: Callable[[str], Any]) -> Any:
     fields, function, _ = COMMANDS[arguments.command]
     return function(*(load(getattr(arguments, field)) for field in fields))

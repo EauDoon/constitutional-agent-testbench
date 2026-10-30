@@ -8,11 +8,15 @@ from .suite import evaluate_suite, validate_suite
 
 
 def _rule_signature(rule: dict[str, Any]) -> str:
-    """Identity of a declared rule. ``one_of`` membership does not depend on order."""
+    """Identity of a declared rule. ``one_of`` and ``type`` sets do not depend on order."""
 
     if rule.get("kind") == "one_of" and isinstance(rule.get("values"), list):
         ordered = dict(rule)
         ordered["values"] = sorted(rule["values"], key=canonical_json)
+        return canonical_json(ordered)
+    if rule.get("kind") == "type" and isinstance(rule.get("types"), list):
+        ordered = dict(rule)
+        ordered["types"] = sorted(rule["types"])
         return canonical_json(ordered)
     return canonical_json(rule)
 
@@ -55,12 +59,13 @@ def compare_policies(before: Policy | dict[str, Any], after: Policy | dict[str, 
             "comparison_scope": "supplied fixtures only; no policy recommendation"}
 
 
-def migration_expectations(policy, candidate, suite):
+def migration_expectations(policy: Policy | dict[str, Any], candidate: Policy | dict[str, Any],
+                           suite: Any) -> dict[str, Any]:
     """Identify expectation regressions even when the overall verdict stays fixed."""
     from .workflow import bounded_artifact
     fixtures = validate_suite(suite)
     before, after = evaluate_suite(policy, fixtures), evaluate_suite(candidate, fixtures)
-    groups = {"regressions": [], "recoveries": [], "still_mismatched": [], "still_matched": []}
+    groups: dict[str, list[str]] = {"regressions": [], "recoveries": [], "still_mismatched": [], "still_matched": []}
     for left, right in zip(before["cases"], after["cases"], strict=True):
         matched = left["matches_expectation"], right["matches_expectation"]
         category = {(True, False): "regressions", (False, True): "recoveries",

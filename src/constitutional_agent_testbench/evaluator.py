@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Literal, TypedDict
+from typing import Any, Literal, NamedTuple, TypedDict
 
 from .common import (
     MAX_JSON_INPUT_BYTES,
@@ -11,7 +11,7 @@ from .common import (
     canonical_json,
     ensure_json_value,
     get_field,
-    json_values_equal,
+    json_type_name,
 )
 from .policy import Policy, Rule, validate_policy
 
@@ -28,6 +28,9 @@ REASON_NOT_EQUAL = "VALUE_NOT_EQUAL"
 REASON_NOT_ALLOWED = "VALUE_NOT_ALLOWED"
 REASON_NOT_FALSE = "VALUE_NOT_FALSE"
 REASON_NOT_EMPTY_LIST = "VALUE_NOT_EMPTY_LIST"
+REASON_WRONG_TYPE = "VALUE_WRONG_TYPE"
+REASON_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
+REASON_LENGTH_OUT_OF_RANGE = "VALUE_LENGTH_OUT_OF_RANGE"
 
 ReasonCode = Literal[
     "RULE_SATISFIED",
@@ -36,6 +39,9 @@ ReasonCode = Literal[
     "VALUE_NOT_ALLOWED",
     "VALUE_NOT_FALSE",
     "VALUE_NOT_EMPTY_LIST",
+    "VALUE_WRONG_TYPE",
+    "VALUE_OUT_OF_RANGE",
+    "VALUE_LENGTH_OUT_OF_RANGE",
 ]
 
 #: The closed reason-code vocabulary, derived once from the constants above so
@@ -48,6 +54,9 @@ REASON_CODES = frozenset({
     REASON_NOT_ALLOWED,
     REASON_NOT_FALSE,
     REASON_NOT_EMPTY_LIST,
+    REASON_WRONG_TYPE,
+    REASON_OUT_OF_RANGE,
+    REASON_LENGTH_OUT_OF_RANGE,
 })
 
 #: The reason code that can be emitted when a rule kind's constraint is violated.
@@ -56,7 +65,22 @@ FAILURE_REASON_BY_KIND = {
     "one_of": REASON_NOT_ALLOWED,
     "false": REASON_NOT_FALSE,
     "empty_list": REASON_NOT_EMPTY_LIST,
+    "type": REASON_WRONG_TYPE,
+    "range": REASON_OUT_OF_RANGE,
+    "length": REASON_LENGTH_OUT_OF_RANGE,
 }
+
+
+def _within(observed: int | float, rule: Rule) -> bool:
+    """Inclusive bounds; Python compares int and float exactly, not by rounding."""
+
+    return ((rule.minimum is None or observed >= rule.minimum)
+            and (rule.maximum is None or observed <= rule.maximum))
+
+
+def _type_matches(observed: Any, types: tuple[str, ...]) -> bool:
+    observed_type = json_type_name(observed)
+    return observed_type in types or (observed_type == "integer" and "number" in types)
 
 
 class RuleResult(TypedDict):
@@ -84,20 +108,41 @@ def _canonical_marker(value: Any) -> str | None:
         return None
 
 
-def _one_of_matches(observed: Any, values: tuple[Any, ...]) -> bool:
-    """Match an allowed set without re-serializing the observed value per candidate."""
+class _CompiledRule(NamedTuple):
+    """A validated rule with its constraint markers serialized once.
 
-    observed_marker = _canonical_marker(observed)
-    if observed_marker is None:
-        return False
-    for value in values:
-        value_marker = _canonical_marker(value)
-        if value_marker is not None and value_marker == observed_marker:
-            return True
-    return False
+    ``None`` markers mean "not compiled": the rule is then matched lazily, which
+    suits the one-off checks that synthesis and lint make on candidate values.
+    """
+
+    rule: Rule
+    marker: str | None = None
+    markers: frozenset[str] | None = None
 
 
-def _evaluate_rule(rule: Rule, response: dict[str, Any]) -> RuleResult:
+def _compile_rule(rule: Rule) -> _CompiledRule:
+    if rule.kind == "equals":
+        return _CompiledRule(rule, marker=_canonical_marker(rule.value))
+    if rule.kind == "one_of":
+        markers = (_canonical_marker(value) for value in rule.values)
+        return _CompiledRule(
+            rule, markers=frozenset(marker for marker in markers if marker is not None)
+        )
+    return _CompiledRule(rule)
+
+
+def _compile(policy: Policy) -> tuple[_CompiledRule, ...]:
+    """Serialize every equals and one_of constraint once for repeated evaluation.
+
+    Callers pass an already validated policy, so suites, probes and order checks
+    can evaluate many responses without re-validating or re-serializing it.
+    """
+
+    return tuple(_compile_rule(rule) for rule in policy.rules)
+
+
+def _evaluate_compiled_rule(compiled: _CompiledRule, response: dict[str, Any]) -> RuleResult:
+    rule = compiled.rule
     found, observed = get_field(response, rule.path)
     if not found:
         passed = False
@@ -106,10 +151,21 @@ def _evaluate_rule(rule: Rule, response: dict[str, Any]) -> RuleResult:
         passed = True
         reason_code = REASON_SATISFIED
     elif rule.kind == "equals":
-        passed = json_values_equal(observed, rule.value)
+        observed_marker = _canonical_marker(observed)
+        expected_marker = compiled.marker
+        if expected_marker is None:
+            expected_marker = _canonical_marker(rule.value)
+        passed = observed_marker is not None and observed_marker == expected_marker
         reason_code = REASON_SATISFIED if passed else REASON_NOT_EQUAL
     elif rule.kind == "one_of":
-        passed = _one_of_matches(observed, rule.values)
+        # Match an allowed set without re-serializing the observed value per candidate.
+        observed_marker = _canonical_marker(observed)
+        if observed_marker is None:
+            passed = False
+        elif compiled.markers is not None:
+            passed = observed_marker in compiled.markers
+        else:
+            passed = any(_canonical_marker(value) == observed_marker for value in rule.values)
         reason_code = REASON_SATISFIED if passed else REASON_NOT_ALLOWED
     elif rule.kind == "false":
         passed = observed is False
@@ -117,6 +173,18 @@ def _evaluate_rule(rule: Rule, response: dict[str, Any]) -> RuleResult:
     elif rule.kind == "empty_list":
         passed = isinstance(observed, list) and not observed
         reason_code = REASON_SATISFIED if passed else REASON_NOT_EMPTY_LIST
+    elif rule.kind == "type":
+        passed = _type_matches(observed, rule.types)
+        reason_code = REASON_SATISFIED if passed else REASON_WRONG_TYPE
+    elif rule.kind == "range":
+        # Numeric, unlike equals: 0, 0.0 and -0.0 all fall inside [0, 0].
+        passed = (isinstance(observed, (int, float)) and not isinstance(observed, bool)
+                  and _within(observed, rule))
+        reason_code = REASON_SATISFIED if passed else REASON_OUT_OF_RANGE
+    elif rule.kind == "length":
+        # Strings count Unicode code points, arrays items and objects members.
+        passed = isinstance(observed, (str, list, dict)) and _within(len(observed), rule)
+        reason_code = REASON_SATISFIED if passed else REASON_LENGTH_OUT_OF_RANGE
     else:
         passed = False
         reason_code = REASON_MISSING
@@ -130,12 +198,13 @@ def _evaluate_rule(rule: Rule, response: dict[str, Any]) -> RuleResult:
     }
 
 
-def evaluate_response(
-    policy: Policy | dict[str, Any], response: Any
-) -> EvaluationResult:
-    """Evaluate one JSON response against every rule in a validated policy."""
+def _evaluate_rule(rule: Rule, response: dict[str, Any]) -> RuleResult:
+    """Evaluate one rule without compiling it, for one-off candidate checks."""
 
-    validated_policy = validate_policy(policy)
+    return _evaluate_compiled_rule(_CompiledRule(rule), response)
+
+
+def _check_response(response: Any) -> dict[str, Any]:
     if not isinstance(response, dict):
         raise EvaluationInputError("Candidate response must be a JSON object.")
     try:
@@ -147,12 +216,40 @@ def evaluate_response(
         )
     except (RecursionError, TypeError, ValueError) as exc:
         raise EvaluationInputError(str(exc)) from exc
+    return response
 
-    rule_results = [
-        _evaluate_rule(rule, response) for rule in validated_policy.rules
-    ]
+
+def _evaluate_checked(
+    policy_id: str,
+    compiled: tuple[_CompiledRule, ...],
+    response: dict[str, Any],
+) -> EvaluationResult:
+    """Evaluate compiled rules, in order, against an already checked response."""
+
+    rule_results = [_evaluate_compiled_rule(item, response) for item in compiled]
     return {
         "passed": all(result["passed"] for result in rule_results),
-        "policy_id": validated_policy.policy_id,
+        "policy_id": policy_id,
         "rule_results": rule_results,
     }
+
+
+def _evaluate_compiled(
+    policy_id: str,
+    compiled: tuple[_CompiledRule, ...],
+    response: Any,
+) -> EvaluationResult:
+    """Check one response and evaluate it against a compiled, validated policy."""
+
+    return _evaluate_checked(policy_id, compiled, _check_response(response))
+
+
+def evaluate_response(
+    policy: Policy | dict[str, Any], response: Any
+) -> EvaluationResult:
+    """Evaluate one JSON response against every rule in a validated policy."""
+
+    validated_policy = validate_policy(policy)
+    return _evaluate_compiled(
+        validated_policy.policy_id, _compile(validated_policy), response
+    )

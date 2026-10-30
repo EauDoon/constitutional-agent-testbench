@@ -1,12 +1,16 @@
 """Compact value-free regression diagnosis over the unchanged evaluator."""
+from typing import Any
+
+from .policy import Policy
 from .suite import evaluate_suite
 from .workflow import bounded_artifact
 
 
-def triage_suite(policy, suite):
+def triage_suite(policy: Policy | dict[str, Any], suite: Any) -> dict[str, Any]:
     """Group observed rule failures only among cases that violated their assertions."""
     report = evaluate_suite(policy, suite)
-    mismatches, groups = [], {}
+    mismatches: list[dict[str, Any]] = []
+    groups: dict[tuple[str, str, str], list[str]] = {}
     for case in report["cases"]:
         if case["matches_expectation"]:
             continue
@@ -24,7 +28,7 @@ def triage_suite(policy, suite):
                            for key in sorted(groups)], "values_included": False})
 
 
-def check_suite(policy, suite):
+def check_suite(policy: Policy | dict[str, Any], suite: Any) -> dict[str, Any]:
     """Combine existing diagnostics into a value-free local regression preflight."""
     from .policy import validate_policy
     from .suite import validate_suite

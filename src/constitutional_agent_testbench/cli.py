@@ -100,7 +100,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
     for name, inputs, help_text in (
         ("run-suite", ("suite",), "Run explicit fixture expectations; strict exit fails on mismatches."),
-        ("suite-coverage", ("suite",), "Count observed rule outcomes; strict exit requires both outcomes per rule."),
+        ("suite-coverage", ("suite",), "Count observed rule outcomes and reason codes; strict exit requires both outcomes per rule, --strict-reasons every reachable reason code."),
         ("compare-policies", ("candidate", "suite"), "Compare migration impact; strict exit fails on changed rule results."),
         ("create-receipt", ("response",), "Bind inputs to a recomputable evaluation receipt."),
         ("verify-receipt", ("response", "receipt"), "Recompute a receipt; strict exit fails on inconsistent bindings."),
@@ -112,10 +112,15 @@ def _build_parser() -> argparse.ArgumentParser:
         if name != "create-receipt":
             command_parser.add_argument("--strict-exit", action="store_true",
                                         help="return 1 when the command's stated condition fails")
+        if name == "suite-coverage":
+            command_parser.add_argument(
+                "--strict-reasons", action="store_true",
+                help="return 1 unless every rule produced every reason code its kind can "
+                     "emit; combined with --strict-exit, either gap returns 1")
 
     for name, help_text in (
         ("lint-policy", "Find conservative policy conflicts and duplicate constraints."),
-        ("explain", "Explain response failures without displaying candidate values."),
+        ("explain", "Explain path, type and bound failures without displaying candidate values."),
         ("generate-probes", "Generate verified targeted mutations and a regression suite."),
     ):
         command_parser = subparsers.add_parser(name, help=help_text,
@@ -129,8 +134,8 @@ def _build_parser() -> argparse.ArgumentParser:
 
     validate_parser = subparsers.add_parser(
         "validate-policy",
-        help="Validate a version 1.0 policy.",
-        description="Validate a version 1.0 policy and report its identifier and schema version.",
+        help="Validate a version 1.0 or 1.1 policy.",
+        description="Validate a version 1.0 or 1.1 policy and report its identifier and schema version.",
         allow_abbrev=False,
     )
     validate_parser.add_argument("policy", help="policy path, or - for standard input")
@@ -139,7 +144,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "evaluate",
         help="Evaluate a candidate response.",
         description=(
-            "Evaluate a candidate response against a version 1.0 policy. "
+            "Evaluate a candidate response against a version 1.0 or 1.1 policy. "
             "Completed evaluations return exit code 0 even when passed is false "
             "unless --strict-exit is supplied."
         ),
@@ -555,13 +560,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         })
         return 2
 
+    if arguments.command == "suite-coverage" and (arguments.strict_exit or arguments.strict_reasons):
+        outcome_gap = arguments.strict_exit and bool(
+            result["unexercised_passes"] or result["unexercised_failures"])
+        reason_gap = arguments.strict_reasons and bool(result["rules_missing_reason_codes"])
+        return 1 if outcome_gap or reason_gap else 0
     if getattr(arguments, "strict_exit", False):
         if arguments.command in COMMANDS:
             return 0 if result[COMMANDS[arguments.command][2]] else 1
         if arguments.command == "run-suite":
             return 0 if result["matches_expectations"] else 1
-        if arguments.command == "suite-coverage":
-            return 1 if result["unexercised_passes"] or result["unexercised_failures"] else 0
         if arguments.command == "compare-policies":
             return 1 if any(case["changed_rule_results"] or case["verdict_changed"]
                            for case in result["cases"]) else 0

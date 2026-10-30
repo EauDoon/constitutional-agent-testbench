@@ -148,7 +148,7 @@ class PolicyValidationTests(unittest.TestCase):
 
     def test_rejects_unsupported_schema_versions(self) -> None:
         raw = valid_policy()
-        for version in ("", "1", "1.1", "2.0", 1.0, None):
+        for version in ("", "1", "1.2", "2.0", 1.0, 1.1, None):
             raw["schema_version"] = version
             with self.subTest(version=version), self.assertRaises(PolicyValidationError):
                 validate_policy(raw)

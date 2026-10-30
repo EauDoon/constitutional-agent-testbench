@@ -308,6 +308,28 @@ def json_values_equal(left: Any, right: Any) -> bool:
         return False
 
 
+def json_type_name(value: Any) -> str:
+    """Name a JSON value's type; ``integer`` is an integer literal, never a bool.
+
+    A fraction or exponent literal such as ``1.0`` or ``1e2`` is a ``number``,
+    matching the literal-form rule that ``equals`` and ``one_of`` already apply.
+    """
+
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "boolean"
+    if isinstance(value, int):
+        return "integer"
+    if isinstance(value, float):
+        return "number"
+    if isinstance(value, str):
+        return "string"
+    if isinstance(value, list):
+        return "array"
+    return "object"
+
+
 def get_field(document: dict[str, Any], path: str) -> tuple[bool, Any]:
     """Resolve a validated dot-separated path through JSON objects."""
 

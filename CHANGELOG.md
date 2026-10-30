@@ -11,6 +11,68 @@ original wording.
 
 ## [Unreleased]
 
+### Added
+
+- Policy schema `1.1`, beside an unchanged `1.0`, with three rule kinds for the
+  most common output contracts. `type` requires one of the listed JSON types
+  (`integer` is an integer literal; `number` admits every number). `range`
+  requires a number within inclusive `minimum` and `maximum` bounds, compared
+  numerically, so `0`, `0.0` and `-0.0` all fall inside `[0, 0]`. `length`
+  bounds the code points of a string, the items of an array or the members of
+  an object. They emit `VALUE_WRONG_TYPE`, `VALUE_OUT_OF_RANGE` and
+  `VALUE_LENGTH_OUT_OF_RANGE`. Before this, `required_field` accepted
+  `{"summary": ""}`, `null` or `12`, and numeric ranges were a documented
+  limitation. Validation rejects a type list that admits every value, `integer`
+  beside `number`, inverted bounds and length bounds above the 1,000,000-byte
+  input limit. Synthesis, targeted probes, lint, `compare-policies`,
+  `audit-assertions` and suite `1.1` assertions all handle the new kinds;
+  synthesis fails closed with `SYNTHETIC_GENERATION_FAILED` on combinations its
+  fixed candidate menu cannot meet. `examples/typed-policy.json` and two typed
+  responses show each kind. Every `1.0` output and digest is unchanged.
+- `explain` now diagnoses value failures, not only traversal failures. Each
+  explanation lists `expected_types`, the JSON types that could satisfy the
+  rule, derived from the policy alone, and a resolved path adds
+  `observed_type`. On `{"blocked": 0}` it previously reported only
+  `VALUE_NOT_FALSE` and `resolved`; it now shows `integer` observed where
+  `boolean` is expected. A failed `range` or `length` rule adds
+  `violated_bound` (`minimum` or `maximum`). No values, lengths or digests are
+  added, and existing keys are unchanged. `explain_response` validates the
+  policy once instead of twice.
+- `suite-coverage --strict-reasons` and reason-code coverage. Each rule row
+  gains `kind` and `unexercised_reason_codes`, the reason codes its kind can
+  emit that no case produced, and the report gains
+  `rules_with_all_reason_codes` and `rules_missing_reason_codes`. A corpus
+  whose only failing fixture is `{}` reported every rule as having both
+  outcomes, so `--strict-exit` passed although no value check ever ran;
+  `--strict-reasons` returns 1 for it. `--strict-exit` is unchanged, and with
+  both flags either gap returns 1.
+
+### Changed
+
+- Every function exported in `__all__` now carries complete type annotations.
+  Twenty of them, including `inspect_policy`, `merge_suites`, `triage_suite`,
+  `create_suite_receipt` and `replay_bundle`, had none, so a consumer running
+  `mypy --strict` got `no-untyped-call` errors although the package ships
+  `py.typed`. The CI typing gate now runs `mypy --strict` over a fixture that
+  calls every exported function, and a unit test fails when an exported
+  function loses an annotation or names a type that does not resolve. Runtime
+  behaviour is unchanged.
+- Suites, probes, synthetic generation and order checks validate and compile the
+  policy once per run instead of once per evaluation; `equals` and `one_of`
+  constraints are serialized once. Every output is byte-identical. Measured on
+  Windows with Python 3.12: a 150-case suite against a 202,582-byte policy fell
+  from 9.04 s to 0.27 s, `check-order` on a typical seven-rule policy from
+  4.16 s to 1.16 s, seven `one_of` rules of 20 values from 8.56 s to 1.18 s, and
+  probes for 64 rules from 1.83 s to 0.28 s. `check-order` with the built-in
+  evaluator now skips the defensive copies and result-contract checks it applies
+  to a custom evaluator; custom evaluators keep every guard.
+- The 32,000,000-byte policy-work limits on suites and targeted probes are
+  retired, because per-case cost no longer grows with policy size. A
+  148,312-byte policy with 256 cases, previously refused, now runs in 0.04 s.
+  The 256-case, 64-probe-rule, 1,000,000-byte, 32-level and 100,000-node limits,
+  the lint budget and the order-check work budget are unchanged.
+  `MAX_SUITE_POLICY_BYTES` stays importable but is no longer enforced.
+
 ### Removed
 
 - The `audits/` directory of no-op baseline reports from the 2026-09-23
@@ -23,6 +85,18 @@ original wording.
 
 ### Fixed
 
+- `scripts/check_version.py` now checks the changelog link references that
+  `docs/RELEASE.md` says to update. A stale
+  `[Unreleased]: .../compare/v0.5.19...HEAD` with no `[0.6.0]:` line passed
+  before; the `[Unreleased]` link must now end in `/compare/vX.Y.Z...HEAD`, and
+  a `[X.Y.Z]` link must end in `/releases/tag/vX.Y.Z` or `/compare/...vX.Y.Z`.
+- `generate-synthetic` and `generate-probes` no longer report
+  `INVALID_RESPONSE` for a valid policy whose synthesized response exceeds the
+  32-level, 100,000-node or 1,000,000-byte limits, such as a 20-segment path
+  whose `equals` value nests 20 levels. The operator supplied no response, so
+  both commands, and `generate_synthetic_cases` and `generate_rule_probes` in
+  the library, now fail with `SYNTHETIC_GENERATION_FAILED` and exit code 2, as
+  the README promises for any pair that cannot be built.
 - Strict JSON stream loading now consumes short reads through EOF while enforcing
   the cumulative UTF-8 byte limit. A complete JSON prefix no longer hides trailing
   data or a later read error, and valid JSON split across reads is accepted,

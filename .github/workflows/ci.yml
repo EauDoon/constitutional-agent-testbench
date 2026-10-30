@@ -38,7 +38,7 @@ jobs:
           python -m pip install --disable-pip-version-check --no-deps .
           python -m pip install --disable-pip-version-check mypy==2.3.1
       - name: Type-check the public API as a downstream consumer
-        run: python -m mypy --python-version 3.11 --follow-imports=silent tests/static_typing/public_api.py
+        run: python -m mypy --strict --python-version 3.11 --follow-imports=silent tests/static_typing/public_api.py
 
   verify:
     name: ${{ matrix.os }} Python ${{ matrix.python }}
@@ -78,6 +78,12 @@ jobs:
           constitutional-agent-testbench validate-policy examples/policy.json
           constitutional-agent-testbench evaluate examples/policy.json examples/passing-response.json
           constitutional-agent-testbench evaluate examples/policy.json examples/failing-response.json
+          constitutional-agent-testbench validate-policy examples/typed-policy.json
+          constitutional-agent-testbench evaluate examples/typed-policy.json examples/typed-passing-response.json --strict-exit
+          status=0; constitutional-agent-testbench evaluate examples/typed-policy.json examples/typed-failing-response.json --strict-exit > /dev/null || status=$?; test "$status" -eq 1
+          constitutional-agent-testbench generate-synthetic examples/typed-policy.json
+          constitutional-agent-testbench generate-probes examples/typed-policy.json
+          constitutional-agent-testbench lint-policy examples/typed-policy.json --strict-exit
           constitutional-agent-testbench generate-synthetic examples/policy.json
           constitutional-agent-testbench playground --smoke-test
           constitutional-agent-testbench lint-policy examples/policy.json --strict-exit
@@ -85,6 +91,7 @@ jobs:
           constitutional-agent-testbench generate-probes examples/policy.json
           constitutional-agent-testbench run-suite examples/policy.json examples/regression-suite.json --strict-exit
           constitutional-agent-testbench suite-coverage examples/policy.json examples/regression-suite.json --strict-exit
+          constitutional-agent-testbench suite-coverage examples/policy.json examples/regression-suite.json --strict-reasons
           constitutional-agent-testbench compare-policies examples/policy.json examples/migration-policy.json examples/regression-suite.json
           constitutional-agent-testbench create-receipt examples/policy.json examples/passing-response.json > receipt.json
           constitutional-agent-testbench verify-receipt examples/policy.json examples/passing-response.json receipt.json --strict-exit

@@ -9,6 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGE_ROOT = ROOT / "src"
 CI_WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
+TYPING_FIXTURE = ROOT / "tests" / "static_typing" / "public_api.py"
 
 
 class ConsoleScriptTests(unittest.TestCase):
@@ -32,6 +33,53 @@ class ConsoleScriptTests(unittest.TestCase):
         package_data = self.distribution["tool"]["setuptools"]["package-data"]
         self.assertIn("py.typed", package_data["constitutional_agent_testbench"])
         self.assertTrue((PACKAGE_ROOT / "constitutional_agent_testbench" / "py.typed").is_file())
+
+
+class PublicTypingTests(unittest.TestCase):
+    """The package ships py.typed, so every exported function must be annotated."""
+
+    def test_every_exported_function_is_fully_annotated(self):
+        import inspect
+        import typing
+
+        import constitutional_agent_testbench as package
+
+        functions = [name for name in package.__all__
+                     if inspect.isfunction(getattr(package, name))]
+        self.assertGreaterEqual(len(functions), 30)
+        for name in functions:
+            function = getattr(package, name)
+            signature = inspect.signature(function)
+            with self.subTest(function=name):
+                self.assertIsNot(signature.return_annotation, inspect.Signature.empty)
+                for parameter in signature.parameters.values():
+                    self.assertIsNot(parameter.annotation, inspect.Parameter.empty,
+                                     parameter.name)
+                # An annotation that names something unimportable fails here.
+                hints = typing.get_type_hints(function)
+                self.assertIn("return", hints)
+
+    @unittest.skipUnless(TYPING_FIXTURE.is_file(), "repository-only check; the sdist has no fixture")
+    def test_static_typing_fixture_calls_every_exported_function(self):
+        import constitutional_agent_testbench as package
+
+        fixture = TYPING_FIXTURE.read_text("utf-8")
+        tree = ast.parse(fixture)
+        called = {node.func.id for node in ast.walk(tree)
+                  if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)}
+        for name in package.__all__:
+            if callable(getattr(package, name)) and not isinstance(getattr(package, name), type):
+                with self.subTest(function=name):
+                    self.assertIn(name, called)
+
+    @unittest.skipUnless(CI_WORKFLOW.is_file(), "repository-only check; the sdist has no .github/")
+    def test_ci_type_checks_the_public_api_in_strict_mode(self):
+        workflow = CI_WORKFLOW.read_text("utf-8")
+        self.assertIn(
+            "python -m mypy --strict --python-version 3.11 --follow-imports=silent "
+            "tests/static_typing/public_api.py",
+            workflow,
+        )
 
 
 class LicenseMetadataTests(unittest.TestCase):

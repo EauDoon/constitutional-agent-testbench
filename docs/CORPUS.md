@@ -1,6 +1,7 @@
 # Author, curate, and replay a regression corpus
 
-Version 0.4.0 adds corpus workflows to the unchanged policy schema 1.0 evaluator.
+Version 0.4.0 added corpus workflows to the policy evaluator; they accept policy
+schemas 1.0 and 1.1 alike.
 All commands run locally. No artifact selects a plugin, evaluator, file path,
 shell command, network request, or model. Install with `pip install --no-deps .`.
 
@@ -68,8 +69,9 @@ independent observations, proofs of safety, or evidence of real model behavior.
 
 Workflow artifacts must fit 1,000,000 formatted UTF-8 bytes, 32 nesting levels
 and 100,000 nodes. Bundling adds nesting and bytes, so separate valid inputs may
-not fit together. Existing suites retain the 256-case and 32,000,000 policy-byte
-evaluation-work limits. Oversized workflows fail closed, never silently sample.
+not fit together. Suites retain the 256-case limit; the policy is validated and
+compiled once per run, so the 32,000,000 policy-byte evaluation-work limit of
+earlier releases is retired. Oversized workflows fail closed, never silently sample.
 
 ## Files and automation
 

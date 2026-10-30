@@ -98,8 +98,8 @@ class SyntheticGenerationTests(unittest.TestCase):
         with (
             patch.object(
                 synthetic,
-                "evaluate_response",
-                wraps=synthetic.evaluate_response,
+                "_evaluate_compiled",
+                wraps=synthetic._evaluate_compiled,
             ) as full_evaluation,
             patch.object(
                 synthetic,
@@ -149,8 +149,8 @@ class SyntheticGenerationTests(unittest.TestCase):
             patch.object(synthetic, "_MAX_COMPATIBILITY_WORK", 3),
             patch.object(
                 synthetic,
-                "evaluate_response",
-                wraps=synthetic.evaluate_response,
+                "_evaluate_compiled",
+                wraps=synthetic._evaluate_compiled,
             ) as full_evaluation,
             self.assertRaisesRegex(
                 SyntheticGenerationError,
@@ -185,8 +185,8 @@ class SyntheticGenerationTests(unittest.TestCase):
             patch.object(synthetic, "_MAX_COMPATIBILITY_WORK", 3),
             patch.object(
                 synthetic,
-                "evaluate_response",
-                wraps=synthetic.evaluate_response,
+                "_evaluate_compiled",
+                wraps=synthetic._evaluate_compiled,
             ) as full_evaluation,
             self.assertRaisesRegex(
                 SyntheticGenerationError,
@@ -257,6 +257,60 @@ class ConstraintIntersectionTests(unittest.TestCase):
         with self.assertRaisesRegex(SyntheticGenerationError, "incompatible nested paths"):
             synthetic._assign_path(document, "a.b", 0)
         self.assertEqual(document, {"a": 1})
+
+
+
+def _deep_policy() -> dict[str, object]:
+    """A valid policy whose only passing response nests deeper than 32 levels."""
+
+    value: object = "x"
+    for _ in range(20):
+        value = {"k": value}
+    return {
+        "schema_version": "1.0",
+        "policy_id": "deep",
+        "rules": [{
+            "rule_id": "deep",
+            "kind": "equals",
+            "path": ".".join(f"s{index}" for index in range(20)),
+            "value": value,
+        }],
+    }
+
+
+class StructuralLimitTests(unittest.TestCase):
+    """A synthesized response that breaks JSON limits is a generation failure."""
+
+    def test_synthetic_generation_reports_structural_limits_as_generation_failure(self) -> None:
+        with self.assertRaisesRegex(SyntheticGenerationError, "structural limits"):
+            generate_synthetic_cases(_deep_policy())
+
+    def test_probe_generation_reports_structural_limits_as_generation_failure(self) -> None:
+        from constitutional_agent_testbench.probes import generate_rule_probes
+
+        with self.assertRaisesRegex(SyntheticGenerationError, "structural limits"):
+            generate_rule_probes(_deep_policy())
+
+    def test_cli_exits_2_with_the_generation_code_and_no_traceback(self) -> None:
+        import io
+        import json
+        from contextlib import redirect_stderr, redirect_stdout
+
+        from constitutional_agent_testbench.cli import main
+
+        for command in ("generate-synthetic", "generate-probes"):
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with (
+                self.subTest(command=command),
+                patch("sys.stdin", io.StringIO(json.dumps(_deep_policy()))),
+                redirect_stdout(stdout),
+                redirect_stderr(stderr),
+            ):
+                exit_code = main([command, "-"])
+            self.assertEqual(exit_code, 2)
+            error = json.loads(stdout.getvalue() or stderr.getvalue())["error"]
+            self.assertEqual(error["code"], "SYNTHETIC_GENERATION_FAILED")
+            self.assertNotIn("Traceback", stderr.getvalue())
 
 
 if __name__ == "__main__":

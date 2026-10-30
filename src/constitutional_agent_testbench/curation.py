@@ -1,10 +1,12 @@
 """Explicit corpus edits that preserve response content and assertion intent."""
+from typing import Any
+
 from .suite import MAX_SUITE_CASES, evaluate_suite, validate_suite, SuiteInputError
 from .workflow import bounded_artifact, WorkflowInputError
-from .policy import validate_policy
+from .policy import Policy, validate_policy
 
 
-def merge_suites(suite, incoming):
+def merge_suites(suite: Any, incoming: Any) -> dict[str, Any]:
     """Append two owned suites; never silently rename, deduplicate or overwrite cases."""
     left, right = validate_suite(suite), validate_suite(incoming)
     if left["suite_version"] != right["suite_version"]:
@@ -13,7 +15,7 @@ def merge_suites(suite, incoming):
     return bounded_artifact(validate_suite(left))
 
 
-def select_suite(suite, selection):
+def select_suite(suite: Any, selection: Any) -> dict[str, Any]:
     """Select exact IDs in original corpus order, rejecting empty or misspelled selections."""
     fixtures = validate_suite(suite)
     bounded_artifact(selection)
@@ -30,7 +32,7 @@ def select_suite(suite, selection):
     return bounded_artifact(fixtures)
 
 
-def reduce_suite(policy, suite):
+def reduce_suite(policy: Policy | dict[str, Any], suite: Any) -> dict[str, Any]:
     """Greedily retain observed rule/reason coverage and every mismatching fixture."""
     current = validate_policy(policy)
     fixtures = validate_suite(suite)
@@ -58,7 +60,7 @@ def reduce_suite(policy, suite):
     return bounded_artifact(validate_suite(fixtures))
 
 
-def capture_assertions(policy, suite):
+def capture_assertions(policy: Policy | dict[str, Any], suite: Any) -> dict[str, Any]:
     """Fill rule assertions only after all existing expectations pass."""
     fixtures = validate_suite(suite)
     report = evaluate_suite(policy, fixtures)
@@ -71,7 +73,7 @@ def capture_assertions(policy, suite):
     return bounded_artifact(validate_suite(fixtures))
 
 
-def shard_suite(suite, partition):
+def shard_suite(suite: Any, partition: Any) -> dict[str, Any]:
     """Select a zero-based round-robin shard in source order."""
     fixtures = validate_suite(suite)
     bounded_artifact(partition)
@@ -84,7 +86,7 @@ def shard_suite(suite, partition):
     return bounded_artifact(fixtures)
 
 
-def select_outcomes(policy, suite, selection):
+def select_outcomes(policy: Policy | dict[str, Any], suite: Any, selection: Any) -> dict[str, Any]:
     """Select an observed cohort while preserving original expectation intent."""
     bounded_artifact(selection)
     if not isinstance(selection, str) or selection not in {"mismatched", "matched", "passed", "failed"}:
@@ -103,7 +105,7 @@ def select_outcomes(policy, suite, selection):
     return bounded_artifact(fixtures)
 
 
-def deduplicate_suite(suite):
+def deduplicate_suite(suite: Any) -> dict[str, Any]:
     """Keep the first case for each identical response and expectation payload."""
     from .common import canonical_json
     fixtures = validate_suite(suite)
@@ -117,7 +119,7 @@ def deduplicate_suite(suite):
     return bounded_artifact(fixtures)
 
 
-def import_responses(responses, expectations):
+def import_responses(responses: Any, expectations: Any) -> dict[str, Any]:
     """Create fixtures from a response array and an equally sized explicit verdict array."""
     bounded_artifact(responses)
     bounded_artifact(expectations)
