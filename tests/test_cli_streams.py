@@ -102,10 +102,11 @@ class ClosedStreamTests(unittest.TestCase):
         return ["evaluate", str(self.policy_path), str(response_path), "--strict-exit"]
 
     def test_closed_or_failing_standard_output_is_an_output_error(self):
-        closed = io.StringIO()
-        closed.close()
+        # A write to a closed file object raises ValueError. The stream itself
+        # stays open here: Python 3.14 argparse probes sys.stdout for colour
+        # support, and a closed object would fail there before any write.
         for label, stdout in (("closed descriptor", None),
-                              ("closed file", closed),
+                              ("closed file object", _FailingStream(ValueError("I/O operation on closed file."))),
                               ("broken pipe", _FailingStream(BrokenPipeError(32, "Broken pipe"))),
                               ("device full", _FailingStream(OSError(28, "No space left")))):
             with self.subTest(stdout=label):
