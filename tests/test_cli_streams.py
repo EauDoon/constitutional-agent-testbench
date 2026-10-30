@@ -67,5 +67,31 @@ class JsonStreamTests(unittest.TestCase):
             self.assertIn("SYNTHETIC_雪", error["error"]["message"])
             self.assertNotIn(b"\r", buffer.getvalue())
 
+
+class ClosedStreamTests(unittest.TestCase):
+    """A closed process stream is a controlled error, never a negative verdict.
+
+    With --strict-exit, 1 means a valid negative result. Python sets a standard
+    stream to None when its descriptor is closed at startup (`<&-`, `>&-`).
+    """
+
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        self.policy_path = root / "policy.json"
+        self.policy_path.write_text(stable_json({
+            "schema_version": "1.0", "policy_id": "synthetic",
+            "rules": [{"rule_id": "r", "kind": "false", "path": "action"}]}), encoding="utf-8")
+
+    def test_closed_standard_input_is_invalid_input(self):
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with redirect_stdout(stdout), redirect_stderr(stderr), patch("sys.stdin", None):
+            code = main(["evaluate", str(self.policy_path), "-", "--strict-exit"])
+        self.assertEqual(code, 2)
+        self.assertEqual(stdout.getvalue(), "")
+        self.assertEqual(json.loads(stderr.getvalue())["error"]["code"], "INVALID_JSON_INPUT")
+
+
 if __name__ == "__main__":
     unittest.main()

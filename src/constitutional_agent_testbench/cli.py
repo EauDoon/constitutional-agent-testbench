@@ -11,6 +11,7 @@ from typing import Any
 
 from ._version import __version__
 from .common import (
+    JsonInputError,
     TestbenchError,
     load_json,
     load_json_stream,
@@ -387,6 +388,9 @@ def _guard_output(arguments):
 def _load_json_argument(path: str) -> Any:
     if path != "-":
         return load_json(path)
+    # Python sets sys.stdin to None when descriptor 0 is closed at startup.
+    if sys.stdin is None:
+        raise JsonInputError("Standard input is closed, so '-' cannot be read.")
     return load_json_stream(getattr(sys.stdin, "buffer", sys.stdin))
 
 
