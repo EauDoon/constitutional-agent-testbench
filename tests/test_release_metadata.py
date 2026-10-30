@@ -123,6 +123,40 @@ class ReleaseMetadataTests(unittest.TestCase):
         self.assertNotRegex(notes, r"(?m)^## ")
         self.assertNotRegex(notes, r"(?m)^\[[^\]]+\]: ")
 
+    def test_stale_unreleased_link_is_named(self) -> None:
+        self.edit("CHANGELOG.md", f"/compare/v{self.version}...HEAD", "/compare/v0.5.19...HEAD")
+        problems = self.problems()
+        self.assertTrue(any("'[Unreleased]:' link" in item and "...HEAD" in item
+                            for item in problems), problems)
+
+    def test_missing_unreleased_link_is_named(self) -> None:
+        text = (self.copy / "CHANGELOG.md").read_text(encoding="utf-8")
+        line = next(item for item in text.splitlines() if item.startswith("[Unreleased]: "))
+        self.edit("CHANGELOG.md", line + "\n", "")
+        self.assertTrue(any("'[Unreleased]:' link" in item for item in self.problems()))
+
+    def test_missing_release_link_is_named(self) -> None:
+        text = (self.copy / "CHANGELOG.md").read_text(encoding="utf-8")
+        line = next(item for item in text.splitlines()
+                    if item.startswith(f"[{self.version}]: "))
+        self.edit("CHANGELOG.md", line + "\n", "")
+        self.assertTrue(any(f"'[{self.version}]:' link" in item for item in self.problems()))
+
+    def test_release_link_must_name_this_version(self) -> None:
+        text = (self.copy / "CHANGELOG.md").read_text(encoding="utf-8")
+        line = next(item for item in text.splitlines()
+                    if item.startswith(f"[{self.version}]: "))
+        self.edit("CHANGELOG.md", line, f"[{self.version}]: https://example.invalid/releases/tag/v9.9.9")
+        self.assertTrue(any(f"'[{self.version}]:' link" in item for item in self.problems()))
+
+    def test_release_link_accepts_a_tag_or_a_compare_url(self) -> None:
+        text = (self.copy / "CHANGELOG.md").read_text(encoding="utf-8")
+        line = next(item for item in text.splitlines()
+                    if item.startswith(f"[{self.version}]: "))
+        self.edit("CHANGELOG.md", line, f"[{self.version}]: https://example.invalid/compare/"
+                                        f"v0.0.1...v{self.version}")
+        self.assertEqual(self.problems(), [])
+
     def test_release_notes_stop_before_link_references(self) -> None:
         changelog = self.copy / "CHANGELOG.md"
         changelog.write_text(

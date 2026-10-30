@@ -85,6 +85,11 @@ original wording.
 
 ### Fixed
 
+- `scripts/check_version.py` now checks the changelog link references that
+  `docs/RELEASE.md` says to update. A stale
+  `[Unreleased]: .../compare/v0.5.19...HEAD` with no `[0.6.0]:` line passed
+  before; the `[Unreleased]` link must now end in `/compare/vX.Y.Z...HEAD`, and
+  a `[X.Y.Z]` link must end in `/releases/tag/vX.Y.Z` or `/compare/...vX.Y.Z`.
 - `generate-synthetic` and `generate-probes` no longer report
   `INVALID_RESPONSE` for a valid policy whose synthesized response exceeds the
   32-level, 100,000-node or 1,000,000-byte limits, such as a 20-segment path
