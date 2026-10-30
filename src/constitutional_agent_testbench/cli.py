@@ -115,7 +115,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
     for name, help_text in (
         ("lint-policy", "Find conservative policy conflicts and duplicate constraints."),
-        ("explain", "Explain response failures without displaying candidate values."),
+        ("explain", "Explain path, type and bound failures without displaying candidate values."),
         ("generate-probes", "Generate verified targeted mutations and a regression suite."),
     ):
         command_parser = subparsers.add_parser(name, help=help_text,

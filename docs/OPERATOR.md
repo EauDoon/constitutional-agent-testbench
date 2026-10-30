@@ -18,7 +18,7 @@ Use the installed `constitutional-agent-testbench` command after
 | `generate-synthetic` | Produce a verified passing and failing case, either on standard output or in an explicitly selected file. |
 | `playground` | Open the offline policy playground, or run its headless smoke check. |
 | `lint-policy` | Identify exact-path conflicts, incompatible descendants, and duplicate constraints. |
-| `explain` | Show absent members and non-object parents without copying candidate values. |
+| `explain` | Show absent members, non-object parents, observed and expected JSON types and violated bounds without copying candidate values. |
 | `generate-probes` | Produce verified per-rule mutations and an executable fixture suite. |
 | `run-suite` | Compare every fixture result with its explicit expected pass state. |
 | `suite-coverage` | Count observed pass/fail outcomes and reason codes for each rule. |
@@ -107,8 +107,15 @@ constitutional-agent-testbench generate-probes examples/policy.json
 Lint reports duplicate constraints, disjoint finite domains at identical paths,
 and a finite ancestor domain with no candidate satisfying all declared descendants.
 It does not rewrite rules or prove satisfiability when it finds no conflicts.
-Explanations distinguish a missing object member from a non-object parent. They
-include declared paths and rule identifiers, but no response or constraint values.
+Explanations distinguish a missing object member from a non-object parent. Each
+also lists `expected_types`, the JSON types that could satisfy the rule, derived
+from the policy alone (`null` for `required_field`, which accepts any type;
+`number` brings in `integer`). When the path resolves, `observed_type` names the
+type found there, so an observed type outside `expected_types` diagnoses a type
+failure, such as `0` under a `false` rule. A failed schema 1.1 `range` rule on a
+number, or `length` rule on a string, array or object, adds `violated_bound`:
+`minimum` or `maximum`. Explanations include declared paths, rule identifiers and
+type names, but no response or constraint values, lengths or digests.
 
 Probes start from a verified synthetic pass, then remove each rule's field and,
 where applicable, substitute a verified disallowed value. Each probe records all

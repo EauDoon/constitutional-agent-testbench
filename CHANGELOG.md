@@ -29,6 +29,15 @@ original wording.
   synthesis fails closed with `SYNTHETIC_GENERATION_FAILED` on combinations its
   fixed candidate menu cannot meet. `examples/typed-policy.json` and two typed
   responses show each kind. Every `1.0` output and digest is unchanged.
+- `explain` now diagnoses value failures, not only traversal failures. Each
+  explanation lists `expected_types`, the JSON types that could satisfy the
+  rule, derived from the policy alone, and a resolved path adds
+  `observed_type`. On `{"blocked": 0}` it previously reported only
+  `VALUE_NOT_FALSE` and `resolved`; it now shows `integer` observed where
+  `boolean` is expected. A failed `range` or `length` rule adds
+  `violated_bound` (`minimum` or `maximum`). No values, lengths or digests are
+  added, and existing keys are unchanged. `explain_response` validates the
+  policy once instead of twice.
 
 ### Changed
 

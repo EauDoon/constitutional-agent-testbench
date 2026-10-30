@@ -20,7 +20,7 @@ The package is deliberately narrow. It does not call models, use a network, exec
 - Evaluate every declared rule and receive a clear pass state plus a stable reason code for each result.
 - Fail closed when an expected path is absent.
 - Generate verified passing and failing fixtures from the same policy.
-- Diagnose conflicting constraints and explain exactly where field traversal failed.
+- Diagnose conflicting constraints and explain exactly where field traversal failed, which JSON type was observed against the types a rule expects, and which bound a value crossed.
 - Run explicit regression fixtures, inspect outcome coverage, and compare policy migrations.
 - Recompute digest-bound evaluation receipts without retaining response values in reports.
 - Keep evaluation local, dependency-free at runtime, and separate from model execution.
