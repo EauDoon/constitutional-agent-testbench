@@ -11,6 +11,16 @@ original wording.
 
 ## [Unreleased]
 
+### Removed
+
+- The `audits/` directory of no-op baseline reports from the 2026-09-23
+  portfolio triage. Nothing in the repository linked to those files, and three
+  of them now assert facts about this repository that are false: that no lint
+  target is configured, that no coverage tool is declared, and that the suite
+  holds 190 tests with 2 skips. Package 0.6.0 added the pinned ruff gate, the
+  mypy public-API check and the 95 percent branch-coverage floor, and this
+  changelog records them. Git history keeps the original reports.
+
 ### Fixed
 
 - Strict JSON stream loading now consumes short reads through EOF while enforcing
