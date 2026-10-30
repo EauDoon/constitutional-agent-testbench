@@ -55,12 +55,13 @@ def compare_policies(before: Policy | dict[str, Any], after: Policy | dict[str, 
             "comparison_scope": "supplied fixtures only; no policy recommendation"}
 
 
-def migration_expectations(policy, candidate, suite):
+def migration_expectations(policy: Policy | dict[str, Any], candidate: Policy | dict[str, Any],
+                           suite: Any) -> dict[str, Any]:
     """Identify expectation regressions even when the overall verdict stays fixed."""
     from .workflow import bounded_artifact
     fixtures = validate_suite(suite)
     before, after = evaluate_suite(policy, fixtures), evaluate_suite(candidate, fixtures)
-    groups = {"regressions": [], "recoveries": [], "still_mismatched": [], "still_matched": []}
+    groups: dict[str, list[str]] = {"regressions": [], "recoveries": [], "still_mismatched": [], "still_matched": []}
     for left, right in zip(before["cases"], after["cases"], strict=True):
         matched = left["matches_expectation"], right["matches_expectation"]
         category = {(True, False): "regressions", (False, True): "recoveries",

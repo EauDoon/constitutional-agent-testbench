@@ -1,19 +1,20 @@
 """Self-contained bounded replay data, never executable configuration."""
 from copy import deepcopy
+from typing import Any
 
-from .policy import policy_to_dict, validate_policy
+from .policy import Policy, policy_to_dict, validate_policy
 from .suite import validate_suite
 from .corpus_receipt import create_suite_receipt, verify_suite_receipt
 from .workflow import WorkflowInputError, bounded_artifact
 
 
-def create_replay_bundle(policy, suite):
+def create_replay_bundle(policy: Policy | dict[str, Any], suite: Any) -> dict[str, Any]:
     current, fixtures = validate_policy(policy), validate_suite(suite)
     return bounded_artifact({"replay_version": "1.0", "policy": policy_to_dict(current),
         "suite": fixtures, "receipt": create_suite_receipt(current, fixtures)})
 
 
-def replay_bundle(bundle):
+def replay_bundle(bundle: Any) -> dict[str, Any]:
     """Recompute bundled evidence; consistency and matching expectations are separate."""
     bounded_artifact(bundle)
     if (not isinstance(bundle, dict) or set(bundle) != {"replay_version", "policy", "suite", "receipt"}

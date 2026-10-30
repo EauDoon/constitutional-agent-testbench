@@ -49,12 +49,14 @@ python -m ruff check --no-cache .
 ```
 
 Type-check the public API the way a downstream consumer sees it. Install the
-package first, so mypy reads the installed copy and its `py.typed` marker:
+package first, so mypy reads the installed copy and its `py.typed` marker. The
+fixture calls every exported function, and `--strict` fails on any public
+signature a strict consumer could not call cleanly:
 
 ```text
 python -m pip install --no-deps .
 python -m pip install mypy==2.3.1
-python -m mypy --python-version 3.11 --follow-imports=silent tests/static_typing/public_api.py
+python -m mypy --strict --python-version 3.11 --follow-imports=silent tests/static_typing/public_api.py
 ```
 
 Measure branch coverage against the installed package. The settings live in

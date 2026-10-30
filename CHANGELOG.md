@@ -11,6 +11,17 @@ original wording.
 
 ## [Unreleased]
 
+### Changed
+
+- Every function exported in `__all__` now carries complete type annotations.
+  Twenty of them, including `inspect_policy`, `merge_suites`, `triage_suite`,
+  `create_suite_receipt` and `replay_bundle`, had none, so a consumer running
+  `mypy --strict` got `no-untyped-call` errors although the package ships
+  `py.typed`. The CI typing gate now runs `mypy --strict` over a fixture that
+  calls every exported function, and a unit test fails when an exported
+  function loses an annotation or names a type that does not resolve. Runtime
+  behaviour is unchanged.
+
 ### Removed
 
 - The `audits/` directory of no-op baseline reports from the 2026-09-23

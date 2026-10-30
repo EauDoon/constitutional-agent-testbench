@@ -1,15 +1,16 @@
 """Value-free inspection for policy and fixture authors."""
 
 from collections import Counter
+from typing import Any
 
 from .common import canonical_json
 from .evaluator import FAILURE_REASON_BY_KIND
-from .policy import validate_policy
+from .policy import Policy, validate_policy
 from .workflow import bounded_artifact
 from .suite import validate_suite
 
 
-def inspect_policy(policy):
+def inspect_policy(policy: Policy | dict[str, Any]) -> dict[str, Any]:
     """Inventory declared paths and relationships without copying constraint values."""
     current = validate_policy(policy)
     paths = sorted({rule.path for rule in current.rules})
@@ -22,17 +23,17 @@ def inspect_policy(policy):
                       for path in paths]})
 
 
-def inspect_suite(suite):
+def inspect_suite(suite: Any) -> dict[str, Any]:
     """Identify duplicate inputs and contradictory expectations without response values."""
     fixtures = validate_suite(suite)
-    groups = {}
+    groups: dict[str, list[dict[str, Any]]] = {}
     for case in fixtures["cases"]:
         groups.setdefault(canonical_json(case["response"]), []).append(case)
     duplicates = []
     for cases in groups.values():
         if len(cases) > 1:
             conflict = len({case["expected_passed"] for case in cases}) > 1
-            asserted = {}
+            asserted: dict[str, Any] = {}
             for case in cases:
                 for identifier, assertion in case.get("expected_rules", {}).items():
                     if identifier in asserted and asserted[identifier] != assertion:
@@ -47,7 +48,7 @@ def inspect_suite(suite):
         "consistent_expectations": not any(group["conflicting_expectations"] for group in duplicates)})
 
 
-def diff_suites(suite, incoming):
+def diff_suites(suite: Any, incoming: Any) -> dict[str, Any]:
     """Report changes by stable case ID, never by copying candidate values."""
     left, right = validate_suite(suite), validate_suite(incoming)
     old = {case["case_id"]: case for case in left["cases"]}
@@ -71,7 +72,7 @@ def diff_suites(suite, incoming):
         "identical": canonical_json(left) == canonical_json(right), "values_included": False})
 
 
-def audit_assertions(policy, suite):
+def audit_assertions(policy: Policy | dict[str, Any], suite: Any) -> dict[str, Any]:
     """Check assertion references and logical consistency without evaluating responses."""
     current, fixtures = validate_policy(policy), validate_suite(suite)
     rules = {rule.rule_id: rule for rule in current.rules}

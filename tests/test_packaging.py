@@ -34,6 +34,51 @@ class ConsoleScriptTests(unittest.TestCase):
         self.assertTrue((PACKAGE_ROOT / "constitutional_agent_testbench" / "py.typed").is_file())
 
 
+class PublicTypingTests(unittest.TestCase):
+    """The package ships py.typed, so every exported function must be annotated."""
+
+    def test_every_exported_function_is_fully_annotated(self):
+        import inspect
+        import typing
+
+        import constitutional_agent_testbench as package
+
+        functions = [name for name in package.__all__
+                     if inspect.isfunction(getattr(package, name))]
+        self.assertGreaterEqual(len(functions), 30)
+        for name in functions:
+            function = getattr(package, name)
+            signature = inspect.signature(function)
+            with self.subTest(function=name):
+                self.assertIsNot(signature.return_annotation, inspect.Signature.empty)
+                for parameter in signature.parameters.values():
+                    self.assertIsNot(parameter.annotation, inspect.Parameter.empty,
+                                     parameter.name)
+                # An annotation that names something unimportable fails here.
+                hints = typing.get_type_hints(function)
+                self.assertIn("return", hints)
+
+    def test_static_typing_fixture_calls_every_exported_function(self):
+        import constitutional_agent_testbench as package
+
+        fixture = (ROOT / "tests" / "static_typing" / "public_api.py").read_text("utf-8")
+        tree = ast.parse(fixture)
+        called = {node.func.id for node in ast.walk(tree)
+                  if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)}
+        for name in package.__all__:
+            if callable(getattr(package, name)) and not isinstance(getattr(package, name), type):
+                with self.subTest(function=name):
+                    self.assertIn(name, called)
+
+    def test_ci_type_checks_the_public_api_in_strict_mode(self):
+        workflow = CI_WORKFLOW.read_text("utf-8")
+        self.assertIn(
+            "python -m mypy --strict --python-version 3.11 --follow-imports=silent "
+            "tests/static_typing/public_api.py",
+            workflow,
+        )
+
+
 class LicenseMetadataTests(unittest.TestCase):
     """The declared license must match the shipped LICENSE text."""
 

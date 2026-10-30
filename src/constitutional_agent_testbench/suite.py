@@ -14,7 +14,7 @@ MAX_SUITE_CASES = 256
 MAX_SUITE_POLICY_BYTES = 32_000_000
 
 
-def _validate_assertions(expected):
+def _validate_assertions(expected: Any) -> None:
     if not isinstance(expected, dict):
         raise SuiteInputError("Expected rules must be an object of rule assertions.")
     for identifier, assertion in expected.items():
@@ -90,7 +90,7 @@ def evaluate_suite(policy: Policy | dict[str, Any], suite: Any) -> dict[str, Any
             "cases": cases}
 
 
-def validate_suite_report(suite):
+def validate_suite_report(suite: Any) -> dict[str, Any]:
     """Validate fixture syntax without requiring or evaluating a policy."""
     fixtures = validate_suite(suite)
     return {"valid": True, "suite_version": fixtures["suite_version"],
