@@ -9,6 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGE_ROOT = ROOT / "src"
 CI_WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
+TYPING_FIXTURE = ROOT / "tests" / "static_typing" / "public_api.py"
 
 
 class ConsoleScriptTests(unittest.TestCase):
@@ -58,10 +59,11 @@ class PublicTypingTests(unittest.TestCase):
                 hints = typing.get_type_hints(function)
                 self.assertIn("return", hints)
 
+    @unittest.skipUnless(TYPING_FIXTURE.is_file(), "repository-only check; the sdist has no fixture")
     def test_static_typing_fixture_calls_every_exported_function(self):
         import constitutional_agent_testbench as package
 
-        fixture = (ROOT / "tests" / "static_typing" / "public_api.py").read_text("utf-8")
+        fixture = TYPING_FIXTURE.read_text("utf-8")
         tree = ast.parse(fixture)
         called = {node.func.id for node in ast.walk(tree)
                   if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)}
@@ -70,6 +72,7 @@ class PublicTypingTests(unittest.TestCase):
                 with self.subTest(function=name):
                     self.assertIn(name, called)
 
+    @unittest.skipUnless(CI_WORKFLOW.is_file(), "repository-only check; the sdist has no .github/")
     def test_ci_type_checks_the_public_api_in_strict_mode(self):
         workflow = CI_WORKFLOW.read_text("utf-8")
         self.assertIn(
