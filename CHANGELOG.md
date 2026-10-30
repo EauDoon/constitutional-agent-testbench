@@ -27,6 +27,15 @@ original wording.
   the cumulative UTF-8 byte limit. A complete JSON prefix no longer hides trailing
   data or a later read error, and valid JSON split across reads is accepted,
   including multi-byte characters split between binary chunks.
+- Reading `-` when standard input is closed (`<&-`) now fails with
+  `INVALID_JSON_INPUT` and exit code 2. It previously raised an uncaught
+  `AttributeError` with a traceback and exit code 1, which `--strict-exit` uses
+  for a valid negative result.
+- A closed or failing standard output (`>&-`, a pipe whose reader has exited, a
+  full device) now reports `JSON_OUTPUT_ERROR` on standard error and exits 2.
+  A passing `--strict-exit` evaluation previously exited 1 when standard output
+  was closed, and a broken pipe printed a traceback with local paths and exited
+  120. A closed standard error no longer turns an exit-2 error into exit 1.
 
 ## [0.6.0] - 2026-10-09
 

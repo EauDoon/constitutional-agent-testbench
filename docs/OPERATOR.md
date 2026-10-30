@@ -194,6 +194,10 @@ Digests can still disclose equality or permit guessing of low-entropy inputs.
 
 All successful computations default to exit 0, including valid negative results.
 Controlled invalid input or exceeded limits return JSON on stderr and exit 2.
+Reading `-` from a closed standard input is `INVALID_JSON_INPUT`, and a closed
+or failing standard output, such as a pipe whose reader has exited, is
+`JSON_OUTPUT_ERROR`. Both exit 2, never 1. If standard error cannot be written
+either, the exit status alone reports the error.
 With `--strict-exit`, exit 1 means:
 
 | Command | Condition |

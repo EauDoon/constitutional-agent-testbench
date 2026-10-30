@@ -240,6 +240,22 @@ class OperatorBoundaryTests(unittest.TestCase):
             with self.assertRaises(SyntheticGenerationError):
                 generate_rule_probes(policy(rule()))
 
+    def test_probe_policy_work_limit_with_a_real_policy(self):
+        # 64 rules cost 129 evaluations each, so a policy of about 250,000 bytes
+        # exceeds the documented 32,000,000-byte budget before any generation.
+        rules = [rule(f"r{index}", path=f"field{index}") for index in range(63)]
+        rules.append(rule("large", "equals", "large", value="x" * 250_000))
+        with self.assertRaisesRegex(SyntheticGenerationError, "32,000,000-byte"):
+            generate_rule_probes(policy(*rules))
+
+    def test_probe_cases_are_bounded_while_they_accumulate(self):
+        # Each probe copies the passing response, so three 300,000-byte copies
+        # cross the 1,000,000-byte cap before the final report is assembled.
+        raw = policy(rule("large", "equals", "large", value="x" * 300_000),
+                     rule("first"), rule("second", path="other"))
+        with self.assertRaisesRegex(SyntheticGenerationError, "Probe output exceeds the 1,000,000-byte limit"):
+            generate_rule_probes(raw)
+
     def test_receipt_output_limit(self):
         with patch("constitutional_agent_testbench.receipt.MAX_JSON_INPUT_BYTES", 10):
             with self.assertRaises(ReceiptInputError):
