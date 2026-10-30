@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import unicodedata
 from pathlib import Path
@@ -12,6 +13,7 @@ from typing import Any
 from ._version import __version__
 from .common import (
     JsonInputError,
+    JsonOutputError,
     TestbenchError,
     load_json,
     load_json_stream,
@@ -394,20 +396,63 @@ def _load_json_argument(path: str) -> Any:
     return load_json_stream(getattr(sys.stdin, "buffer", sys.stdin))
 
 
+class _StreamUnavailable(Exception):
+    """A standard stream is closed or failed while being written."""
+
+
+def _release_failed_stream(stream) -> None:
+    """Point a failed process stream at the null device.
+
+    The interpreter flushes sys.stdout and sys.stderr again at exit. If that
+    flush also fails, it prints a traceback and replaces the exit status with
+    120. Streams that are not the process's own are left untouched.
+    """
+
+    if stream is None or (stream is not sys.__stdout__ and stream is not sys.__stderr__):
+        return
+    try:
+        null = os.open(os.devnull, os.O_WRONLY)
+        try:
+            os.dup2(null, stream.fileno())
+        finally:
+            os.close(null)
+    except (OSError, ValueError):
+        pass
+
+
 def _write_json_stream(stream, value: Any) -> None:
     """Emit UTF-8 and LF without locale encoding or newline translation.
 
     Real process streams expose a binary buffer. Text-only streams remain
     supported for callers embedding main(), including StringIO captures.
+    Raises _StreamUnavailable when the stream is closed or the write fails.
     """
     serialized = stable_json(value)
+    encoded = serialized.encode("utf-8")
+    # Python sets a standard stream to None when its descriptor is closed at
+    # startup; a broken pipe or full device fails the write or the flush.
+    if stream is None:
+        raise _StreamUnavailable()
     binary = getattr(stream, "buffer", None)
-    if binary is not None:
-        binary.write(serialized.encode("utf-8"))
-        binary.flush()
-    else:
-        stream.write(serialized)
-        stream.flush()
+    try:
+        if binary is not None:
+            binary.write(encoded)
+            binary.flush()
+        else:
+            stream.write(serialized)
+            stream.flush()
+    except (OSError, ValueError) as exc:
+        _release_failed_stream(stream)
+        raise _StreamUnavailable() from exc
+
+
+def _write_error(error: dict[str, Any]) -> None:
+    """Report a controlled error on stderr when stderr can still be written."""
+
+    try:
+        _write_json_stream(sys.stderr, error)
+    except _StreamUnavailable:
+        pass  # Nowhere is left to report it; exit status 2 still records it.
 
 
 def _run_command(arguments: argparse.Namespace) -> dict[str, Any]:
@@ -490,21 +535,24 @@ def main(argv: Sequence[str] | None = None) -> int:
             display = {"output_written": True}
             if arguments.command == "generate-synthetic":
                 display["policy_id"] = result["policy_id"]
-        _write_json_stream(sys.stdout, display)
+        try:
+            _write_json_stream(sys.stdout, display)
+        except _StreamUnavailable as exc:
+            raise JsonOutputError(
+                "Unable to write the JSON result to standard output."
+            ) from exc
     except _HelpRequested:
         return 0
     except TestbenchError as exc:
-        error = {"error": exc.public_error()}
-        _write_json_stream(sys.stderr, error)
+        _write_error({"error": exc.public_error()})
         return 2
     except (OverflowError, RecursionError, TypeError, ValueError):
-        error = {
+        _write_error({
             "error": {
                 "code": "INVALID_DATA",
                 "message": "Input data could not be processed as strict JSON.",
             }
-        }
-        _write_json_stream(sys.stderr, error)
+        })
         return 2
 
     if getattr(arguments, "strict_exit", False):
