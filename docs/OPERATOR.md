@@ -153,6 +153,13 @@ objects. Expected failure is a successful regression assertion when the response
 fails evaluation. Unknown fields, duplicate JSON members, and truthy numeric
 expectations are rejected.
 
+Policy comparisons include `case_count`, `rule_result_changed_case_count` (cases with
+any changed per-rule result), and `stable_verdict_changed_results` (their case IDs
+when the overall pass/fail verdict did not change). A still-failing fixture can
+hide a regression in a different rule. Added/removed rules and changed result
+metadata count too; these are review signals, not proof of a behavioral regression.
+A pure rule reorder does not count as a changed per-rule result.
+
 Coverage counts observed outcomes, even when a fixture expectation was wrong.
 An unexercised outcome is a corpus gap, not evidence that the rule is unreachable.
 Pass and fail counts alone can hide a gap: a corpus whose only failing case is

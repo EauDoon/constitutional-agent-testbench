@@ -23,6 +23,12 @@ summary passes because `required_field` tests presence only; a missing summary
 fails. Missing all fields fails all four rules. The candidate still rejects
 `rejected` status.
 
+The additive comparison-summary check preserves the original oracle file.
+The runner separately expects twelve cases, two cases with changed rule results,
+and `conditional-status-with-queue` as the only unchanged-verdict case with a
+changed rule result. These expectations follow from the frozen case definitions,
+not captured evaluator output.
+
 The independently expected migration has **one verdict change and two
 expectation regressions**. `conditional-status` changes from fail to pass.
 `conditional-status-with-queue` stays fail because its queue is nonempty, but
