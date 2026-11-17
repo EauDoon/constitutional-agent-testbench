@@ -68,7 +68,13 @@ def verify_adopter_oracle(checkout, save, run):
     before, after, suite_name = "release-policy-before.json", "release-policy-after.json", "release-suite-before.json"
     run("run-suite", after, suite_name, "--strict-exit", expected=1)
     comparison, _ = run("compare-policies", before, after, suite_name, "--strict-exit", expected=1)
-    require_equal(comparison, expected["compare_policies_with_before_suite"], "policy comparison")
+    # Additive summary expectations read from the twelve frozen case definitions:
+    # only the two conditional-status cases change a rule; the nonempty queue
+    # keeps the second case failing. Preserve the original oracle on disk.
+    expected_comparison = {**expected["compare_policies_with_before_suite"],
+        "case_count": 12, "rule_result_changed_case_count": 2,
+        "stable_verdict_changed_results": ["conditional-status-with-queue"]}
+    require_equal(comparison, expected_comparison, "policy comparison")
     migration, _ = run("migration-expectations", before, after, suite_name, "--strict-exit", expected=1)
     require_equal(migration, expected["migration_expectations_with_before_suite"], "expectation migration")
     return len(suite["cases"])
