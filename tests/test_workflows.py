@@ -96,6 +96,31 @@ class CoverageTests(unittest.TestCase):
 
 
 class ComparisonTests(unittest.TestCase):
+    def test_changed_results_are_visible_when_another_failure_masks_the_verdict(self):
+        before = policy(rule(), rule("blocker", "required_field", "absent"))
+        after = policy(rule(kind="equals", value=True), rule("blocker", "required_field", "absent"))
+        report = compare_policies(before, after, suite())
+        self.assertEqual(report["case_count"], 2)
+        self.assertEqual(report["verdict_change_count"], 0)
+        self.assertEqual(report["rule_result_changed_case_count"], 2)
+        self.assertEqual(report["stable_verdict_changed_results"], ["pass", "fail"])
+        unchanged = compare_policies(before, before, suite())
+        self.assertEqual(unchanged["rule_result_changed_case_count"], 0)
+        self.assertEqual(unchanged["stable_verdict_changed_results"], [])
+
+
+    def test_multiple_changed_rules_count_as_one_changed_case(self):
+        before = policy(rule("a"), rule("b"), rule("blocker", "required_field", "absent"))
+        after = policy(rule("a", kind="equals", value=True),
+                       rule("b", kind="equals", value=True),
+                       rule("blocker", "required_field", "absent"))
+        fixtures = {"suite_version": "1.0", "cases": [suite()["cases"][0]]}
+        report = compare_policies(before, after, fixtures)
+        self.assertEqual(report["cases"][0]["changed_rule_results"], ["a", "b"])
+        self.assertEqual(report["rule_result_changed_case_count"], 1)
+        self.assertEqual(report["stable_verdict_changed_results"], ["pass"])
+        self.assertEqual(report["verdict_change_count"], 0)
+
     def test_migration_and_definition_changes(self):
         report = compare_policies(policy(rule()), policy(rule(kind="equals", value=True)), suite())
         self.assertEqual(report["rule_changes"]["modified"], ["r"])

@@ -11,6 +11,10 @@ original wording.
 
 ## [Unreleased]
 
+### Improvements
+
+- Summarize changed per-rule results even when a migration leaves the overall verdict unchanged; include explicit fixture and changed-result case counts without choosing a policy.
+
 ### Fixed
 
 - Reject non-regular file inputs before reading, so a named pipe cannot stall a file-based evaluation; stdin remains supported through the explicit stream path.

@@ -50,7 +50,10 @@ def compare_policies(before: Policy | dict[str, Any], after: Policy | dict[str, 
                       "changed_rule_results": sorted(key for key in a_rules.keys() | b_rules.keys()
                           if a_rules.get(key) != b_rules.get(key))})
     return {"before_policy_id": old.policy_id, "after_policy_id": new.policy_id,
-            "rule_changes": changes, "cases": cases,
+            "rule_changes": changes, "cases": cases, "case_count": len(cases),
+            "rule_result_changed_case_count": sum(bool(c["changed_rule_results"]) for c in cases),
+            "stable_verdict_changed_results": [c["case_id"] for c in cases
+                                               if not c["verdict_changed"] and c["changed_rule_results"]],
             "verdict_change_count": sum(c["verdict_changed"] for c in cases),
             "newly_passing": [c["case_id"] for c in cases if not c["before_passed"] and c["after_passed"]],
             "newly_failing": [c["case_id"] for c in cases if c["before_passed"] and not c["after_passed"]],
