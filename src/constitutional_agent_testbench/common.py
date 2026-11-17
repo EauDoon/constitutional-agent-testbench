@@ -104,11 +104,26 @@ def load_json_stream(input_file: BinaryIO | TextIO) -> Any:
 def load_json(path: str | Path) -> Any:
     """Load strict UTF-8 JSON without echoing paths or input content in errors."""
 
+    descriptor = None
     try:
-        with Path(path).open("rb") as input_file:
+        # Open nonblocking before inspecting the descriptor: checking the path
+        # first would leave a replacement race and opening a FIFO could hang.
+        descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NONBLOCK", 0))
+        metadata = os.fstat(descriptor)
+        if not stat.S_ISREG(metadata.st_mode):
+            raise JsonInputError("The requested JSON input must be a regular file.")
+        if metadata.st_size > MAX_JSON_INPUT_BYTES:
+            raise JsonInputError(
+                "The requested input exceeds the 1,000,000-byte file-size limit."
+            )
+        with os.fdopen(descriptor, "rb") as input_file:
+            descriptor = None  # The stream now owns the descriptor.
             return load_json_stream(input_file)
     except OSError as exc:
         raise JsonInputError("Unable to read the requested JSON input.") from exc
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
 
 
 def parse_json_text(text: str) -> Any:
