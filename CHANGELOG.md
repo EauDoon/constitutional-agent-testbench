@@ -11,6 +11,10 @@ original wording.
 
 ## [Unreleased]
 
+### Fixed
+
+- Reject non-regular file inputs before reading, so a named pipe cannot stall a file-based evaluation; stdin remains supported through the explicit stream path.
+
 ### Added
 
 - Policy schema `1.1`, beside an unchanged `1.0`, with three rule kinds for the

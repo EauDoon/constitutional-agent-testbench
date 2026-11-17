@@ -46,7 +46,9 @@ standard input. The same 1,000,000-byte and structural limits apply to files and
 standard input. `--output` selects a file, does not accept `-`, and creates any
 missing parent directories; playground inputs are file paths only.
 
-Inputs must be UTF-8 without a byte order mark. On Windows, PowerShell 5.1
+File arguments must refer to regular files (symlinks to regular files are accepted).
+Named pipes, devices and directories are rejected without reading; use the explicit
+`-` stdin input for pipelines. Inputs must be UTF-8 without a byte order mark. On Windows, PowerShell 5.1
 `Out-File` and the `>` redirection write UTF-16 with a byte order mark, which is
 rejected as `INVALID_JSON_INPUT` with a message naming the encoding. Use
 PowerShell 7 `Set-Content -Encoding utf8NoBOM`, or let the command write its
