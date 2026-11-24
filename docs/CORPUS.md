@@ -42,7 +42,9 @@ can therefore fail regression when it occurs for the wrong reason.
 `inspect-policy` reports kind counts, paths and ancestor relationships for up to
 256 rules. `inspect-suite` groups identical canonical responses; incompatible
 expected verdicts or overlapping rule assertions are conflicts. Compatible
-partial assertions remain compatible. Boolean and numeric values stay distinct.
+partial assertions remain compatible. `contradictory_case_ids` names cases that
+require both an overall pass and a failed rule. Even a single such case fails
+the strict gate. This check needs no policy. Boolean and numeric values stay distinct.
 Neither inspection report copies constraint or response values.
 
 `triage-suite` lists only expectation mismatches, including unexpected passes,

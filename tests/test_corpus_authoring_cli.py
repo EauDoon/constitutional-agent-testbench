@@ -30,6 +30,24 @@ class CorpusAuthoringCliTests(unittest.TestCase):
             code = main(arguments)
         return code, json.loads(out.getvalue() or err.getvalue())
 
+    def test_inspect_suite_detects_an_impossible_pass_even_without_duplicate_inputs(self):
+        case = {"case_id": "solo", "response": {"private": "omitted-value"}, "expected_passed": True,
+                "expected_rules": {"flag": {"passed": False, "reason_code": "FIELD_MISSING"}}}
+        fixtures = {"suite_version": "1.1", "cases": [case]}
+        def inspect():
+            return self.call("inspect-suite", "-", "--strict-exit", stdin=json.dumps(fixtures))
+        code, result = inspect()
+        self.assertEqual((code, result["contradictory_case_ids"]), (1, ["solo"]))
+        self.assertEqual(result["duplicate_responses"], [])
+        self.assertNotIn("omitted-value", json.dumps(result))
+        fixtures["cases"].append({**case, "case_id": "peer", "expected_rules": {}})
+        self.assertTrue(inspect()[1]["duplicate_responses"][0]["conflicting_expectations"])
+        # An unasserted failure remains possible when the case expects failure.
+        for item in fixtures["cases"]:
+            item["expected_passed"] = False
+        code, result = inspect()
+        self.assertEqual((code, result["contradictory_case_ids"], result["consistent_expectations"]), (0, [], True))
+
     def test_import_capture_preflight_shard_and_replay(self):
         responses = self.save("responses.json", [{"action": False}, {}, {"action": True}])
         imported = str(self.root / "imported.json")
