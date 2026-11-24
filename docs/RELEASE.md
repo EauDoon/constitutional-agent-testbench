@@ -4,6 +4,12 @@ This guide covers how a version is chosen, prepared, tagged, published and
 verified. What each version changed is recorded in the
 [changelog](../CHANGELOG.md), not here.
 
+## Next release candidate: 0.7.0
+
+Reject an impossible expected pass in both singleton and duplicate fixture groups. Gate the release on the strict CLI behavior, preserving compatible partial assertions, and run the installed adopter workflow. No schema change is needed for this report field.
+
+Before tagging, review the complete diff since the last release, including earlier unreleased work, and verify the normal release checks against the exact candidate. This plan does not mark a published version.
+
 ## Versioning
 
 The package follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).

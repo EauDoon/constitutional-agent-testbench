@@ -11,15 +11,13 @@ original wording.
 
 ## [Unreleased]
 
-### Operator review
-
-- The next release will identify internally contradictory pass expectations in suite inspection, including singleton fixtures. The strict exit gate now rejects these impossible expectations without needing a policy.
-
 ### Improvements
 
 - Summarize changed per-rule results even when a migration leaves the overall verdict unchanged; include explicit fixture and changed-result case counts without choosing a policy.
 
 ### Fixed
+
+- The next release will identify internally contradictory pass expectations in suite inspection, including singleton fixtures. The strict exit gate now rejects these impossible expectations without needing a policy.
 
 - Reject non-regular file inputs before reading, so a named pipe cannot stall a file-based evaluation; stdin remains supported through the explicit stream path.
 
