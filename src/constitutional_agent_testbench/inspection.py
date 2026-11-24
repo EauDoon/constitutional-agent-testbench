@@ -29,10 +29,18 @@ def inspect_suite(suite: Any) -> dict[str, Any]:
     groups: dict[str, list[dict[str, Any]]] = {}
     for case in fixtures["cases"]:
         groups.setdefault(canonical_json(case["response"]), []).append(case)
+    # An explicitly failed rule cannot coexist with an overall pass under
+    # any policy, even when there is no second case to compare.
+    contradictory_cases = [
+        case["case_id"] for case in fixtures["cases"]
+        if case["expected_passed"] and any(not row["passed"] for row in case.get("expected_rules", {}).values())
+    ]
+    contradictions = set(contradictory_cases)
     duplicates = []
     for cases in groups.values():
         if len(cases) > 1:
-            conflict = len({case["expected_passed"] for case in cases}) > 1
+            conflict = (len({case["expected_passed"] for case in cases}) > 1
+                        or any(case["case_id"] in contradictions for case in cases))
             asserted: dict[str, Any] = {}
             for case in cases:
                 for identifier, assertion in case.get("expected_rules", {}).items():
@@ -45,7 +53,9 @@ def inspect_suite(suite: Any) -> dict[str, Any]:
         "case_count": len(fixtures["cases"]), "unique_response_count": len(groups),
         "expected_pass_count": sum(case["expected_passed"] for case in fixtures["cases"]),
         "duplicate_responses": duplicates,
-        "consistent_expectations": not any(group["conflicting_expectations"] for group in duplicates)})
+        "contradictory_case_ids": contradictory_cases,
+        "consistent_expectations": not contradictory_cases and not any(
+            group["conflicting_expectations"] for group in duplicates)})
 
 
 def diff_suites(suite: Any, incoming: Any) -> dict[str, Any]:

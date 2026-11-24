@@ -236,7 +236,7 @@ With `--strict-exit`, exit 1 means:
 | `suite-coverage` | At least one rule lacks an observed pass or fail. With `--strict-reasons` instead or as well: at least one rule never produced a reason code its kind can emit. |
 | `compare-policies` | At least one fixture verdict or rule result changed. Definition-only changes may still exit 0. |
 | `verify-receipt` | At least one digest or evaluation binding did not match. |
-| `inspect-suite` | Duplicate responses carry conflicting expectations. |
+| `inspect-suite` | A case expects both an overall pass and a failed rule, or duplicate responses carry conflicting expectations. |
 | `triage-suite` | At least one explicit expectation or rule assertion did not match. |
 | `verify-suite-receipt` | At least one suite receipt binding did not match. |
 | `replay` | The bundle bindings are inconsistent or its fixture expectations did not match. |

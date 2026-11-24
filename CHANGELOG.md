@@ -17,6 +17,8 @@ original wording.
 
 ### Fixed
 
+- The next release will identify internally contradictory pass expectations in suite inspection, including singleton fixtures. The strict exit gate now rejects these impossible expectations without needing a policy.
+
 - Reject non-regular file inputs before reading, so a named pipe cannot stall a file-based evaluation; stdin remains supported through the explicit stream path.
 
 ### Added
