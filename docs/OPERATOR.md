@@ -145,7 +145,7 @@ constitutional-agent-testbench suite-coverage examples/policy.json examples/regr
 constitutional-agent-testbench compare-policies examples/policy.json examples/migration-policy.json examples/regression-suite.json
 ```
 
-A suite is exactly `{"suite_version":"1.0","cases":[...]}`. Each case has exactly
+A version 1.0 suite is exactly `{"suite_version":"1.0","cases":[...]}`. Each case has exactly
 `case_id`, `response`, and boolean `expected_passed`. Case identifiers must be
 unique, start with an ASCII letter or digit, and contain only letters, digits,
 periods, underscores, or hyphens (maximum 128 characters). Responses must be
@@ -232,7 +232,7 @@ With `--strict-exit`, exit 1 means:
 | `check-order` | The report does not conform within coverage, including order drift and inconclusive nondeterministic results. |
 | `lint-policy` | A conflict was found; duplicate-only findings do not fail. |
 | `explain` | The response failed at least one rule. |
-| `run-suite` | At least one expected pass state did not match. |
+| `run-suite` | At least one expected verdict or per-rule assertion did not match. |
 | `suite-coverage` | At least one rule lacks an observed pass or fail. With `--strict-reasons` instead or as well: at least one rule never produced a reason code its kind can emit. |
 | `compare-policies` | At least one fixture verdict or rule result changed. Definition-only changes may still exit 0. |
 | `verify-receipt` | At least one digest or evaluation binding did not match. |
@@ -261,3 +261,7 @@ The library exposes the same functions through `constitutional_agent_testbench`.
 Returned diagnostics, suite reports, comparisons, and receipts omit raw candidate
 values. The unchanged Tk playground remains a single-response editor; these new
 operator capabilities are available through the CLI and library.
+
+## Refresh the policy evidence map
+
+After installing the current checkout, run `python scripts/refresh_architecture.py` to rebuild the embedded module imports, verdicts, coverage and migrations in `docs/architecture.html`. Run it with `--check` to detect stale evidence. Open the HTML file directly. The module map covers selected top-level imports between eight core modules. The query shown is a fixed local projection of the embedded data.

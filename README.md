@@ -74,6 +74,8 @@ call a model or establish that a real deployment is safe. See the
 
 ## Next steps
 
+Open [the policy evidence map](docs/architecture.html) in a browser from your checkout, or [download the standalone HTML](https://raw.githubusercontent.com/EauDoon/constitutional-agent-testbench/main/docs/architecture.html) and open the saved file. Rotate the module graph and inspect rule outcomes, coverage and migration changes across the twelve synthetic release-approval fixtures. All evidence is embedded in the page.
+
 - [Operator guide](docs/OPERATOR.md): complete command catalog, authoring,
   regression, migration, output handling, and command-specific strict exit rules.
 - [Corpus and replay guide](docs/CORPUS.md): explicit assertions, curation,
