@@ -873,13 +873,21 @@ function svg(tag, attributes) {
   for (const [key,value] of Object.entries(attributes)) node.setAttribute(key, value);
   return node;
 }
+const narrow = matchMedia("(max-width: 600px)");
+const rowOrder = [...modules].sort((a,b) => a.position[1]-b.position[1]);
+const rowY = new Map(rowOrder.map((node,index) => [node.id, 44 + index*47]));
 function draw() {
+  const compact = narrow.matches;
+  el("scene").setAttribute("viewBox",compact ? "0 0 360 400" : "0 0 720 450");
   const selected = el("module").value;
   const locations = new Map();
   for (const {id, position:[x,y,z]} of modules) {
     const depth = x*Math.sin(angle) + z*Math.cos(angle);
     const scale = 850 / (850 - depth);
-    locations.set(id, {x:355+(x*Math.cos(angle)-z*Math.sin(angle))*scale, y:213+y*scale, depth});
+    const projectedX = (x*Math.cos(angle)-z*Math.sin(angle))*scale;
+    // On phones, reserve one row per label while retaining horizontal parallax and depth order.
+    locations.set(id, {x:compact ? 180+projectedX*0.38 : 355+projectedX,
+      y:compact ? rowY.get(id) : 213+y*scale, depth});
   }
   const lines = [];
   for (const {id, imports} of modules) {
@@ -921,6 +929,7 @@ function inspectModule() {
   link.textContent = "Read "+node.id+".py ↗";
   draw();
 }
+narrow.addEventListener("change",draw);
 el("module").onchange = inspectModule;
 function rotate(amount) {angle += amount; draw();}
 el("left").onclick = () => rotate(-Math.PI/10);
