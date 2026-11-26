@@ -29,7 +29,7 @@ button,select,summary{cursor:pointer}
 button:hover,button:focus-visible{border-color:var(--aqua)}
 :focus-visible{outline:3px solid var(--amber);outline-offset:3px}
 .controls{display:flex;gap:.5rem;flex-wrap:wrap;padding:.55rem 1rem 1rem}
-.modules text{font:600 12px system-ui;fill:var(--ink);paint-order:stroke;stroke:#101d29;stroke-width:4px;pointer-events:none}
+.modules text{font:600 15px system-ui;fill:var(--ink);paint-order:stroke;stroke:#101d29;stroke-width:4px;pointer-events:none}
 .modules circle{cursor:pointer}
 fieldset{margin:0;padding:0;border:0}
 label,legend,.meta{color:var(--dim);font-size:.88rem}
@@ -49,7 +49,10 @@ table{width:100%;border-collapse:collapse;margin:.6rem 0;font-size:.91rem;overfl
 th,td{text-align:left;vertical-align:top;padding:.45rem;border-bottom:1px solid var(--line)}
 footer{padding:1rem 0 2rem;border-top:1px solid var(--line)}
 [hidden]{display:none!important}
-@media(max-width:760px){.map,.grid{grid-template-columns:1fr}aside{border:0;border-top:1px solid var(--line)} .modules text{font-size:16px} th,td{padding:.22rem} }
+th:nth-child(2),th:nth-child(3),td:nth-child(2),td:nth-child(3){white-space:nowrap}
+@media(max-width:940px){.map{grid-template-columns:1fr} aside{border:0;border-top:1px solid var(--line)}}
+@media(max-width:760px){.grid{grid-template-columns:1fr} .modules text{font-size:16px} th,td{padding:.22rem} }
+@media(max-width:600px){header{padding-bottom:0}#explorer{margin-top:1.6rem}table{font-size:.87rem}th,td{padding:.38rem .2rem}}
 </style>
 <nav aria-label="Project"><b>Constitutional Agent Testbench</b><span><a href="#fixtures">Fixture study</a> · <a href="#reference">Reference</a> · <a href="https://github.com/EauDoon/constitutional-agent-testbench">Source</a></span></nav>
 <main><header><h1>Policy evidence map</h1><p>Follow a JSON policy through evaluation, regression fixtures and receipt verification. Inspect the evidence from the testbench’s twelve synthetic release-approval cases.</p></header>
@@ -63,7 +66,7 @@ footer{padding:1rem 0 2rem;border-top:1px solid var(--line)}
 <section id="fixtures"><h2>Release-approval fixtures</h2><p>Compare the original policy with a candidate that also accepts conditional approval. All observations below use the same before-policy suite.</p>
 <div class="grid" id="lab" hidden>
 <article class="study-card"><h3>Case inspector</h3><label for="case">Fixture</label><select id="case"></select><p id="verdict"></p><ul id="reasons"></ul></article>
-<article class="study-card"><h3>Migration review</h3><label for="changes">Show cases</label><select id="changes"><option value="changed">Changed rule results</option><option value="masked">Changed rules with stable verdicts</option><option value="all">All fixtures</option></select><ul id="migration"></ul></article>
+<article class="study-card"><h3>Migration review</h3><label for="changes">Show cases</label><select id="changes"><option value="changed">Changed rule results</option><option value="masked">Rule changes, stable verdict</option><option value="all">All fixtures</option></select><ul id="migration"></ul></article>
 <article class="study-card"><h3>Reason coverage</h3><label for="rule">Policy rule</label><select id="rule"></select><p id="counts"></p><ul id="coverage"></ul></article>
 <article class="study-card"><h3>Reproduce an observation</h3><label for="recipe">Installed CLI command</label><select id="recipe"><option value="run-suite">Evaluate fixture expectations</option><option value="suite-coverage">Measure reason coverage</option><option value="compare-policies">Compare migration effects</option></select><pre id="command"></pre><p id="exit-note"></p></article>
 </div></section>
@@ -876,6 +879,28 @@ function svg(tag, attributes) {
 const narrow = matchMedia("(max-width: 600px)");
 const rowOrder = [...modules].sort((a,b) => a.position[1]-b.position[1]);
 const rowY = new Map(rowOrder.map((node,index) => [node.id, 44 + index*47]));
+// Account for label and node geometry when perspective brings modules together.
+function placeLabels(locations) {
+  const blocked = [...locations.values()].map(({x,y}) =>
+    ({left:x-16,right:x+16,top:y-16,bottom:y+16}));
+  for (const group of el("nodes").children) {
+    const {x,y} = locations.get(group.dataset.module);
+    const label = group.querySelector("text");
+    const width = label.getComputedTextLength() + 6;
+    const side = width/2 + 17;
+    for (const [dx,dy] of [[0,-22],[0,33],[side,5],[-side,5],
+                            [side,-22],[-side,-22],[side,33],[-side,33]]) {
+      const box = {left:x+dx-width/2,right:x+dx+width/2,top:y+dy-17,bottom:y+dy+5};
+      if (box.left < 2 || box.right > 718 || box.top < 2 || box.bottom > 448) continue;
+      if (blocked.some(b => box.left < b.right && box.right > b.left &&
+                            box.top < b.bottom && box.bottom > b.top)) continue;
+      label.setAttribute("x",dx);
+      label.setAttribute("y",dy);
+      blocked.push(box);
+      break;
+    }
+  }
+}
 function draw() {
   const compact = narrow.matches;
   el("scene").setAttribute("viewBox",compact ? "0 0 360 400" : "0 0 720 450");
@@ -897,7 +922,7 @@ function draw() {
       const active = id === selected;
       const dx = to.x-from.x, dy = to.y-from.y, length = Math.hypot(dx,dy) || 1;
       const endX = to.x-dx/length*12, endY = to.y-dy/length*12;
-      const color = active ? "#84e2d1" : "#496372";
+      const color = active ? "#84e2d1" : "#577382";
       lines.push(svg("line", {x1:from.x,y1:from.y,x2:endX,y2:endY,stroke:color,"stroke-width":active?2.1:1}));
       const head = svg("path",{d:"M 0 0 l -8 -3.4 v 6.8 z",fill:color,
         transform:"translate("+endX+" "+endY+") rotate("+Math.atan2(dy,dx)*180/Math.PI+")"});
@@ -918,6 +943,7 @@ function draw() {
     group.dataset.module = id;
     return group;
   }));
+  if (!compact) placeLabels(locations);
 }
 function inspectModule() {
   const node = byId.get(el("module").value);
@@ -926,7 +952,7 @@ function inspectModule() {
   list("imports", node.imports.length ? node.imports : ["None among the selected modules."]);
   const link = el("module-source");
   link.href = "https://github.com/EauDoon/constitutional-agent-testbench/blob/main/src/constitutional_agent_testbench/"+node.id+".py";
-  link.textContent = "Read "+node.id+".py ↗";
+  link.textContent = "Read "+node.id+".py";
   draw();
 }
 narrow.addEventListener("change",draw);
@@ -992,7 +1018,8 @@ el("case").onchange=showFixture;
 el("changes").onchange=showMigration;
 el("rule").onchange=showCoverage;
 el("recipe").onchange=showRecipe;
+el("explorer").hidden=false;
 inspectModule(); showFixture(); showMigration(); showCoverage(); showRecipe();
-el("explorer").hidden=false; el("lab").hidden=false;
+el("lab").hidden=false;
 </script>
 </html>
