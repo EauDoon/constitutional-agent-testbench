@@ -1,0 +1,989 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Policy evidence map · Constitutional Agent Testbench</title>
+<style>
+:root{color-scheme:dark;--ink:#f0f6fa;--dim:#b0c3cf;--line:#344755;--panel:#14212b;--aqua:#84e2d1;--blue:#8cc6ff;--amber:#ffd198}
+*{box-sizing:border-box}
+body{margin:0;background:#101a23;color:var(--ink);font:1rem/1.6 system-ui,sans-serif}
+main,footer,nav{width:min(1120px,92%);margin:auto}
+nav{display:flex;align-items:center;justify-content:space-between;padding:1rem 0;border-bottom:1px solid var(--line);gap:1rem;flex-wrap:wrap}
+a,summary{color:var(--aqua)}
+nav a{color:var(--dim);font-size:.87rem}
+h1,h2,h3,p{margin:0}
+h1{font-family:Georgia,serif;line-height:1.04;letter-spacing:-.04em;font-size:clamp(2.8rem,7vw,5.4rem);font-weight:500}
+header{padding:clamp(2rem,5vw,4.5rem) 0 1.8rem}
+header p{margin-top:1rem;max-width:65ch;color:var(--dim)}
+h2{font:normal 2rem/1.2 Georgia,serif;margin-bottom:.7rem}
+h3{font-size:1.12rem}
+.map{display:grid;grid-template-columns:2.2fr 1fr;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--panel)}
+.sky{background-color:#101d29;background-image:radial-gradient(#3c5362 1px,transparent 1px);background-size:22px 22px;min-width:0;align-content:center}
+svg{width:100%;display:block;touch-action:pan-y;user-select:none}
+aside,.study-card{padding:clamp(1.2rem,3vw,2.2rem);min-width:0}
+aside{border-left:1px solid var(--line)}
+aside p,section>p,footer{color:var(--dim)}
+section{margin:2rem 0 3.5rem;scroll-margin-top:1rem}
+button,select{background:#1b2d3a;color:var(--ink);border:1px solid #5a7180;padding:.5rem .7rem;border-radius:5px;font:inherit;max-width:100%;min-height:42px}
+select{display:block;margin:.4rem 0 .9rem;width:100%}
+button,select,summary{cursor:pointer}
+button:hover,button:focus-visible{border-color:var(--aqua)}
+:focus-visible{outline:3px solid var(--amber);outline-offset:3px}
+.controls{display:flex;gap:.5rem;flex-wrap:wrap;padding:.55rem 1rem 1rem}
+.modules text{font:600 12px system-ui;fill:var(--ink);paint-order:stroke;stroke:#101d29;stroke-width:4px;pointer-events:none}
+.modules circle{cursor:pointer}
+fieldset{margin:0;padding:0;border:0}
+label,legend,.meta{color:var(--dim);font-size:.88rem}
+.meta{margin:.7rem 0}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:1rem 0}
+.study-card,details{background:var(--panel);border:1px solid var(--line);border-radius:8px}
+.study-card>h3{margin-bottom:.8rem}
+ul{padding-left:1.25rem}
+li{margin:.3rem 0;overflow-wrap:anywhere}
+code,pre{font-family:ui-monospace,monospace;overflow-wrap:anywhere}
+pre{white-space:pre-wrap;background:#0f1921;border-left:2px solid var(--aqua);padding:.8rem;color:#d1ebe8}
+.good{color:var(--aqua)}.bad{color:var(--amber)}
+details{padding:.8rem 1rem;margin:.7rem 0}
+dt{font-weight:bold;margin-top:.8rem}
+dd{margin:0;color:var(--dim)}
+table{width:100%;border-collapse:collapse;margin:.6rem 0;font-size:.91rem;overflow-wrap:anywhere}
+th,td{text-align:left;vertical-align:top;padding:.45rem;border-bottom:1px solid var(--line)}
+footer{padding:1rem 0 2rem;border-top:1px solid var(--line)}
+[hidden]{display:none!important}
+@media(max-width:760px){.map,.grid{grid-template-columns:1fr}aside{border:0;border-top:1px solid var(--line)} .modules text{font-size:16px} th,td{padding:.22rem} }
+</style>
+<nav aria-label="Project"><b>Constitutional Agent Testbench</b><span><a href="#fixtures">Fixture study</a> · <a href="#reference">Reference</a> · <a href="https://github.com/EauDoon/constitutional-agent-testbench">Source</a></span></nav>
+<main><header><h1>Policy evidence map</h1><p>Follow a JSON policy through evaluation, regression fixtures and receipt verification. Inspect the evidence from the testbench’s twelve synthetic release-approval cases.</p></header>
+<section id="explorer" hidden aria-label="Module explorer">
+<div class="map"><div class="sky"><svg id="scene" tabindex="0" viewBox="0 0 720 450" role="img" aria-label="Rotatable three-dimensional module map. Use left and right arrows to rotate. Choose a module in the adjacent menu.">
+<g id="lines"></g><g id="nodes" class="modules"></g></svg>
+<div class="controls"><button type="button" id="left" aria-label="Rotate left">↶ Left</button><button type="button" id="right" aria-label="Rotate right">↷ Right</button><button type="button" id="home">Reset view</button></div></div>
+<aside><label for="module">Inspect module</label><select id="module"></select><h2 id="module-title"></h2><p id="module-summary"></p><p class="meta">Direct imports in this map</p><ul id="imports"></ul><a id="module-source">Read source</a></aside></div>
+<p class="meta">Arrows point from a module to its imports. Drag horizontally or use the rotation controls. Only the eight selected modules are shown.</p>
+<details><summary>Read-only graph data</summary><p>A fixed projection of the local snapshot.</p><pre>query Architecture { architecture { nodes { id label imports } } }</pre><pre id="projection"></pre></details></section>
+<section id="fixtures"><h2>Release-approval fixtures</h2><p>Compare the original policy with a candidate that also accepts conditional approval. All observations below use the same before-policy suite.</p>
+<div class="grid" id="lab" hidden>
+<article class="study-card"><h3>Case inspector</h3><label for="case">Fixture</label><select id="case"></select><p id="verdict"></p><ul id="reasons"></ul></article>
+<article class="study-card"><h3>Migration review</h3><label for="changes">Show cases</label><select id="changes"><option value="changed">Changed rule results</option><option value="masked">Changed rules with stable verdicts</option><option value="all">All fixtures</option></select><ul id="migration"></ul></article>
+<article class="study-card"><h3>Reason coverage</h3><label for="rule">Policy rule</label><select id="rule"></select><p id="counts"></p><ul id="coverage"></ul></article>
+<article class="study-card"><h3>Reproduce an observation</h3><label for="recipe">Installed CLI command</label><select id="recipe"><option value="run-suite">Evaluate fixture expectations</option><option value="suite-coverage">Measure reason coverage</option><option value="compare-policies">Compare migration effects</option></select><pre id="command"></pre><p id="exit-note"></p></article>
+</div></section>
+<section id="reference"><h2>Reference</h2><p>The module index and fixture table are available offline, including when scripting is disabled.</p>
+<!-- BEGIN generated evidence -->
+<details><summary>Module index and direct imports</summary><dl>
+<dt>Input boundaries · <code>common.py</code></dt><dd>Read bounded JSON and serialize stable output. Imports none in this map.</dd>
+<dt>Policy schema · <code>policy.py</code></dt><dd>Validate the declared version, field paths and rule kinds. Imports common.</dd>
+<dt>Rule evaluator · <code>evaluator.py</code></dt><dd>Compile rules and produce a verdict and reason code for each rule. Imports common, policy.</dd>
+<dt>Fixture suite · <code>suite.py</code></dt><dd>Check each fixture against its expected verdict and optional rule assertions. Imports common, evaluator, policy.</dd>
+<dt>Reason coverage · <code>coverage.py</code></dt><dd>Count observed outcomes and identify missing reason codes. Imports evaluator, policy, suite.</dd>
+<dt>Policy migration · <code>compare.py</code></dt><dd>Compare individual rules and case verdicts across two policies. Imports common, policy, suite.</dd>
+<dt>Peer ordering · <code>precedence.py</code></dt><dd>Check whether changing the order of declared peers changes the evidence. Imports common, evaluator, policy.</dd>
+<dt>Receipt verification · <code>receipt.py</code></dt><dd>Bind the input digests to an evaluation and recompute the binding. Imports common, evaluator, policy.</dd>
+</dl></details>
+<details><summary>Fixture verdicts and rule changes</summary>
+<table><thead><tr><th>Fixture</th><th>Before</th><th>After</th><th>Changed rules</th></tr></thead><tbody>
+<tr><td>approved</td><td>Pass</td><td>Pass</td><td>None</td></tr>
+<tr><td>conditional-status</td><td>Fail</td><td>Pass</td><td>status-approved</td></tr>
+<tr><td>conditional-status-with-queue</td><td>Fail</td><td>Fail</td><td>status-approved</td></tr>
+<tr><td>missing-summary</td><td>Fail</td><td>Fail</td><td>None</td></tr>
+<tr><td>null-summary-is-present</td><td>Pass</td><td>Pass</td><td>None</td></tr>
+<tr><td>zero-is-not-false</td><td>Fail</td><td>Fail</td><td>None</td></tr>
+<tr><td>string-false-is-not-false</td><td>Fail</td><td>Fail</td><td>None</td></tr>
+<tr><td>true-is-not-false</td><td>Fail</td><td>Fail</td><td>None</td></tr>
+<tr><td>object-is-not-empty-list</td><td>Fail</td><td>Fail</td><td>None</td></tr>
+<tr><td>queue-not-empty</td><td>Fail</td><td>Fail</td><td>None</td></tr>
+<tr><td>rejected-status</td><td>Fail</td><td>Fail</td><td>None</td></tr>
+<tr><td>missing-all</td><td>Fail</td><td>Fail</td><td>None</td></tr>
+</tbody></table></details>
+<script id="study" type="application/json">{
+  "data": {
+    "architecture": {
+      "nodes": [
+        {
+          "id": "common",
+          "label": "Input boundaries",
+          "summary": "Read bounded JSON and serialize stable output.",
+          "imports": [],
+          "position": [
+            -220,
+            100,
+            30
+          ]
+        },
+        {
+          "id": "policy",
+          "label": "Policy schema",
+          "summary": "Validate the declared version, field paths and rule kinds.",
+          "imports": [
+            "common"
+          ],
+          "position": [
+            -180,
+            -70,
+            -50
+          ]
+        },
+        {
+          "id": "evaluator",
+          "label": "Rule evaluator",
+          "summary": "Compile rules and produce a verdict and reason code for each rule.",
+          "imports": [
+            "common",
+            "policy"
+          ],
+          "position": [
+            0,
+            0,
+            65
+          ]
+        },
+        {
+          "id": "suite",
+          "label": "Fixture suite",
+          "summary": "Check each fixture against its expected verdict and optional rule assertions.",
+          "imports": [
+            "common",
+            "evaluator",
+            "policy"
+          ],
+          "position": [
+            170,
+            90,
+            -35
+          ]
+        },
+        {
+          "id": "coverage",
+          "label": "Reason coverage",
+          "summary": "Count observed outcomes and identify missing reason codes.",
+          "imports": [
+            "evaluator",
+            "policy",
+            "suite"
+          ],
+          "position": [
+            210,
+            -120,
+            20
+          ]
+        },
+        {
+          "id": "compare",
+          "label": "Policy migration",
+          "summary": "Compare individual rules and case verdicts across two policies.",
+          "imports": [
+            "common",
+            "policy",
+            "suite"
+          ],
+          "position": [
+            0,
+            155,
+            -50
+          ]
+        },
+        {
+          "id": "precedence",
+          "label": "Peer ordering",
+          "summary": "Check whether changing the order of declared peers changes the evidence.",
+          "imports": [
+            "common",
+            "evaluator",
+            "policy"
+          ],
+          "position": [
+            -35,
+            -150,
+            -70
+          ]
+        },
+        {
+          "id": "receipt",
+          "label": "Receipt verification",
+          "summary": "Bind the input digests to an evaluation and recompute the binding.",
+          "imports": [
+            "common",
+            "evaluator",
+            "policy"
+          ],
+          "position": [
+            255,
+            5,
+            90
+          ]
+        }
+      ]
+    },
+    "fixtureStudy": {
+      "cases": [
+        {
+          "case_id": "approved",
+          "expected_passed": true,
+          "matches_expectation": true,
+          "evaluation": {
+            "passed": true,
+            "policy_id": "synthetic-release-approval-v1",
+            "rule_results": [
+              {
+                "kind": "required_field",
+                "passed": true,
+                "path": "summary",
+                "reason_code": "RULE_SATISFIED",
+                "rule_id": "summary-present"
+              },
+              {
+                "kind": "one_of",
+                "passed": true,
+                "path": "status",
+                "reason_code": "RULE_SATISFIED",
+                "rule_id": "status-approved"
+              },
+              {
+                "kind": "false",
+                "passed": true,
+                "path": "dry_run",
+                "reason_code": "RULE_SATISFIED",
+                "rule_id": "dry-run-false"
+              },
+              {
+                "kind": "empty_list",
+                "passed": true,
+                "path": "queued_actions",
+                "reason_code": "RULE_SATISFIED",
+                "rule_id": "queue-empty"
+              }
+            ]
+          },
+          "rule_assertion_mismatches": []
+        },
+        {
+          "case_id": "conditional-status",
+          "expected_passed": false,
+          "matches_expectation": true,
+          "evaluation": {
+            "passed": false,
+            "policy_id": "synthetic-release-approval-v1",
+            "rule_results": [
+              {
+                "kind": "required_field",
+                "passed": true,
+                "path": "summary",
+                "reason_code": "RULE_SATISFIED",
+                "rule_id": "summary-present"
+              },
+              {
+                "kind": "one_of",
+                "passed": false,
+                "path": "status",
+                "reason_code": "VALUE_NOT_ALLOWED",
+                "rule_id": "status-approved"
+              },
+              {
+                "kind": "false",
+                "passed": true,
+                "path": "dry_run",
+                "reason_code": "RULE_SATISFIED",
+                "rule_id": "dry-run-false"
+              },
+              {
+                "kind": "empty_list",
+                "passed": true,
+                "path": "queued_actions",
+                "reason_code": "RULE_SATISFIED",
+                "rule_id": "queue-empty"
+              }
+            ]
+          },
+          "rule_assertion_mismatches": []
+        },
+        {
+          "case_id": "conditional-status-with-queue",
+          "expected_passed": false,
+          "matches_expectation": true,
+          "evaluation": {
+            "passed": false,
+            "policy_id": "synthetic-release-approval-v1",
+            "rule_results": [
+              {
+                "kind": "required_field",
+                "passed": true,
+                "path": "summary",
+                "reason_code": "RULE_SATISFIED",
+                "rule_id": "summary-present"
+              },
+              {
+                "kind": "one_of",
+                "passed": false,
+                "path": "status",
+                "reason_code": "VALUE_NOT_ALLOWED",
+                "rule_id": "status-approved"
+              },
+              {
+                "kind": "false",
+                "passed": true,
+                "path": "dry_run",
+                "reason_code": "RULE_SATISFIED",
+                "rule_id": "dry-run-false"
+              },
+              {
+                "kind": "empty_list",
+                "passed": false,
+                "path": "queued_actions",
+                "reason_code": "VALUE_NOT_EMPTY_LIST",
+                "rule_id": "queue-empty"
+              }
+            ]
+          },
+          "rule_assertion_mismatches": []
+        },
+        {
+          "case_id": "missing-summary",
+          "expected_passed": false,
+          "matches_expectation": true,
+          "evaluation": {
+            "passed": false,
+            "policy_id": "synthetic-release-approval-v1",
+            "rule_results": [
+              {
+                "kind": "required_field",
+                "passed": false,
+                "path": "summary",
+                "reason_code": "FIELD_MISSING",
+                "rule_id": "summary-present"
+              },
+              {
+                "kind": "one_of",
+                "passed": true,
+                "path": "status",
+                "reason_code": "RULE_SATISFIED",
+                "rule_id": "status-approved"
+              },
+              {
+                "kind": "false",
+                "passed": true,
+                "path": "dry_run",
+                "reason_code": "RULE_SATISFIED",
+                "rule_id": "dry-run-false"
+              },
+              {
+                "kind": "empty_list",
+                "passed": true,
+                "path": "queued_actions",
+                "reason_code": "RULE_SATISFIED",
+                "rule_id": "queue-empty"
+              }
+            ]
+          },
+          "rule_assertion_mismatches": []
+        },
+        {
+          "case_id": "null-summary-is-present",
+          "expected_passed": true,
+          "matches_expectation": true,
+          "evaluation": {
+            "passed": true,
+            "policy_id": "synthetic-release-approval-v1",
+            "rule_results": [
+              {
+                "kind": "required_field",
+                "passed": true,
+                "path": "summary",
+                "reason_code": "RULE_SATISFIED",
+                "rule_id": "summary-present"
+              },
+              {
+                "kind": "one_of",
+                "passed": true,
+                "path": "status",
+                "reason_code": "RULE_SATISFIED",
+                "rule_id": "status-approved"
+              },
+              {
+                "kind": "false",
+                "passed": true,
+                "path": "dry_run",
+                "reason_code": "RULE_SATISFIED",
+                "rule_id": "dry-run-false"
+              },
+              {
+                "kind": "empty_list",
+                "passed": true,
+                "path": "queued_actions",
+                "reason_code": "RULE_SATISFIED",
+                "rule_id": "queue-empty"
+              }
+            ]
+          },
+          "rule_assertion_mismatches": []
+        },
+        {
+          "case_id": "zero-is-not-false",
+          "expected_passed": false,
+          "matches_expectation": true,
+          "evaluation": {
+            "passed": false,
+            "policy_id": "synthetic-release-approval-v1",
+            "rule_results": [
+              {
+                "kind": "required_field",
+                "passed": true,
+                "path": "summary",
+                "reason_code": "RULE_SATISFIED",
+                "rule_id": "summary-present"
+              },
+              {
+                "kind": "one_of",
+                "passed": true,
+                "path": "status",
+                "reason_code": "RULE_SATISFIED",
+                "rule_id": "status-approved"
+              },
+              {
+                "kind": "false",
+                "passed": false,
+                "path": "dry_run",
+                "reason_code": "VALUE_NOT_FALSE",
+                "rule_id": "dry-run-false"
+              },
+              {
+                "kind": "empty_list",
+                "passed": true,
+                "path": "queued_actions",
+                "reason_code": "RULE_SATISFIED",
+                "rule_id": "queue-empty"
+              }
+            ]
+          },
+          "rule_assertion_mismatches": []
+        },
+        {
+          "case_id": "string-false-is-not-false",
+          "expected_passed": false,
+          "matches_expectation": true,
+          "evaluation": {
+            "passed": false,
+            "policy_id": "synthetic-release-approval-v1",
+            "rule_results": [
+              {
+                "kind": "required_field",
+                "passed": true,
+                "path": "summary",
+                "reason_code": "RULE_SATISFIED",
+                "rule_id": "summary-present"
+              },
+              {
+                "kind": "one_of",
+                "passed": true,
+                "path": "status",
+                "reason_code": "RULE_SATISFIED",
+                "rule_id": "status-approved"
+              },
+              {
+                "kind": "false",
+                "passed": false,
+                "path": "dry_run",
+                "reason_code": "VALUE_NOT_FALSE",
+                "rule_id": "dry-run-false"
+              },
+              {
+                "kind": "empty_list",
+                "passed": true,
+                "path": "queued_actions",
+                "reason_code": "RULE_SATISFIED",
+                "rule_id": "queue-empty"
+              }
+            ]
+          },
+          "rule_assertion_mismatches": []
+        },
+        {
+          "case_id": "true-is-not-false",
+          "expected_passed": false,
+          "matches_expectation": true,
+          "evaluation": {
+            "passed": false,
+            "policy_id": "synthetic-release-approval-v1",
+            "rule_results": [
+              {
+                "kind": "required_field",
+                "passed": true,
+                "path": "summary",
+                "reason_code": "RULE_SATISFIED",
+                "rule_id": "summary-present"
+              },
+              {
+                "kind": "one_of",
+                "passed": true,
+                "path": "status",
+                "reason_code": "RULE_SATISFIED",
+                "rule_id": "status-approved"
+              },
+              {
+                "kind": "false",
+                "passed": false,
+                "path": "dry_run",
+                "reason_code": "VALUE_NOT_FALSE",
+                "rule_id": "dry-run-false"
+              },
+              {
+                "kind": "empty_list",
+                "passed": true,
+                "path": "queued_actions",
+                "reason_code": "RULE_SATISFIED",
+                "rule_id": "queue-empty"
+              }
+            ]
+          },
+          "rule_assertion_mismatches": []
+        },
+        {
+          "case_id": "object-is-not-empty-list",
+          "expected_passed": false,
+          "matches_expectation": true,
+          "evaluation": {
+            "passed": false,
+            "policy_id": "synthetic-release-approval-v1",
+            "rule_results": [
+              {
+                "kind": "required_field",
+                "passed": true,
+                "path": "summary",
+                "reason_code": "RULE_SATISFIED",
+                "rule_id": "summary-present"
+              },
+              {
+                "kind": "one_of",
+                "passed": true,
+                "path": "status",
+                "reason_code": "RULE_SATISFIED",
+                "rule_id": "status-approved"
+              },
+              {
+                "kind": "false",
+                "passed": true,
+                "path": "dry_run",
+                "reason_code": "RULE_SATISFIED",
+                "rule_id": "dry-run-false"
+              },
+              {
+                "kind": "empty_list",
+                "passed": false,
+                "path": "queued_actions",
+                "reason_code": "VALUE_NOT_EMPTY_LIST",
+                "rule_id": "queue-empty"
+              }
+            ]
+          },
+          "rule_assertion_mismatches": []
+        },
+        {
+          "case_id": "queue-not-empty",
+          "expected_passed": false,
+          "matches_expectation": true,
+          "evaluation": {
+            "passed": false,
+            "policy_id": "synthetic-release-approval-v1",
+            "rule_results": [
+              {
+                "kind": "required_field",
+                "passed": true,
+                "path": "summary",
+                "reason_code": "RULE_SATISFIED",
+                "rule_id": "summary-present"
+              },
+              {
+                "kind": "one_of",
+                "passed": true,
+                "path": "status",
+                "reason_code": "RULE_SATISFIED",
+                "rule_id": "status-approved"
+              },
+              {
+                "kind": "false",
+                "passed": true,
+                "path": "dry_run",
+                "reason_code": "RULE_SATISFIED",
+                "rule_id": "dry-run-false"
+              },
+              {
+                "kind": "empty_list",
+                "passed": false,
+                "path": "queued_actions",
+                "reason_code": "VALUE_NOT_EMPTY_LIST",
+                "rule_id": "queue-empty"
+              }
+            ]
+          },
+          "rule_assertion_mismatches": []
+        },
+        {
+          "case_id": "rejected-status",
+          "expected_passed": false,
+          "matches_expectation": true,
+          "evaluation": {
+            "passed": false,
+            "policy_id": "synthetic-release-approval-v1",
+            "rule_results": [
+              {
+                "kind": "required_field",
+                "passed": true,
+                "path": "summary",
+                "reason_code": "RULE_SATISFIED",
+                "rule_id": "summary-present"
+              },
+              {
+                "kind": "one_of",
+                "passed": false,
+                "path": "status",
+                "reason_code": "VALUE_NOT_ALLOWED",
+                "rule_id": "status-approved"
+              },
+              {
+                "kind": "false",
+                "passed": true,
+                "path": "dry_run",
+                "reason_code": "RULE_SATISFIED",
+                "rule_id": "dry-run-false"
+              },
+              {
+                "kind": "empty_list",
+                "passed": true,
+                "path": "queued_actions",
+                "reason_code": "RULE_SATISFIED",
+                "rule_id": "queue-empty"
+              }
+            ]
+          },
+          "rule_assertion_mismatches": []
+        },
+        {
+          "case_id": "missing-all",
+          "expected_passed": false,
+          "matches_expectation": true,
+          "evaluation": {
+            "passed": false,
+            "policy_id": "synthetic-release-approval-v1",
+            "rule_results": [
+              {
+                "kind": "required_field",
+                "passed": false,
+                "path": "summary",
+                "reason_code": "FIELD_MISSING",
+                "rule_id": "summary-present"
+              },
+              {
+                "kind": "one_of",
+                "passed": false,
+                "path": "status",
+                "reason_code": "FIELD_MISSING",
+                "rule_id": "status-approved"
+              },
+              {
+                "kind": "false",
+                "passed": false,
+                "path": "dry_run",
+                "reason_code": "FIELD_MISSING",
+                "rule_id": "dry-run-false"
+              },
+              {
+                "kind": "empty_list",
+                "passed": false,
+                "path": "queued_actions",
+                "reason_code": "FIELD_MISSING",
+                "rule_id": "queue-empty"
+              }
+            ]
+          },
+          "rule_assertion_mismatches": []
+        }
+      ],
+      "coverage": [
+        {
+          "rule_id": "dry-run-false",
+          "path": "dry_run",
+          "kind": "false",
+          "passed_cases": 8,
+          "failed_cases": 4,
+          "reason_counts": {
+            "RULE_SATISFIED": 8,
+            "VALUE_NOT_FALSE": 3,
+            "FIELD_MISSING": 1
+          },
+          "both_outcomes_observed": true,
+          "unexercised_reason_codes": []
+        },
+        {
+          "rule_id": "queue-empty",
+          "path": "queued_actions",
+          "kind": "empty_list",
+          "passed_cases": 8,
+          "failed_cases": 4,
+          "reason_counts": {
+            "RULE_SATISFIED": 8,
+            "VALUE_NOT_EMPTY_LIST": 3,
+            "FIELD_MISSING": 1
+          },
+          "both_outcomes_observed": true,
+          "unexercised_reason_codes": []
+        },
+        {
+          "rule_id": "status-approved",
+          "path": "status",
+          "kind": "one_of",
+          "passed_cases": 8,
+          "failed_cases": 4,
+          "reason_counts": {
+            "RULE_SATISFIED": 8,
+            "VALUE_NOT_ALLOWED": 3,
+            "FIELD_MISSING": 1
+          },
+          "both_outcomes_observed": true,
+          "unexercised_reason_codes": []
+        },
+        {
+          "rule_id": "summary-present",
+          "path": "summary",
+          "kind": "required_field",
+          "passed_cases": 10,
+          "failed_cases": 2,
+          "reason_counts": {
+            "RULE_SATISFIED": 10,
+            "FIELD_MISSING": 2
+          },
+          "both_outcomes_observed": true,
+          "unexercised_reason_codes": []
+        }
+      ],
+      "migration": [
+        {
+          "case_id": "approved",
+          "before_passed": true,
+          "after_passed": true,
+          "verdict_changed": false,
+          "changed_rule_results": []
+        },
+        {
+          "case_id": "conditional-status",
+          "before_passed": false,
+          "after_passed": true,
+          "verdict_changed": true,
+          "changed_rule_results": [
+            "status-approved"
+          ]
+        },
+        {
+          "case_id": "conditional-status-with-queue",
+          "before_passed": false,
+          "after_passed": false,
+          "verdict_changed": false,
+          "changed_rule_results": [
+            "status-approved"
+          ]
+        },
+        {
+          "case_id": "missing-summary",
+          "before_passed": false,
+          "after_passed": false,
+          "verdict_changed": false,
+          "changed_rule_results": []
+        },
+        {
+          "case_id": "null-summary-is-present",
+          "before_passed": true,
+          "after_passed": true,
+          "verdict_changed": false,
+          "changed_rule_results": []
+        },
+        {
+          "case_id": "zero-is-not-false",
+          "before_passed": false,
+          "after_passed": false,
+          "verdict_changed": false,
+          "changed_rule_results": []
+        },
+        {
+          "case_id": "string-false-is-not-false",
+          "before_passed": false,
+          "after_passed": false,
+          "verdict_changed": false,
+          "changed_rule_results": []
+        },
+        {
+          "case_id": "true-is-not-false",
+          "before_passed": false,
+          "after_passed": false,
+          "verdict_changed": false,
+          "changed_rule_results": []
+        },
+        {
+          "case_id": "object-is-not-empty-list",
+          "before_passed": false,
+          "after_passed": false,
+          "verdict_changed": false,
+          "changed_rule_results": []
+        },
+        {
+          "case_id": "queue-not-empty",
+          "before_passed": false,
+          "after_passed": false,
+          "verdict_changed": false,
+          "changed_rule_results": []
+        },
+        {
+          "case_id": "rejected-status",
+          "before_passed": false,
+          "after_passed": false,
+          "verdict_changed": false,
+          "changed_rule_results": []
+        },
+        {
+          "case_id": "missing-all",
+          "before_passed": false,
+          "after_passed": false,
+          "verdict_changed": false,
+          "changed_rule_results": []
+        }
+      ]
+    }
+  }
+}</script>
+<!-- END generated evidence -->
+</section></main><footer>Source fixture set · <a href="https://github.com/EauDoon/constitutional-agent-testbench/tree/main/examples/release-approval">Release approval</a> · <a href="https://github.com/EauDoon/constitutional-agent-testbench/blob/main/docs/OPERATOR.md">Operator guide</a></footer>
+<script>
+"use strict";
+const el = id => document.getElementById(id);
+const {architecture, fixtureStudy} = JSON.parse(el("study").textContent).data;
+const modules = architecture.nodes;
+const byId = new Map(modules.map(node => [node.id, node]));
+function options(menu, list, value, label) {
+  for (const item of list) menu.add(new Option(item[label], item[value]));
+}
+function list(id, values) {
+  el(id).replaceChildren(...values.map(value => {
+    const li = document.createElement("li");
+    li.textContent = value;
+    return li;
+  }));
+}
+const verdict = passed => passed ? "Pass" : "Fail";
+options(el("module"), modules, "id", "label");
+el("module").value = "evaluator";
+let angle = 0;
+function svg(tag, attributes) {
+  const node = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  for (const [key,value] of Object.entries(attributes)) node.setAttribute(key, value);
+  return node;
+}
+function draw() {
+  const selected = el("module").value;
+  const locations = new Map();
+  for (const {id, position:[x,y,z]} of modules) {
+    const depth = x*Math.sin(angle) + z*Math.cos(angle);
+    const scale = 850 / (850 - depth);
+    locations.set(id, {x:355+(x*Math.cos(angle)-z*Math.sin(angle))*scale, y:213+y*scale, depth});
+  }
+  const lines = [];
+  for (const {id, imports} of modules) {
+    const from = locations.get(id);
+    for (const toId of imports) {
+      const to = locations.get(toId);
+      const active = id === selected;
+      const dx = to.x-from.x, dy = to.y-from.y, length = Math.hypot(dx,dy) || 1;
+      const endX = to.x-dx/length*12, endY = to.y-dy/length*12;
+      const color = active ? "#84e2d1" : "#496372";
+      lines.push(svg("line", {x1:from.x,y1:from.y,x2:endX,y2:endY,stroke:color,"stroke-width":active?2.1:1}));
+      const head = svg("path",{d:"M 0 0 l -8 -3.4 v 6.8 z",fill:color,
+        transform:"translate("+endX+" "+endY+") rotate("+Math.atan2(dy,dx)*180/Math.PI+")"});
+      lines.push(head);
+    }
+  }
+  el("lines").replaceChildren(...lines);
+  const nodes = [...modules].sort((a,b) => locations.get(a.id).depth-locations.get(b.id).depth);
+  el("nodes").replaceChildren(...nodes.map(({id}) => {
+    const p = locations.get(id);
+    const group = svg("g",{transform:"translate("+p.x+" "+p.y+")"});
+    const active = id === selected;
+    group.append(svg("circle",{r:active?15:11,fill:"#14212b",stroke:active?"#84e2d1":"#849cab","stroke-width":active?3:1.2}),
+      svg("circle",{r:active?6:4,fill:active?"#84e2d1":"#8cc6ff"}));
+    const label = svg("text",{y:-20,"text-anchor":"middle"});
+    label.textContent = id;
+    group.append(label);
+    group.dataset.module = id;
+    return group;
+  }));
+}
+function inspectModule() {
+  const node = byId.get(el("module").value);
+  el("module-title").textContent = node.label;
+  el("module-summary").textContent = node.summary;
+  list("imports", node.imports.length ? node.imports : ["None among the selected modules."]);
+  const link = el("module-source");
+  link.href = "https://github.com/EauDoon/constitutional-agent-testbench/blob/main/src/constitutional_agent_testbench/"+node.id+".py";
+  link.textContent = "Read "+node.id+".py ↗";
+  draw();
+}
+el("module").onchange = inspectModule;
+function rotate(amount) {angle += amount; draw();}
+el("left").onclick = () => rotate(-Math.PI/10);
+el("right").onclick = () => rotate(Math.PI/10);
+el("home").onclick = () => {angle=0; draw();};
+el("scene").onkeydown = event => {
+  if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+    event.preventDefault(); rotate(event.key === "ArrowLeft" ? -Math.PI/10 : Math.PI/10);
+  }
+};
+let drag = null;
+el("scene").onpointerdown = event => {
+  if (!event.isPrimary || event.button !== 0) return;
+  drag = {x:event.clientX, angle, id:event.target.closest("[data-module]")?.dataset.module};
+  el("scene").setPointerCapture(event.pointerId);
+};
+el("scene").onpointermove = event => {
+  if (!drag || !event.isPrimary) return;
+  angle = drag.angle+(event.clientX-drag.x)*0.009; draw();
+};
+el("scene").onpointerup = event => {
+  if (drag && event.isPrimary && Math.abs(event.clientX-drag.x)<5 && drag.id) {
+    el("module").value = drag.id; inspectModule();
+  }
+  drag=null;
+};
+el("scene").onpointercancel = () => {drag=null;};
+el("projection").textContent = JSON.stringify({data:{architecture:{nodes:modules.map(({id,label,imports})=>({id,label,imports}))}}},null,2);
+const {cases, migration, coverage} = fixtureStudy;
+options(el("case"), cases, "case_id", "case_id");
+options(el("rule"), coverage,"rule_id","rule_id");
+function showFixture(){
+  const item = cases.find(row=>row.case_id===el("case").value);
+  el("verdict").textContent = verdict(item.evaluation.passed)+" · "+(item.matches_expectation?"matches":"differs from")+" fixture expectation";
+  list("reasons",item.evaluation.rule_results.map(r=>r.rule_id+" · "+r.reason_code));
+}
+function showMigration(){
+  const mode = el("changes").value;
+  const chosen = migration.filter(row=>mode==="all" || (row.changed_rule_results.length && (mode!=="masked" || !row.verdict_changed)));
+  list("migration",chosen.map(row=>row.case_id+" · "+verdict(row.before_passed)+" → "+verdict(row.after_passed)+" · "+(row.changed_rule_results.join(", ")||"no changed rules")));
+}
+function showCoverage(){
+  const rule = coverage.find(row=>row.rule_id===el("rule").value);
+  el("counts").textContent = rule.passed_cases+" passes · "+rule.failed_cases+" failures";
+  list("coverage",[...Object.entries(rule.reason_counts).map(([reason,count])=>reason+" · "+count),
+    "Unobserved reasons · "+(rule.unexercised_reason_codes.join(", ")||"none")]);
+}
+function showRecipe(){
+  const recipe=el("recipe").value, base="examples/release-approval/";
+  const paths = ["policy-before.json",...(recipe==="compare-policies"?["policy-after.json"]:[]),"suite-before.json"];
+  const flag = recipe==="suite-coverage" ? "--strict-reasons" : "--strict-exit";
+  el("command").textContent=["constitutional-agent-testbench",recipe,...paths.map(p=>base+p),flag].join(" ");
+  el("exit-note").textContent={
+    "run-suite":"Exit 1 identifies a fixture expectation mismatch.",
+    "suite-coverage":"Exit 1 identifies a rule with an unobserved reason code.",
+    "compare-policies":"Exit 1 identifies a changed verdict or per-rule result."
+  }[recipe];
+}
+el("case").onchange=showFixture;
+el("changes").onchange=showMigration;
+el("rule").onchange=showCoverage;
+el("recipe").onchange=showRecipe;
+inspectModule(); showFixture(); showMigration(); showCoverage(); showRecipe();
+el("explorer").hidden=false; el("lab").hidden=false;
+</script>
+</html>
