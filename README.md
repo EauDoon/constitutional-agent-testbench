@@ -82,6 +82,8 @@ Open [the policy evidence map](docs/architecture.html) in a browser from your ch
   regression, migration, output handling, and command-specific strict exit rules.
 - [Corpus and replay guide](docs/CORPUS.md): explicit assertions, curation,
   receipts, and portable replay bundles.
+- [Decide, then act](docs/RAIL.md): one refund from policy to a signed
+  decision to a live Consequence Rail, with what the rail accepts and refuses.
 - [Contributor guide](CONTRIBUTING.md): source-checkout setup and validation.
 - [Release guide](docs/RELEASE.md): versioning, tagging and GitHub Release
   publication.
@@ -199,6 +201,12 @@ extra; an HSM or cloud KMS can sign instead through
 `authorization_signing_input` and `attach_signature`. A value whose rail digest
 cannot tell two evaluated inputs apart, such as `1.0` where the policy compares
 with `1`, or an integer beyond 2**53 - 1, is refused rather than bound.
+
+[Decide, then act](docs/RAIL.md) walks one refund through both sides, and
+`scripts/rail_interop.py` submits Testbench decisions to a live rail sidecar:
+the `Rail interop` workflow runs it against Consequence Rail's `main` and fails
+if the rail stops accepting a valid decision or starts accepting a reused,
+unsigned or altered one.
 
 ## Test another engine's decision log
 

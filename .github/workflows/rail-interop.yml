@@ -1,0 +1,58 @@
+name: Rail interop
+
+# Signs decisions with this package and submits them to a live Consequence
+# Rail sidecar built from that repository's main branch, so a change on either
+# side that breaks the signed-approval contract fails here.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - "src/constitutional_agent_testbench/authorization.py"
+      - "src/constitutional_agent_testbench/_ed25519.py"
+      - "src/constitutional_agent_testbench/cli.py"
+      - "examples/rail/**"
+      - "scripts/rail_interop.py"
+      - ".github/workflows/rail-interop.yml"
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rail-interop-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  interop:
+    name: Testbench decisions through a live rail
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check out Consequence Rail main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: EauDoon/consequence-rail
+          ref: main
+          path: consequence-rail
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Show the runner's Node.js and the rail commit
+        run: |
+          node --version
+          git -C consequence-rail rev-parse HEAD
+      - name: Install the package with the pinned signing dependency
+        run: |
+          python -m pip install --disable-pip-version-check --no-deps .
+          python -m pip install --disable-pip-version-check cryptography==50.0.1
+      - name: Sign, submit and check accept and refuse outcomes
+        run: python scripts/rail_interop.py consequence-rail

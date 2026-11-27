@@ -13,6 +13,14 @@ original wording.
 
 ### Added
 
+- End-to-end check against a live Consequence Rail. `scripts/rail_interop.py`
+  starts the rail's sidecar with `--require-signed-authorization`, signs
+  decisions with the installed `authorize` command and checks five outcomes:
+  an allow decision is accepted for its own proposal and refused on another,
+  an unsigned approval and an altered decision are refused, and a deny is
+  recorded as a denial. The new `Rail interop` workflow runs it against the
+  rail's `main` on pushes, on pull requests that touch the signing path, and
+  weekly. `docs/RAIL.md` walks the same refund from policy to rail.
 - Replay another engine's decision log. `compare-decision-log` reads Open
   Policy Agent decision log events (JSON Lines or an array), Cedar request and
   decision records, or a generic log, evaluates each logged input against a
