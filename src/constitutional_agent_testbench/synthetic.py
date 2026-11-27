@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import math
 from copy import deepcopy
+from dataclasses import replace
 from typing import Any, TypedDict
 
-from .common import MAX_JSON_NODES, TestbenchError, canonical_json
+from .common import MAX_JSON_NODES, TestbenchError, canonical_json, get_field
 from .evaluator import (
     EvaluationInputError,
     EvaluationResult,
@@ -24,8 +25,11 @@ from .policy import (
 )
 
 _MAX_COMPATIBILITY_WORK = MAX_POLICY_RULES * MAX_ONE_OF_VALUES
-#: Schema 1.1 kinds that admit many values; they filter candidates, never supply them.
-_FILTER_KINDS = frozenset({"type", "range", "length"})
+#: Kinds that admit many values; they filter candidates. ``each`` also adds
+#: arrays built from one verified item to the menu.
+_FILTER_KINDS = frozenset({"type", "range", "length", "each"})
+#: The longest array of verified items an ``each`` candidate repeats to.
+_MAX_EACH_REPEAT = 4096
 _CONFLICT_MESSAGE = "Policy has conflicting constraints and no synthetic pass can be verified."
 
 
@@ -150,8 +154,28 @@ def _filter_menu(filters: list[Rule]) -> list[Any]:
     return menu
 
 
+def _each_menu(filters: list[Rule]) -> list[Any]:
+    """Arrays of one verified item per ``each`` rule, repeated to each length minimum."""
+
+    lengths = [int(rule.minimum) for rule in filters
+               if rule.kind == "length" and rule.minimum and rule.minimum <= _MAX_EACH_REPEAT]
+    menu: list[Any] = []
+    for rule in filters:
+        if rule.kind != "each" or rule.item is None:
+            continue
+        try:
+            values = _candidate_values([rule.item])
+        except SyntheticGenerationError:
+            continue
+        sub_path = rule.item_path
+        item = values[0] if sub_path is None else _candidate_view(sub_path, values[0])
+        menu.append([item])
+        menu.extend([deepcopy(item) for _ in range(length)] for length in lengths)
+    return menu
+
+
 def _candidate_values(rules: list[Rule]) -> list[Any]:
-    """Finite-domain candidates, filtered through the path's type, range and length rules."""
+    """Finite-domain candidates, filtered through the path's type, range, length and each rules."""
 
     filters = [rule for rule in rules if rule.kind in _FILTER_KINDS]
     finite = [rule for rule in rules if rule.kind not in _FILTER_KINDS]
@@ -159,7 +183,7 @@ def _candidate_values(rules: list[Rule]) -> list[Any]:
     if not filters:
         return candidates
     if all(rule.kind == "required_field" for rule in finite):
-        candidates = _filter_menu(filters)
+        candidates = _filter_menu(filters) + _each_menu(filters)
     kept = [
         candidate for candidate in candidates
         if all(_evaluate_rule(rule, _candidate_view(rule.path, candidate))["passed"]
@@ -212,15 +236,86 @@ def _delete_path(document: dict[str, Any], path: str) -> bool:
     return True
 
 
+def _comparison_menu(op: str | None, known: Any) -> list[Any]:
+    """Values to try for the unset side of a comparison whose other side is ``known``."""
+
+    if isinstance(known, (int, float)) and not isinstance(known, bool):
+        return [known, known + 1, known - 1]
+    if isinstance(known, str):
+        return [known, known + "~", ""]
+    if op == "ne":
+        return ["synthetic-compare", 0]
+    return [deepcopy(known)]
+
+
+def _satisfy_comparison(response: dict[str, Any], rule: Rule) -> None:
+    """Set whichever side of a comparison is still absent; fail closed otherwise."""
+
+    other_path = rule.other_path or ""
+    left_found, left = get_field(response, rule.path)
+    right_found, right = get_field(response, other_path)
+    if left_found and right_found:
+        candidates: list[tuple[str, Any]] = []
+    elif not left_found and not right_found:
+        pairs = {"eq": (0, 0), "ne": (0, 1), "lt": (0, 1), "lte": (0, 0), "gt": (1, 0), "gte": (0, 0)}
+        low, high = pairs.get(rule.op or "", (0, 0))
+        _assign_path(response, other_path, high)
+        candidates = [(rule.path, low)]
+    elif left_found:
+        candidates = [(other_path, value) for value in _comparison_menu(rule.op, left)]
+    else:
+        candidates = [(rule.path, value) for value in _comparison_menu(rule.op, right)]
+    for path, value in candidates:
+        _assign_path(response, path, value)
+        if _evaluate_rule(rule, response)["passed"]:
+            return
+    if not candidates and _evaluate_rule(rule, response)["passed"]:
+        return
+    raise SyntheticGenerationError(
+        "Policy constraints could not produce a verified synthetic passing case."
+    )
+
+
+def _failing_case(
+    policy: Policy, compiled: tuple[_CompiledRule, ...], passing: dict[str, Any]
+) -> tuple[dict[str, Any], EvaluationResult]:
+    """Delete one rule's path, earliest rule first; meet a guard first when needed."""
+
+    attempts: list[tuple[Rule, bool]] = [(rule, False) for rule in policy.rules]
+    attempts += [(rule, True) for rule in policy.rules if rule.when]
+    for rule, meet_guard in attempts:
+        response = deepcopy(passing)
+        try:
+            if meet_guard:
+                for condition in rule.when:
+                    _assign_path(response, condition.path, condition.values[0])
+            if not _delete_path(response, rule.path):
+                continue
+        except SyntheticGenerationError:
+            continue
+        try:
+            evaluation = _verify(policy.policy_id, compiled, response)
+        except SyntheticGenerationError:
+            continue
+        if not evaluation["passed"]:
+            return response, evaluation
+    raise SyntheticGenerationError("A verified synthetic failing case could not be constructed.")
+
+
 def generate_synthetic_cases(
     policy: Policy | dict[str, Any],
 ) -> SyntheticCaseBundle:
     """Build and verify one passing and one failing synthetic response."""
 
     validated_policy = validate_policy(policy)
+    # A passing case meets every rule unconditionally, so a guarded rule passes
+    # whether or not its guard holds. Comparisons are settled once both sides exist.
+    unguarded = [replace(rule, when=()) for rule in validated_policy.rules]
+    comparisons = [rule for rule in unguarded if rule.kind == "compare"]
     by_path: dict[str, list[Rule]] = {}
-    for rule in validated_policy.rules:
-        by_path.setdefault(rule.path, []).append(rule)
+    for rule in unguarded:
+        if rule.kind != "compare":
+            by_path.setdefault(rule.path, []).append(rule)
 
     passing_response: dict[str, Any] = {}
     constructed_rules: list[Rule] = []
@@ -269,6 +364,9 @@ def generate_synthetic_cases(
         _assign_path(passing_response, path, selected)
         constructed_rules.extend(path_rules)
 
+    for rule in comparisons:
+        _satisfy_comparison(passing_response, rule)
+
     compiled = _compile(validated_policy)
     passing_evaluation = _verify(
         validated_policy.policy_id, compiled, passing_response
@@ -278,18 +376,8 @@ def generate_synthetic_cases(
             "Policy constraints could not produce a verified synthetic passing case."
         )
 
-    failing_response = deepcopy(passing_response)
-    if not _delete_path(failing_response, validated_policy.rules[0].path):
-        raise SyntheticGenerationError(
-            "A verified synthetic failing case could not be constructed."
-        )
-    failing_evaluation = _verify(
-        validated_policy.policy_id, compiled, failing_response
-    )
-    if failing_evaluation["passed"]:
-        raise SyntheticGenerationError(
-            "A verified synthetic failing case could not be constructed."
-        )
+    failing_response, failing_evaluation = _failing_case(
+        validated_policy, compiled, passing_response)
 
     return {
         "failing_case": {

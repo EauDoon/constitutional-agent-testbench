@@ -1,10 +1,11 @@
 """Verified targeted synthetic mutations for bounded local regression suites."""
 
 from copy import deepcopy
+from dataclasses import replace
 from typing import Any
 
 from .common import (MAX_JSON_INPUT_BYTES, bounded_canonical_json_size, canonical_json,
-                     ensure_json_value, stable_json)
+                     ensure_json_value, get_field, stable_json)
 from .evaluator import _compile, _evaluate_rule
 from .policy import Policy, Rule, validate_policy
 from .synthetic import (SyntheticGenerationError, _assign_path, _candidate_view, _delete_path,
@@ -41,6 +42,34 @@ def _filter_probe_value(rule: Rule) -> Any:
     raise SyntheticGenerationError("A targeted failure could not be verified.")
 
 
+def _wrong_value(rule: Rule, response: dict[str, Any]) -> Any:
+    """A value for ``rule.path`` that the rule rejects, verified by the caller."""
+
+    if rule.kind == "false":
+        return True
+    if rule.kind == "empty_list":
+        return [None]
+    if rule.kind in ("type", "range", "length"):
+        # The caller meets the guard; judge the bare constraint here.
+        return _filter_probe_value(replace(rule, when=()))
+    if rule.kind == "compare":
+        _found, other = get_field(response, rule.other_path or "")
+        if rule.op == "ne":
+            return deepcopy(other)
+        return "synthetic-probe" if other is None else None
+    if rule.kind == "each":
+        if rule.item is None or (rule.item.kind == "required_field" and rule.item_path is None):
+            return "synthetic-probe"
+        if rule.item.kind == "required_field":
+            return [{}]
+        bad = _wrong_value(rule.item, {})
+        return [bad if rule.item_path is None else _candidate_view(rule.item_path, bad)]
+    forbidden = {canonical_json(v) for v in
+                 (rule.values if rule.kind == "one_of" else [rule.value])}
+    return next(f"synthetic-probe-{n}" for n in range(257)
+                if canonical_json(f"synthetic-probe-{n}") not in forbidden)
+
+
 def generate_rule_probes(policy: Policy | dict[str, Any]) -> dict[str, Any]:
     """Create missing-field and wrong-value probes, verifying every target failure.
 
@@ -60,21 +89,13 @@ def generate_rule_probes(policy: Policy | dict[str, Any]) -> dict[str, Any]:
         modes = ["missing"] if rule.kind == "required_field" else ["missing", "wrong_value"]
         for mode in modes:
             response = deepcopy(passing)
+            # A guarded rule is only tested where it applies, so meet its guard first.
+            for condition in rule.when:
+                _assign_path(response, condition.path, condition.values[0])
             if mode == "missing":
                 _delete_path(response, rule.path)
             else:
-                if rule.kind == "false":
-                    value: Any = True
-                elif rule.kind == "empty_list":
-                    value = [None]
-                elif rule.kind in ("type", "range", "length"):
-                    value = _filter_probe_value(rule)
-                else:
-                    forbidden = {canonical_json(v) for v in
-                                 (rule.values if rule.kind == "one_of" else [rule.value])}
-                    value = next(f"synthetic-probe-{n}" for n in range(257)
-                                 if canonical_json(f"synthetic-probe-{n}") not in forbidden)
-                _assign_path(response, rule.path, value)
+                _assign_path(response, rule.path, _wrong_value(rule, response))
             evaluation = _verify(current.policy_id, compiled, response)
             failed = sorted(r["rule_id"] for r in evaluation["rule_results"] if not r["passed"])
             if rule.rule_id not in failed:

@@ -1,0 +1,42 @@
+{
+  "policy_id": "agent-action-gate",
+  "rules": [
+    {
+      "kind": "one_of",
+      "path": "action_type",
+      "rule_id": "known-action",
+      "values": ["refund.issue", "email.send"]
+    },
+    {
+      "kind": "range",
+      "maximum": 25000,
+      "minimum": 1,
+      "path": "parameters.amount_minor",
+      "rule_id": "refund-within-limit",
+      "when": [{"path": "action_type", "values": ["refund.issue"]}]
+    },
+    {
+      "kind": "compare",
+      "op": "lte",
+      "other_path": "context.order_total_minor",
+      "path": "parameters.amount_minor",
+      "rule_id": "refund-at-most-order-total",
+      "when": [{"path": "action_type", "values": ["refund.issue"]}]
+    },
+    {
+      "item": {"kind": "one_of", "path": "domain", "values": ["example.com", "example.org"]},
+      "kind": "each",
+      "path": "parameters.recipients",
+      "rule_id": "recipients-allowlisted",
+      "when": [{"path": "action_type", "values": ["email.send"]}]
+    },
+    {
+      "kind": "compare",
+      "op": "gt",
+      "other_path": "requested_at",
+      "path": "expires_at",
+      "rule_id": "expires-after-request"
+    }
+  ],
+  "schema_version": "1.2"
+}

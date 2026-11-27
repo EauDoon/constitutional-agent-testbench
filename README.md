@@ -33,7 +33,7 @@ This is useful for development checks, regression suites, demonstrations, and pr
 
 | Capability | Behavior |
 | --- | --- |
-| Strict policy validation | Accepts version 1.0 and 1.1 policies with only declared fields and supported rule kinds. Version 1.1 adds `type`, `range` and `length` rules. |
+| Strict policy validation | Accepts version 1.0, 1.1 and 1.2 policies with only declared fields and supported rule kinds. Version 1.1 adds `type`, `range` and `length` rules. Version 1.2 adds `when` guards, `compare` across two fields and `each` over list items. |
 | Structured path evaluation | Resolves validated dot-separated paths through nested JSON objects. |
 | Complete rule results | Evaluates every rule in policy order and reports a pass state and reason code for each one. |
 | Fail-closed checks | Treats every missing evaluation path as a failed rule. |
@@ -60,8 +60,8 @@ a JSON error on standard error. Keep `--strict-exit` when using evaluation as an
 automation gate; without it, a completed failing evaluation exits `0`.
 
 Current package version: **0.6.0**. See [the version source](src/constitutional_agent_testbench/_version.py) and
-[the changelog](CHANGELOG.md) for the version and changes. Policy schemas `1.0`
-and `1.1` and optional suite schema `1.1` are separate from the package version.
+[the changelog](CHANGELOG.md) for the version and changes. Policy schemas `1.0`,
+`1.1` and `1.2` and optional suite schema `1.1` are separate from the package version.
 
 To exercise a complete installed workflow, including independently authored
 synthetic expectations, migration, receipts, and replay:
@@ -215,7 +215,7 @@ resolver. For one fixed policy and response it:
    identity disappears between the differing regions.
 
 Invoking the mode is the operator's declaration that the supplied rules should
-be tested as peers. Policy schemas 1.0 and 1.1 have no priority or
+be tested as peers. Policy schemas 1.0, 1.1 and 1.2 have no priority or
 equal-authority field; undeclared fields still fail validation. The mode tests
 behavior and does not infer institutional authority.
 
@@ -322,6 +322,50 @@ Policy schema `1.1` accepts every `1.0` rule unchanged and adds three kinds. A
   in an object. Bounds are integers from 0 to 1,000,000, the input byte limit,
   with `minimum` at most `maximum`. Every other value fails.
 
+### Conditional and cross-field rules (schema 1.2)
+
+Policy schema `1.2` accepts every `1.1` rule unchanged and adds a guard on any
+rule plus two kinds. A `1.0` or `1.1` policy that uses them fails validation.
+[`examples/conditional-policy.json`](examples/conditional-policy.json) uses all
+three.
+
+| Addition (1.2) | Rule fields | Pass condition |
+| --- | --- | --- |
+| `when` guard | `when`: 1 to 8 conditions, each `{"path", "values"}` | Optional on every rule. The rule applies only when every condition's path exists and equals one listed value under canonical JSON. Otherwise it passes with `RULE_NOT_APPLICABLE`. |
+| `compare` | `rule_id`, `kind`, `path`, `op`, `other_path` | Both paths exist and `path op other_path` holds. `op` is `eq`, `ne`, `lt`, `lte`, `gt` or `gte`. |
+| `each` | `rule_id`, `kind`, `path`, `item` | The path value is an array and every element passes `item`. An empty array passes. |
+
+```json
+{
+  "rule_id": "refund-at-most-order-total",
+  "kind": "compare",
+  "path": "parameters.amount_minor",
+  "op": "lte",
+  "other_path": "context.order_total_minor",
+  "when": [{"path": "action_type", "values": ["refund.issue"]}]
+}
+```
+
+- A guard reads the same response. A missing guard path means the guard does
+  not hold, so the rule does not apply. To force the guard field to exist, add
+  an unguarded `required_field` rule for it.
+- `eq` and `ne` use canonical JSON equality, the same as `equals`: `1` and
+  `1.0` differ. `lt`, `lte`, `gt` and `gte` order two numbers by value or two
+  strings by code point, which orders ISO 8601 UTC timestamps of the same
+  format by time. Any other pair, booleans included, fails with
+  `VALUE_COMPARISON_FAILED`. A missing `path` or `other_path` fails with
+  `FIELD_MISSING`. `other_path` must differ from `path`.
+- `item` is one `1.0` or `1.1` rule body without `rule_id`. Its optional
+  `path` is relative to the element: omit it to check the element itself, or
+  write `domain` to check `element.domain`, so
+  `{"kind": "one_of", "path": "domain", "values": ["example.com"]}` allowlists
+  each recipient's domain. `item` may not be `each` or `compare` or carry
+  `when`. A non-array fails with `VALUE_ITEM_FAILED`, as does any failing
+  element.
+- Guards and `compare` are not a solver. Synthetic generation meets a guard
+  from its listed values and a comparison from a short neutral menu, and
+  fails closed with `SYNTHETIC_GENERATION_FAILED` when they cannot be met.
+
 Validation rejects:
 
 - unsupported schema versions;
@@ -349,6 +393,9 @@ The evaluator uses a small, stable reason-code vocabulary:
 | `VALUE_WRONG_TYPE` | A `type` rule (schema 1.1) observed a value of an unlisted JSON type. |
 | `VALUE_OUT_OF_RANGE` | A `range` rule (schema 1.1) observed a non-number or a number outside its bounds. |
 | `VALUE_LENGTH_OUT_OF_RANGE` | A `length` rule (schema 1.1) observed a value with no length or a length outside its bounds. |
+| `RULE_NOT_APPLICABLE` | A rule's `when` guard (schema 1.2) did not hold. The rule passes. |
+| `VALUE_COMPARISON_FAILED` | A `compare` rule (schema 1.2) found the relation false or the two values not comparable. |
+| `VALUE_ITEM_FAILED` | An `each` rule (schema 1.2) observed a non-array or an element that failed `item`. |
 
 All rules are evaluated even after one fails. This preserves a complete, inspectable record instead of returning only the first error.
 
@@ -392,7 +439,7 @@ From the repository root, expose `src` on `PYTHONPATH`, then run:
 python -m unittest discover -s tests -v
 ```
 
-The test suite covers all supported rule kinds in both policy schemas, strict policy validation,
+The test suite covers all supported rule kinds in every policy schema, strict policy validation,
 missing-field failure, stable reason codes, JSON type distinctions, duplicate
 object members, nested-value isolation, input limits, deterministic synthetic
 generation, fail-closed handling of conflicting synthetic constraints,

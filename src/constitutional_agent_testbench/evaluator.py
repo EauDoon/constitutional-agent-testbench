@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Literal, NamedTuple, TypedDict
+from typing import Any, Final, Literal, NamedTuple, TypedDict
 
 from .common import (
     MAX_JSON_INPUT_BYTES,
@@ -31,6 +31,9 @@ REASON_NOT_EMPTY_LIST = "VALUE_NOT_EMPTY_LIST"
 REASON_WRONG_TYPE = "VALUE_WRONG_TYPE"
 REASON_OUT_OF_RANGE = "VALUE_OUT_OF_RANGE"
 REASON_LENGTH_OUT_OF_RANGE = "VALUE_LENGTH_OUT_OF_RANGE"
+REASON_NOT_APPLICABLE: Final = "RULE_NOT_APPLICABLE"
+REASON_COMPARISON_FAILED: Final = "VALUE_COMPARISON_FAILED"
+REASON_ITEM_FAILED: Final = "VALUE_ITEM_FAILED"
 
 ReasonCode = Literal[
     "RULE_SATISFIED",
@@ -42,6 +45,9 @@ ReasonCode = Literal[
     "VALUE_WRONG_TYPE",
     "VALUE_OUT_OF_RANGE",
     "VALUE_LENGTH_OUT_OF_RANGE",
+    "RULE_NOT_APPLICABLE",
+    "VALUE_COMPARISON_FAILED",
+    "VALUE_ITEM_FAILED",
 ]
 
 #: The closed reason-code vocabulary, derived once from the constants above so
@@ -57,7 +63,13 @@ REASON_CODES = frozenset({
     REASON_WRONG_TYPE,
     REASON_OUT_OF_RANGE,
     REASON_LENGTH_OUT_OF_RANGE,
+    REASON_NOT_APPLICABLE,
+    REASON_COMPARISON_FAILED,
+    REASON_ITEM_FAILED,
 })
+#: Reason codes of a passing rule. A guarded rule whose guard does not hold
+#: passes with ``RULE_NOT_APPLICABLE``.
+PASSING_REASON_CODES = frozenset({REASON_SATISFIED, REASON_NOT_APPLICABLE})
 
 #: The reason code that can be emitted when a rule kind's constraint is violated.
 FAILURE_REASON_BY_KIND = {
@@ -68,6 +80,8 @@ FAILURE_REASON_BY_KIND = {
     "type": REASON_WRONG_TYPE,
     "range": REASON_OUT_OF_RANGE,
     "length": REASON_LENGTH_OUT_OF_RANGE,
+    "compare": REASON_COMPARISON_FAILED,
+    "each": REASON_ITEM_FAILED,
 }
 
 
@@ -108,6 +122,44 @@ def _canonical_marker(value: Any) -> str | None:
         return None
 
 
+def _guard_holds(rule: Rule, response: dict[str, Any]) -> bool:
+    """True when every ``when`` condition matches; a rule with no guard always applies."""
+
+    for condition in rule.when:
+        found, observed = get_field(response, condition.path)
+        if not found:
+            return False
+        marker = _canonical_marker(observed)
+        if marker is None or all(_canonical_marker(value) != marker for value in condition.values):
+            return False
+    return True
+
+
+def _compare(op: str | None, left: Any, right: Any) -> bool:
+    """Cross-field comparison. Equality is canonical JSON, so ``1`` and ``1.0`` differ.
+
+    Ordering needs two numbers (compared numerically, never booleans) or two
+    strings (compared by code point, which orders RFC 3339 UTC times).
+    """
+
+    if op in ("eq", "ne"):
+        left_marker = _canonical_marker(left)
+        equal = left_marker is not None and left_marker == _canonical_marker(right)
+        return equal if op == "eq" else not equal
+    numbers = all(isinstance(value, (int, float)) and not isinstance(value, bool)
+                  for value in (left, right))
+    strings = isinstance(left, str) and isinstance(right, str)
+    if not (numbers or strings):
+        return False
+    if op == "lt":
+        return bool(left < right)
+    if op == "lte":
+        return bool(left <= right)
+    if op == "gt":
+        return bool(left > right)
+    return bool(left >= right)
+
+
 class _CompiledRule(NamedTuple):
     """A validated rule with its constraint markers serialized once.
 
@@ -118,9 +170,13 @@ class _CompiledRule(NamedTuple):
     rule: Rule
     marker: str | None = None
     markers: frozenset[str] | None = None
+    #: The compiled item constraint of an ``each`` rule.
+    item: _CompiledRule | None = None
 
 
 def _compile_rule(rule: Rule) -> _CompiledRule:
+    if rule.kind == "each" and rule.item is not None:
+        return _CompiledRule(rule, item=_compile_rule(rule.item))
     if rule.kind == "equals":
         return _CompiledRule(rule, marker=_canonical_marker(rule.value))
     if rule.kind == "one_of":
@@ -144,9 +200,12 @@ def _compile(policy: Policy) -> tuple[_CompiledRule, ...]:
 def _evaluate_compiled_rule(compiled: _CompiledRule, response: dict[str, Any]) -> RuleResult:
     rule = compiled.rule
     found, observed = get_field(response, rule.path)
-    if not found:
+    if rule.when and not _guard_holds(rule, response):
+        passed = True
+        reason_code: ReasonCode = REASON_NOT_APPLICABLE
+    elif not found:
         passed = False
-        reason_code: ReasonCode = REASON_MISSING
+        reason_code = REASON_MISSING
     elif rule.kind == "required_field":
         passed = True
         reason_code = REASON_SATISFIED
@@ -185,6 +244,20 @@ def _evaluate_compiled_rule(compiled: _CompiledRule, response: dict[str, Any]) -
         # Strings count Unicode code points, arrays items and objects members.
         passed = isinstance(observed, (str, list, dict)) and _within(len(observed), rule)
         reason_code = REASON_SATISFIED if passed else REASON_LENGTH_OUT_OF_RANGE
+    elif rule.kind == "compare":
+        other_found, other = get_field(response, rule.other_path or "")
+        if not other_found:
+            passed = False
+            reason_code = REASON_MISSING
+        else:
+            passed = _compare(rule.op, observed, other)
+            reason_code = REASON_SATISFIED if passed else REASON_COMPARISON_FAILED
+    elif rule.kind == "each":
+        # An empty array passes: every one of its zero items meets the constraint.
+        item = compiled.item
+        passed = isinstance(observed, list) and item is not None and all(
+            _evaluate_compiled_rule(item, {"value": element})["passed"] for element in observed)
+        reason_code = REASON_SATISFIED if passed else REASON_ITEM_FAILED
     else:
         passed = False
         reason_code = REASON_MISSING
@@ -201,7 +274,7 @@ def _evaluate_compiled_rule(compiled: _CompiledRule, response: dict[str, Any]) -
 def _evaluate_rule(rule: Rule, response: dict[str, Any]) -> RuleResult:
     """Evaluate one rule without compiling it, for one-off candidate checks."""
 
-    return _evaluate_compiled_rule(_CompiledRule(rule), response)
+    return _evaluate_compiled_rule(_compile_rule(rule), response)
 
 
 def _check_response(response: Any) -> dict[str, Any]:

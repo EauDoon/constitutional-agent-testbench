@@ -124,8 +124,8 @@ class ValidationTests(unittest.TestCase):
         self.assertEqual(policy_to_dict(validated), raw | {"rules": policy_to_dict(validated)["rules"]})
 
     def test_unsupported_version_message_names_both_versions(self):
-        self.assert_invalid(policy(rule("t", "required_field"), version="1.2"),
-                            "must be 1.0 or 1.1")
+        self.assert_invalid(policy(rule("t", "required_field"), version="1.3"),
+                            "must be 1.0, 1.1 or 1.2")
 
     def test_policy_to_dict_round_trips_and_omits_absent_bounds(self):
         raw = policy(rule("t", "type", types=["number", "null"]),
@@ -446,7 +446,7 @@ class CliTests(unittest.TestCase):
             stdout = io.StringIO()
             with self.subTest(command=command), redirect_stdout(stdout):
                 self.assertEqual(main([command, "--help"]), 0)
-            self.assertIn("1.0 or 1.1", " ".join(stdout.getvalue().split()))
+            self.assertIn("1.0, 1.1 or 1.2", " ".join(stdout.getvalue().split()))
 
 
 class DeterminismTests(unittest.TestCase):

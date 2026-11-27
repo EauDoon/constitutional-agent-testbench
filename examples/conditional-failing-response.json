@@ -1,0 +1,6 @@
+{
+  "action_type": "email.send",
+  "expires_at": "2026-11-28T02:30:00.000Z",
+  "parameters": {"recipients": [{"domain": "example.com"}, {"domain": "attacker.test"}]},
+  "requested_at": "2026-11-28T02:30:00.000Z"
+}

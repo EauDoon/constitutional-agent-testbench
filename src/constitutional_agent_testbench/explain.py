@@ -3,7 +3,7 @@
 from typing import Any
 
 from .common import json_type_name
-from .evaluator import _compile, _evaluate_compiled
+from .evaluator import REASON_NOT_APPLICABLE, _compile, _evaluate_compiled
 from .policy import Policy, Rule, validate_policy
 
 _NUMBER_TYPES = ["integer", "number"]
@@ -31,6 +31,8 @@ def _expected_types(rule: Rule) -> list[str] | None:
         return list(_NUMBER_TYPES)
     if rule.kind == "length":
         return list(_LENGTH_TYPES)
+    if rule.kind == "each":
+        return ["array"]
     return None
 
 
@@ -74,6 +76,11 @@ def explain_response(policy: Policy | dict[str, Any], response: Any) -> dict[str
                 bound = _violated_bound(rule, current_value)
                 if bound is not None:
                     detail["violated_bound"] = bound
+        if rule.when:
+            # Schema 1.2: say whether the guard held, never which value it saw.
+            detail["guard_met"] = item["reason_code"] != REASON_NOT_APPLICABLE
+        if rule.kind == "compare":
+            detail["other_path"] = rule.other_path
         explanations.append(detail)
     return {"evaluation": result, "explanations": explanations,
             "values_included": False}

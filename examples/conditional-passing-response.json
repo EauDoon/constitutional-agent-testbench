@@ -1,0 +1,7 @@
+{
+  "action_type": "refund.issue",
+  "context": {"order_total_minor": 12000},
+  "expires_at": "2026-11-28T02:32:00.000Z",
+  "parameters": {"amount_minor": 12000, "currency": "USD"},
+  "requested_at": "2026-11-28T02:30:00.000Z"
+}

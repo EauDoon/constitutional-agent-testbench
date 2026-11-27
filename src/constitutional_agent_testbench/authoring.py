@@ -19,8 +19,21 @@ class AuthoringLimitError(TestbenchError):
 
 
 def _constraint_marker(rule: Rule) -> str:
-    """Identity of a constraint. ``one_of`` is a set, so value order is ignored."""
+    """Identity of a constraint, guard included. ``one_of`` is a set, so value order is ignored."""
 
+    marker = _unguarded_marker(rule)
+    if not rule.when:
+        return marker
+    guard = sorted(canonical_json([condition.path, sorted(map(canonical_json, condition.values))])
+                   for condition in rule.when)
+    return canonical_json([marker, guard])
+
+
+def _unguarded_marker(rule: Rule) -> str:
+    if rule.kind == "compare":
+        return canonical_json([rule.kind, rule.op, rule.other_path])
+    if rule.kind == "each" and rule.item is not None:
+        return canonical_json([rule.kind, rule.item_path, _unguarded_marker(rule.item)])
     if rule.kind == "type":
         return canonical_json([rule.kind, sorted(rule.types)])
     if rule.kind in ("range", "length"):
@@ -55,7 +68,11 @@ def lint_policy(policy: Policy | dict[str, Any]) -> dict[str, Any]:
     groups: dict[str, list[Rule]] = {}
     for rule in current.rules:
         groups.setdefault(rule.path, []).append(rule)
-    for path, rules in sorted(groups.items()):
+    # A guarded rule may never apply beside another rule, so conflict analysis
+    # considers unguarded rules only. Duplicates compare guards as well.
+    unguarded_rules = [rule for rule in current.rules if not rule.when]
+    for path, all_rules in sorted(groups.items()):
+        rules = [rule for rule in all_rules if not rule.when]
         domains = [_domain(rule) for rule in rules]
         finite = [(rule, domain) for rule, domain in zip(rules, domains, strict=True)
                   if domain is not None]
@@ -84,7 +101,7 @@ def lint_policy(policy: Policy | dict[str, Any]) -> dict[str, Any]:
                                      "rule_ids": sorted([rule.rule_id for rule, _domain in finite]
                                                         + [rule.rule_id for rule in filters])})
         seen: dict[str, str] = {}
-        for rule in rules:
+        for rule in all_rules:
             marker = _constraint_marker(rule)
             if marker in seen:
                 findings.append({"code": "DUPLICATE_CONSTRAINT", "path": path,
@@ -95,8 +112,8 @@ def lint_policy(policy: Policy | dict[str, Any]) -> dict[str, Any]:
             domain = _domain(rule)
             if domain is None:
                 continue
-            descendants = [child for child in current.rules
-                           if child.path.startswith(path + ".")]
+            descendants = [child for child in unguarded_rules
+                           if child.path.startswith(path + ".") and child.kind != "compare"]
             # Charge both compared values and every allowed candidate before work.
             domain_bytes = sum(len(canonical_json(v).encode("utf-8")) for v in domain)
             child_bytes = sum(len(canonical_json(_domain(child)).encode("utf-8"))
