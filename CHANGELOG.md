@@ -15,6 +15,8 @@ original wording.
 
 - Summarize changed per-rule results even when a migration leaves the overall verdict unchanged; include explicit fixture and changed-result case counts without choosing a policy.
 
+- `--help` shows `COMMAND` in the usage line and lists each command once, instead of repeating all 33 command names in two brace-delimited runs before the descriptions.
+
 ### Fixed
 
 - `--help` and `--version` exit `2` with `JSON_OUTPUT_ERROR` when their text cannot be written, for example to a full device or a broken pipe. They previously exited `0` with nothing printed, so a script that captured the version saw success and an empty value.

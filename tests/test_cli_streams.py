@@ -145,6 +145,17 @@ class ClosedStreamTests(unittest.TestCase):
                 self.assertTrue(stdout.getvalue().startswith(expected))
                 self.assertEqual(stderr.getvalue(), "")
 
+    def test_top_level_help_names_the_command_slot_once(self):
+        stdout = io.StringIO()
+        with redirect_stdout(stdout):
+            code = main(["--help"])
+        self.assertEqual(code, 0)
+        usage = stdout.getvalue().split("\n\n", 1)[0]
+        self.assertEqual(" ".join(usage.split()),
+                         "usage: constitutional-agent-testbench [-h] [--version] COMMAND ...")
+        self.assertNotIn("{inspect-policy,", stdout.getvalue())
+        self.assertIn("    check-order ", stdout.getvalue())
+
     def test_version_to_a_full_device_exits_2_in_a_real_process(self):
         if not os.path.exists("/dev/full"):
             self.skipTest("requires /dev/full")

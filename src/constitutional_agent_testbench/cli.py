@@ -116,7 +116,9 @@ def _build_parser() -> argparse.ArgumentParser:
         version=f"constitutional-agent-testbench {__version__}",
         help="print the installed package version and exit",
     )
-    subparsers = parser.add_subparsers(dest="command", required=True)
+    # A metavar keeps the usage line and the listing heading readable; without it
+    # argparse prints every command name twice in one brace-delimited run.
+    subparsers = parser.add_subparsers(dest="command", required=True, metavar="COMMAND")
     add_operation_parsers(subparsers)
 
     for name, inputs, help_text in (
