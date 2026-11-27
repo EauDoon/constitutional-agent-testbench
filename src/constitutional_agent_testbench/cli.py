@@ -65,6 +65,27 @@ class JsonArgumentParser(argparse.ArgumentParser):
     def error(self, message: str) -> None:
         raise CliUsageError(_usage_error_message(message))
 
+    def _print_message(self, message: str, file: Any = None) -> None:
+        """Write help or version text and flush it, failing closed.
+
+        argparse swallows a failed write and leaves buffered text for the
+        interpreter's exit-time flush, so a full device or a broken pipe ended
+        with exit status 0 and no text. A closed standard output keeps the
+        argparse fallback to standard error.
+        """
+
+        if not message:
+            return
+        stream = file or sys.stderr
+        try:
+            stream.write(message)
+            stream.flush()
+        except (AttributeError, OSError, ValueError) as exc:
+            _release_failed_stream(stream)
+            raise JsonOutputError(
+                "Unable to write the help or version text to standard output."
+            ) from exc
+
     def exit(self, status: int = 0, message: str | None = None) -> None:
         if status == 0 and message is None:
             raise _HelpRequested()
@@ -95,7 +116,9 @@ def _build_parser() -> argparse.ArgumentParser:
         version=f"constitutional-agent-testbench {__version__}",
         help="print the installed package version and exit",
     )
-    subparsers = parser.add_subparsers(dest="command", required=True)
+    # A metavar keeps the usage line and the listing heading readable; without it
+    # argparse prints every command name twice in one brace-delimited run.
+    subparsers = parser.add_subparsers(dest="command", required=True, metavar="COMMAND")
     add_operation_parsers(subparsers)
 
     for name, inputs, help_text in (
