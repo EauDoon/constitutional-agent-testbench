@@ -118,6 +118,60 @@ class ClosedStreamTests(unittest.TestCase):
                     "code": "JSON_OUTPUT_ERROR",
                     "message": "Unable to write the JSON result to standard output."}})
 
+    def test_help_or_version_that_cannot_be_written_is_an_output_error(self):
+        # argparse swallows a failed help or version write, which left exit
+        # status 0 with nothing printed. A caller that captures --version must
+        # see the same output error as a failed JSON result.
+        for arguments in (["--version"], ["--help"], ["evaluate", "--help"]):
+            for label, stdout in (("broken pipe", _FailingStream(BrokenPipeError(32, "Broken pipe"))),
+                                  ("device full", _FailingStream(OSError(28, "No space left")))):
+                with self.subTest(arguments=arguments, stdout=label):
+                    stderr = io.StringIO()
+                    with patch("sys.stdout", stdout), redirect_stderr(stderr):
+                        code = main(arguments)
+                    self.assertEqual(code, 2)
+                    self.assertEqual(json.loads(stderr.getvalue()), {"error": {
+                        "code": "JSON_OUTPUT_ERROR",
+                        "message": "Unable to write the help or version text to standard output."}})
+
+    def test_help_and_version_text_is_flushed_before_exit(self):
+        for arguments, expected in ((["--version"], "constitutional-agent-testbench "),
+                                    (["evaluate", "--help"], "usage: ")):
+            with self.subTest(arguments=arguments):
+                stdout, stderr = io.StringIO(), io.StringIO()
+                with redirect_stdout(stdout), redirect_stderr(stderr):
+                    code = main(arguments)
+                self.assertEqual(code, 0)
+                self.assertTrue(stdout.getvalue().startswith(expected))
+                self.assertEqual(stderr.getvalue(), "")
+
+    def test_top_level_help_names_the_command_slot_once(self):
+        stdout = io.StringIO()
+        with redirect_stdout(stdout):
+            code = main(["--help"])
+        self.assertEqual(code, 0)
+        usage = stdout.getvalue().split("\n\n", 1)[0]
+        self.assertEqual(" ".join(usage.split()),
+                         "usage: constitutional-agent-testbench [-h] [--version] COMMAND ...")
+        self.assertNotIn("{inspect-policy,", stdout.getvalue())
+        self.assertIn("    check-order ", stdout.getvalue())
+
+    def test_version_to_a_full_device_exits_2_in_a_real_process(self):
+        if not os.path.exists("/dev/full"):
+            self.skipTest("requires /dev/full")
+        package_root = Path(cli.__file__).resolve().parents[1]
+        environment = dict(os.environ)
+        environment["PYTHONPATH"] = os.pathsep.join(
+            filter(None, (str(package_root), environment.get("PYTHONPATH"))))
+        with open("/dev/full", "wb") as full:
+            completed = subprocess.run(
+                [sys.executable, "-m", "constitutional_agent_testbench", "--version"],
+                stdin=subprocess.DEVNULL, stdout=full, stderr=subprocess.PIPE,
+                env=environment, timeout=60, check=False)
+        self.assertEqual(completed.returncode, 2, completed.stderr)
+        self.assertEqual(json.loads(completed.stderr.decode("utf-8"))["error"]["code"],
+                         "JSON_OUTPUT_ERROR")
+
     def test_unwritable_standard_error_still_exits_2(self):
         for label, stderr in (("closed descriptor", None),
                               ("broken pipe", _FailingStream(BrokenPipeError(32, "Broken pipe")))):
