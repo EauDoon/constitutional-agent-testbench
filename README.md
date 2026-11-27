@@ -1,3 +1,5 @@
+<p align="center"><img src=".github/assets/banner.svg" alt="Constitutional Agent Testbench. A deterministic contract checker for structured AI outputs: it evaluates a JSON response against a declared, machine-readable policy, and PrecedenceTrace checks whether permuting peer rules changes the result. Shown as four rule plates that swap places on one beam while the verdict ring below stays green." width="100%"></p>
+
 # Constitutional Agent Testbench
 
 **A deterministic contract checker for structured AI outputs.**
