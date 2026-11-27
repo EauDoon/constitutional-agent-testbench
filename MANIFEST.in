@@ -11,3 +11,4 @@ recursive-include examples *.json
 recursive-include docs *.md *.html
 recursive-include release *.json
 recursive-include scripts *.py
+recursive-include tests/fixtures *.json

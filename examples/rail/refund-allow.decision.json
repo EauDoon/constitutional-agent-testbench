@@ -1,0 +1,18 @@
+{
+  "action_digest": "8gf1dLGxjq3L15r3-_PgvjrmVCapwZJlr2dzTdBXdeI",
+  "allow": true,
+  "decided_at": "2026-11-28T02:30:00.000Z",
+  "decision_id": "authz_m3hGlG9JBj8Are6-sykK",
+  "evaluation_digest": "ycQPRKTChlN9TIZu5EReQ49YfikABuK5ux-ru_-HjOk",
+  "evaluation_input_digest": "8gf1dLGxjq3L15r3-_PgvjrmVCapwZJlr2dzTdBXdeI",
+  "expires_at": "2026-11-28T02:35:00.000Z",
+  "policy_digest": "49N9HJJL1749UnnbCbeEmTQ0zD_EZsEF48HZiSUIJO4",
+  "policy_id": "rail-refund-gate",
+  "require_recovery_preflight": false,
+  "schema_version": "consequence-rail/authorization-decision/v0.1",
+  "signature": {
+    "algorithm": "Ed25519",
+    "key_id": "demo-authorizer-ed25519-8RIF_vWD2A0pDZDH",
+    "value": "XKSQG1__5ikqKHSYupSpawL5mDjjEpSsKmrh8XnWg4ai0S8KuWcStCatJe_c4dZk_gvVziLwhqoT1ogVDtHwAQ"
+  }
+}

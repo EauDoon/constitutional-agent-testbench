@@ -28,6 +28,11 @@ classifiers = [
 ]
 dependencies = []
 
+[project.optional-dependencies]
+# Only `authorize` and `sign_authorization` need it. Verification, evaluation
+# and every other command stay standard-library only.
+signing = ["cryptography>=42"]
+
 [project.urls]
 Source = "https://github.com/EauDoon/constitutional-agent-testbench"
 Changelog = "https://github.com/EauDoon/constitutional-agent-testbench/blob/main/CHANGELOG.md"
