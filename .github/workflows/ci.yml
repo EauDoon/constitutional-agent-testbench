@@ -65,7 +65,7 @@ jobs:
       - name: Enforce the branch-coverage floor on the installed package
         if: matrix.python == '3.12' && matrix.os == 'ubuntu-latest'
         run: |
-          python -m pip install --disable-pip-version-check coverage==7.16.1
+          python -m pip install --disable-pip-version-check coverage==7.16.1 cryptography==50.0.1
           python -m coverage run -m unittest discover -s tests
           python -m coverage report
       - name: Run the checked-in eval scenarios
@@ -109,6 +109,8 @@ jobs:
           constitutional-agent-testbench diff-suites captured.json captured.json --strict-exit
           constitutional-agent-testbench deduplicate-suite captured.json --output unique.json
           constitutional-agent-testbench migration-expectations examples/policy.json examples/policy.json unique.json --strict-exit
+          constitutional-agent-testbench verify-authorization examples/rail/refund-allow.decision.json examples/rail/trusted-keys.json --action examples/rail/refund-proposal.json --policy examples/rail/refund-policy.json --now 2026-11-28T02:31:00.000Z --strict-exit
+          constitutional-agent-testbench verify-authorization examples/rail/refund-deny.decision.json examples/rail/trusted-keys.json --action examples/rail/refund-proposal-over-limit.json --policy examples/rail/refund-policy.json --now 2026-11-28T02:31:00.000Z --strict-exit
       - name: Verify the installed adopter workflow outside the checkout
         run: python scripts/verify_installed_workflow.py
       - name: Verify PrecedenceTrace conformance mode

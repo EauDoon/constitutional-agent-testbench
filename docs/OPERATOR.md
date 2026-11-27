@@ -35,6 +35,8 @@ Use the installed `constitutional-agent-testbench` command after
 | `shard-suite` / `select-outcomes` | Split executable suites or select observed verdict and regression cohorts. |
 | `migration-expectations` / `check-suite` | Gate expectation regressions or combine policy and fixture preflight checks. |
 | `create-replay` / `replay` | Create and independently check portable JSON replay bundles. |
+| `authorize` | Evaluate one action and sign an allow or deny decision bound to its exact digest, in the Consequence Rail `AuthorizationDecision` v0.1 format. Needs the optional `signing` extra. |
+| `verify-authorization` | Check a signed decision against the authorizer role of a trusted-keys document, its action binding, its validity window and, with `--policy`, a recomputed evaluation. |
 
 Operational results and controlled errors are JSON with sorted object keys;
 help remains plain text. Unknown commands or options and missing or extra
@@ -244,6 +246,8 @@ With `--strict-exit`, exit 1 means:
 | `audit-assertions` | At least one rule assertion is incompatible with the policy or the expected verdict. |
 | `migration-expectations` | At least one case newly mismatches its expectations under the candidate policy. |
 | `check-suite` | Any of the lint, consistency, assertion or regression preflight checks failed. |
+| `authorize` | The signed decision is a deny: the action failed at least one rule. The decision is still written. |
+| `verify-authorization` | The key is not a trusted authorizer, the signature or `decision_id` is invalid, or a requested action binding, validity window or recomputed evaluation did not match. |
 
 All JSON input arguments accept `-`, with at most one stdin input per invocation.
 Existing playground and output-path exceptions remain unchanged. Inputs retain

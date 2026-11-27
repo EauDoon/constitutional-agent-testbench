@@ -9,6 +9,24 @@ Python callable supplied and executed by the embedding application. Treat that
 hook as trusted code. This package does not sandbox it, impose a timeout, block
 its network or filesystem access, or roll back its side effects.
 
+## Authorization keys
+
+`authorize` reads an Ed25519 private key from the file named by
+`--private-key`. The key is never written to output or error messages. Keep
+that file readable only by the authorizer process, and never give the agent
+whose actions it approves access to it: the separation of the proposing agent
+from the authorizer key is the whole guarantee. Signing uses the optional
+`cryptography` package; no private-key arithmetic runs in pure Python.
+Verification handles only public keys and uses a standard-library Ed25519
+implementation that rejects non-canonical signature encodings and
+out-of-range `S` values.
+
+A verified decision proves which trusted key decided, about which exact
+action, within which time window. It does not prove the policy was
+sufficient. The key in `examples/rail/trusted-keys.json` is Consequence
+Rail's published demo key, derived from a public label: never trust it
+outside tests.
+
 ## Safe operation
 
 - Treat policies and responses as untrusted data, not executable instructions.

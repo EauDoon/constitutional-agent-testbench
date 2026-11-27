@@ -1,0 +1,9 @@
+{
+  "authorizer": [
+    {
+      "key_id": "demo-authorizer-ed25519-8RIF_vWD2A0pDZDH",
+      "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAYuZLNd6eXQvwSQRd/IbOxY8MnCsbm0J6Mh6wwX6RqCA=\n-----END PUBLIC KEY-----\n"
+    }
+  ],
+  "schema_version": "consequence-rail/trusted-keys/v0.1"
+}

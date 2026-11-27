@@ -12,7 +12,7 @@ Its PrecedenceTrace mode also checks whether permuting declared peer rules
 changes semantic results, reason evidence, or rule participation for one fixed
 response.
 
-The package is deliberately narrow. It does not call models, use a network, execute candidate content, take external actions, or persist inputs. Runtime code uses only the Python standard library. The result is a local evaluation layer that is easy to inspect, reproduce, and place beside a larger AI system.
+The package is deliberately narrow. It does not call models, use a network, execute candidate content, take external actions, or persist inputs. Runtime code uses only the Python standard library; only the optional signing step uses `cryptography`. The result is a local evaluation layer that is easy to inspect, reproduce, and place beside a larger AI system.
 
 ![Workflow showing policy and JSON validation, rule evaluation, an optional peer-rule order check, and stable reporting.](https://raw.githubusercontent.com/EauDoon/constitutional-agent-testbench/main/.github/assets/project-overview.svg)
 
@@ -161,6 +161,44 @@ be performed within the public bounds.
 - `policy_id`: the validated policy identifier;
 - `passing_case`: a `response` plus its `evaluation` result, with `passed` true; and
 - `failing_case`: a `response` plus its `evaluation` result, with `passed` false.
+
+## Signed authorization for Consequence Rail
+
+The Testbench is the decide layer of the agent action stack. `authorize`
+evaluates one JSON action, such as a
+[Consequence Rail](https://github.com/EauDoon/consequence-rail) `ActionProposal`,
+and signs an allow or deny decision over the action's exact digest:
+
+```text
+python -m pip install ".[signing]"
+constitutional-agent-testbench authorize examples/rail/refund-policy.json \
+  examples/rail/refund-proposal.json --private-key authorizer.pem \
+  --key-id my-authorizer --ttl-seconds 300 --output decision.json
+constitutional-agent-testbench verify-authorization decision.json trusted-keys.json \
+  --action examples/rail/refund-proposal.json \
+  --policy examples/rail/refund-policy.json --strict-exit
+```
+
+The output is Consequence Rail's `AuthorizationDecision` v0.1: `action_digest`,
+`allow`, `policy_id`, `policy_digest`, `evaluation_input_digest`,
+`evaluation_digest`, `require_recovery_preflight`, `decided_at`, `expires_at`
+and `decision_id`, signed with Ed25519 over the rail's canonical JSON. The rail
+accepts it only for that action, only before it expires and only under a key in
+the `authorizer` role of its trusted-keys file, so the agent that proposes an
+action cannot approve it. `allow` is true only when every rule passes; a deny is
+signed too. `verify-authorization` reads the same trusted-keys file, ignores
+every role except `authorizer`, and with `--policy` recomputes the evaluation
+so anyone can check that the decision follows from the policy.
+
+`examples/rail/` holds a refund policy, an allowed and an over-limit proposal,
+both signed decisions and the rail's public demo key, valid at
+`--now 2026-11-28T02:31:00.000Z`. The digests and signatures are tested in
+both directions against vectors produced by Consequence Rail's own code.
+Verification is standard-library only. Signing needs the optional `signing`
+extra; an HSM or cloud KMS can sign instead through
+`authorization_signing_input` and `attach_signature`. A value whose rail digest
+cannot tell two evaluated inputs apart, such as `1.0` where the policy compares
+with `1`, or an integer beyond 2**53 - 1, is refused rather than bound.
 
 ## PrecedenceTrace
 
@@ -364,7 +402,7 @@ JSON and exit-code contracts.
 
 Continuous integration installs the package and runs the complete suite on Python 3.11 through 3.14. It also verifies the installed console command and builds and inspects both wheel and source-distribution artifacts.
 
-Runtime imports are limited to the Python standard library and local package modules. The package declares no runtime dependencies.
+Runtime imports are limited to the Python standard library and local package modules. The package declares no runtime dependencies; the optional `signing` extra adds `cryptography` for `authorize` only.
 
 The [installed adopter check](docs/CORPUS.md#verify-an-installed-package-with-a-unicode-corpus)
 runs validation, an assertion-sensitive policy migration, receipt export, and
@@ -381,6 +419,7 @@ under non-UTF-8 process encodings.
 | [`src/constitutional_agent_testbench/precedence.py`](src/constitutional_agent_testbench/precedence.py) | PrecedenceTrace enumeration, orthogonal projections and bounded swap-path witnesses. |
 | [`src/constitutional_agent_testbench/synthetic.py`](src/constitutional_agent_testbench/synthetic.py) | Deterministic passing and failing fixture generation. |
 | [`src/constitutional_agent_testbench/common.py`](src/constitutional_agent_testbench/common.py) | Strict JSON, canonical equality, path, and output helpers. |
+| [`src/constitutional_agent_testbench/authorization.py`](src/constitutional_agent_testbench/authorization.py) | Signed authorization decisions in the Consequence Rail format, rail canonical digests and verification. |
 | [`src/constitutional_agent_testbench/cli.py`](src/constitutional_agent_testbench/cli.py) | Command parsing, JSON results, error handling, and optional output writing. |
 | [`src/constitutional_agent_testbench/playground.py`](src/constitutional_agent_testbench/playground.py) | Offline Tk playground with a live verdict and explicit export only. |
 | [`tests/`](tests/) | Unit tests for validation, evaluation, synthetic generation, PrecedenceTrace, and the command-line contract. |

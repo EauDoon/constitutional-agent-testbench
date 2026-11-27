@@ -11,6 +11,27 @@ original wording.
 
 ## [Unreleased]
 
+### Added
+
+- Signed authorization decisions bound to one exact action. `authorize`
+  evaluates a JSON action, such as a Consequence Rail `ActionProposal`, and
+  signs an allow or deny `AuthorizationDecision` v0.1 over the action's
+  digest with an Ed25519 authorizer key. Consequence Rail accepts the
+  decision only for that action, only before `expires_at` (at most 86,400
+  seconds after `decided_at`) and only under a key in the authorizer role of
+  its trusted-keys file, so the agent that proposes an action cannot also
+  approve it. `verify-authorization` checks the key, signature,
+  `decision_id`, action binding and validity window, and with `--policy`
+  recomputes the evaluation. Digests use the rail profile (SHA-256 over
+  canonical JSON, unpadded base64url), tested against vectors produced by the
+  rail's own code in both directions. Values whose rail digest could not
+  tell two evaluated inputs apart, such as `1.0` beside `1` or integers
+  beyond 2**53 - 1, are refused. Verification stays standard-library only;
+  signing needs the new optional `signing` extra (`cryptography`), or an
+  external signer through `authorization_signing_input` and
+  `attach_signature`. Example inputs and signed decisions are in
+  `examples/rail/`.
+
 ### Improvements
 
 - Summarize changed per-rule results even when a migration leaves the overall verdict unchanged; include explicit fixture and changed-result case counts without choosing a policy.

@@ -31,6 +31,8 @@ from .suite import evaluate_suite
 from .coverage import suite_coverage
 from .compare import compare_policies
 from .receipt import create_receipt, verify_receipt
+from .authorization import (DEFAULT_AUTHORIZATION_TTL_SECONDS, MAX_AUTHORIZATION_TTL_SECONDS,
+                            create_authorization, utc_now, verify_authorization)
 from .operations import COMMANDS, add_operation_parsers, run_operation
 
 
@@ -217,6 +219,59 @@ def _build_parser() -> argparse.ArgumentParser:
         help="write the case bundle to PATH instead of stdout; does not accept '-'",
     )
 
+    authorize_parser = subparsers.add_parser(
+        "authorize",
+        help="Evaluate one action and sign an allow or deny decision bound to its digest.",
+        description=(
+            "Evaluate one JSON action, such as a Consequence Rail ActionProposal, and "
+            "sign an AuthorizationDecision v0.1 over its exact digest with an Ed25519 "
+            "authorizer key. allow is true only when every rule passes; a deny is "
+            "signed too. Signing needs the optional cryptography package."
+        ),
+        allow_abbrev=False,
+    )
+    authorize_parser.add_argument("policy", help="policy path, or - for standard input")
+    authorize_parser.add_argument("action", help="action path, or - for standard input")
+    authorize_parser.add_argument(
+        "--private-key", metavar="PATH", required=True,
+        help="unencrypted PKCS#8 PEM Ed25519 private key file; never echoed")
+    authorize_parser.add_argument("--key-id", metavar="ID", required=True,
+                                  help="key_id the verifier trusts in its authorizer role")
+    authorize_parser.add_argument(
+        "--decided-at", metavar="TIME",
+        help="decision time such as 2026-11-28T02:30:00.000Z; defaults to now")
+    authorize_parser.add_argument(
+        "--ttl-seconds", metavar="SECONDS", type=int, default=DEFAULT_AUTHORIZATION_TTL_SECONDS,
+        help=f"seconds until expires_at, 1 to {MAX_AUTHORIZATION_TTL_SECONDS} "
+             f"(default {DEFAULT_AUTHORIZATION_TTL_SECONDS})")
+    authorize_parser.add_argument("--require-recovery-preflight", action="store_true",
+                                  help="ask the rail to require a recovery drill before the permit")
+    authorize_parser.add_argument("--strict-exit", action="store_true",
+                                  help="return 1 when the signed decision is a deny")
+
+    verify_authorization_parser = subparsers.add_parser(
+        "verify-authorization",
+        help="Check a signed decision's key, signature, action binding, validity and evaluation.",
+        description=(
+            "Verify an AuthorizationDecision v0.1 against the authorizer role of a "
+            "Consequence Rail trusted-keys document. --action checks the digest "
+            "binding, --policy with --action recomputes the evaluation, and the "
+            "validity window is checked at --now or the current time."
+        ),
+        allow_abbrev=False,
+    )
+    verify_authorization_parser.add_argument("decision", help="decision path, or - for standard input")
+    verify_authorization_parser.add_argument("trusted_keys", metavar="trusted-keys",
+                                             help="trusted-keys path, or - for standard input")
+    verify_authorization_parser.add_argument("--action", metavar="PATH",
+                                             help="action the decision must be bound to")
+    verify_authorization_parser.add_argument("--policy", metavar="PATH",
+                                             help="policy to recompute the evaluation with; needs --action")
+    verify_authorization_parser.add_argument("--now", metavar="TIME",
+                                             help="instant for the validity check; defaults to now")
+    verify_authorization_parser.add_argument("--strict-exit", action="store_true",
+                                             help="return 1 unless every requested check passed")
+
     playground_parser = subparsers.add_parser(
         "playground",
         help="Open the offline policy playground.",
@@ -400,7 +455,8 @@ def _guard_output(arguments):
     if _is_blank_path(output) or output == "-":
         raise CliUsageError("--output writes a file and does not accept an empty path or '-'.")
     fields = (COMMANDS[arguments.command][0] if arguments.command in COMMANDS
-              else ("policy", "response", "candidate", "suite", "receipt"))
+              else ("policy", "response", "candidate", "suite", "receipt", "action",
+                    "decision", "trusted_keys", "private_key"))
     try:
         destination = Path(output)
         for field in fields:
@@ -483,6 +539,49 @@ def _write_error(error: dict[str, Any]) -> None:
         pass  # Nowhere is left to report it; exit status 2 still records it.
 
 
+_MAX_PRIVATE_KEY_BYTES = 16_384
+
+
+def _read_private_key(path: str) -> bytes:
+    if path == "-" or _is_blank_path(path):
+        raise CliUsageError("--private-key reads a file and does not accept '-'.")
+    if not os.path.isfile(path):
+        raise JsonInputError("--private-key must name a readable regular file.")
+    try:
+        with open(path, "rb") as handle:
+            data = handle.read(_MAX_PRIVATE_KEY_BYTES + 1)
+    except OSError as exc:
+        raise JsonInputError("The private key file could not be read.") from exc
+    if len(data) > _MAX_PRIVATE_KEY_BYTES:
+        raise JsonInputError("The private key file is too large.")
+    return data
+
+
+def _run_authorization(arguments: argparse.Namespace) -> dict[str, Any]:
+    if arguments.command == "authorize":
+        if [arguments.policy, arguments.action].count("-") > 1:
+            raise CliUsageError("Only one JSON input may be read from standard input per command.")
+        key = _read_private_key(arguments.private_key)
+        policy = validate_policy(_load_json_argument(arguments.policy))
+        return create_authorization(
+            policy, _load_json_argument(arguments.action), private_key_pem=key,
+            key_id=arguments.key_id, decided_at=arguments.decided_at or utc_now(),
+            ttl_seconds=arguments.ttl_seconds,
+            require_recovery_preflight=arguments.require_recovery_preflight)
+    paths = [arguments.decision, arguments.trusted_keys, arguments.action, arguments.policy]
+    if paths.count("-") > 1:
+        raise CliUsageError("Only one JSON input may be read from standard input per command.")
+    if arguments.policy is not None and arguments.action is None:
+        raise CliUsageError("--policy recomputes the evaluation and needs --action.")
+    decision = _load_json_argument(arguments.decision)
+    trusted = _load_json_argument(arguments.trusted_keys)
+    action = _load_json_argument(arguments.action) if arguments.action is not None else None
+    policy = (validate_policy(_load_json_argument(arguments.policy))
+              if arguments.policy is not None else None)
+    return verify_authorization(decision, trusted, action=action, policy=policy,
+                                now=arguments.now or utc_now())
+
+
 def _run_command(arguments: argparse.Namespace) -> dict[str, Any]:
     if arguments.command == "playground":
         if arguments.policy == "-" or arguments.response == "-":
@@ -495,6 +594,8 @@ def _run_command(arguments: argparse.Namespace) -> dict[str, Any]:
         raise CliUsageError(
             "generate-synthetic --output writes a file and does not accept '-'."
         )
+    if arguments.command in ("authorize", "verify-authorization"):
+        return _run_authorization(arguments)
     if arguments.command in COMMANDS:
         fields = COMMANDS[arguments.command][0]
         if sum(getattr(arguments, field) == "-" for field in fields) > 1:
@@ -596,8 +697,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         if arguments.command == "compare-policies":
             return 1 if any(case["changed_rule_results"] or case["verdict_changed"]
                            for case in result["cases"]) else 0
-        if arguments.command == "verify-receipt":
+        if arguments.command in ("verify-receipt", "verify-authorization"):
             return 0 if result["verified"] else 1
+        if arguments.command == "authorize":
+            return 0 if result["allow"] is True else 1
         if arguments.command == "lint-policy":
             return 1 if result["has_conflicts"] else 0
         if arguments.command == "explain":

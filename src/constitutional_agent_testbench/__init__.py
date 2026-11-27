@@ -27,6 +27,10 @@ from .curation import merge_suites, select_suite, reduce_suite
 from .triage import triage_suite
 from .corpus_receipt import create_suite_receipt, verify_suite_receipt
 from .replay import create_replay_bundle, replay_bundle
+from .authorization import (AuthorizationInputError, SigningUnavailableError, attach_signature,
+                            authorization_signing_input, build_authorization,
+                            create_authorization, rail_canonical_json, rail_digest,
+                            sign_authorization, trusted_authorizers, verify_authorization)
 
 from .suite import validate_suite_report
 from .curation import capture_assertions, shard_suite, select_outcomes, deduplicate_suite, import_responses
@@ -35,6 +39,17 @@ from .compare import migration_expectations
 from .triage import check_suite
 
 __all__ = [
+    "AuthorizationInputError",
+    "SigningUnavailableError",
+    "attach_signature",
+    "authorization_signing_input",
+    "build_authorization",
+    "create_authorization",
+    "rail_canonical_json",
+    "rail_digest",
+    "sign_authorization",
+    "trusted_authorizers",
+    "verify_authorization",
     "import_responses",
     "check_suite",
     "migration_expectations",

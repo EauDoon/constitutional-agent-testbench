@@ -1,0 +1,13 @@
+{
+  "policy_id": "rail-refund-gate",
+  "rules": [
+    {"kind": "equals", "path": "schema_version", "rule_id": "proposal-schema", "value": "consequence-rail/action-proposal/v0.1"},
+    {"kind": "equals", "path": "action_type", "rule_id": "refund-action", "value": "demo.refund.issue/v1"},
+    {"kind": "equals", "path": "assurance_mode", "rule_id": "enforced-only", "value": "enforced"},
+    {"kind": "type", "path": "parameters.amount_minor", "rule_id": "amount-is-integer", "types": ["integer"]},
+    {"kind": "range", "maximum": 25000, "minimum": 1, "path": "parameters.amount_minor", "rule_id": "amount-within-limit"},
+    {"kind": "one_of", "path": "parameters.currency", "rule_id": "currency-allowed", "values": ["USD", "SGD"]},
+    {"kind": "required_field", "path": "postcondition", "rule_id": "postcondition-declared"}
+  ],
+  "schema_version": "1.1"
+}

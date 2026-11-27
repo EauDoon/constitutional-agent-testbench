@@ -713,7 +713,7 @@ class HelpContractTests(unittest.TestCase):
     def test_operator_guide_lists_every_strict_exit_command(self) -> None:
         commands, _ = _subcommands()
         gated = {name for name, item in commands.items() if _strict_exit_actions(item)}
-        self.assertEqual(len(gated), 16)
+        self.assertEqual(len(gated), 18)
         guide = (ROOT / "docs" / "OPERATOR.md").read_text(encoding="utf-8")
         section = guide.split("## Exit codes and boundaries", 1)[1].split("\n## ", 1)[0]
         documented = set(re.findall(r"^\| `([a-z-]+)` \|", section, re.MULTILINE))

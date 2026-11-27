@@ -13,6 +13,15 @@ from typing import Any
 
 from constitutional_agent_testbench import (
     EvaluationResult,
+    attach_signature,
+    authorization_signing_input,
+    build_authorization,
+    create_authorization,
+    rail_canonical_json,
+    rail_digest,
+    sign_authorization,
+    trusted_authorizers,
+    verify_authorization,
     Policy,
     audit_assertions,
     capture_assertions,
@@ -124,3 +133,17 @@ artifacts: list[dict[str, Any]] = [
     check_suite(policy, suite),
 ]
 rule_count: int = inspect_policy(raw_policy)["rule_count"]
+
+# Signed authorization decisions. Never executed: the key below is a placeholder.
+decided_at: str = "2026-11-28T02:30:00.000Z"
+body: dict[str, Any] = build_authorization(policy, response, decided_at=decided_at, ttl_seconds=60,
+                                           require_recovery_preflight=False)
+signing_input: bytes = authorization_signing_input(body)
+signed: dict[str, Any] = attach_signature(body, "authorizer-key", bytes(64))
+resigned: dict[str, Any] = sign_authorization(body, b"PEM", "authorizer-key")
+created: dict[str, Any] = create_authorization(policy, response, private_key_pem="PEM",
+                                               key_id="authorizer-key", decided_at=decided_at)
+authorizers: dict[str, bytes] = trusted_authorizers({"schema_version": "", "authorizer": []})
+verification: dict[str, Any] = verify_authorization(signed, {}, action=response, policy=policy,
+                                                    now=decided_at)
+digest_text: str = rail_digest(response) + rail_canonical_json(response)
