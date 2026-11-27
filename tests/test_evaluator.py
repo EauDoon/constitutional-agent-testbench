@@ -415,7 +415,8 @@ class ReasonCodeVocabularyTests(unittest.TestCase):
     def test_literal_and_runtime_set_agree(self) -> None:
         self.assertEqual(set(evaluator.ReasonCode.__args__), set(evaluator.REASON_CODES))
         self.assertEqual(
-            set(evaluator.FAILURE_REASON_BY_KIND.values()) | {"RULE_SATISFIED", "FIELD_MISSING"},
+            set(evaluator.FAILURE_REASON_BY_KIND.values())
+            | {"RULE_SATISFIED", "FIELD_MISSING", "RULE_NOT_APPLICABLE"},
             set(evaluator.REASON_CODES),
         )
 
@@ -426,7 +427,7 @@ class ReasonCodeVocabularyTests(unittest.TestCase):
 
     def test_every_emitted_reason_code_is_declared(self) -> None:
         document = {
-            "schema_version": "1.1",
+            "schema_version": "1.2",
             "policy_id": "vocabulary",
             "rules": [
                 {"rule_id": "a", "kind": "equals", "path": "a", "value": 1},
@@ -437,13 +438,17 @@ class ReasonCodeVocabularyTests(unittest.TestCase):
                 {"rule_id": "f", "kind": "type", "path": "f", "types": ["string"]},
                 {"rule_id": "g", "kind": "range", "path": "g", "minimum": 0, "maximum": 1},
                 {"rule_id": "h", "kind": "length", "path": "h", "maximum": 1},
+                {"rule_id": "i", "kind": "compare", "path": "i", "op": "lt", "other_path": "g"},
+                {"rule_id": "j", "kind": "each", "path": "j", "item": {"kind": "false"}},
+                {"rule_id": "k", "kind": "required_field", "path": "k",
+                 "when": [{"path": "c", "values": [True]}]},
             ],
         }
         seen = set()
         for response in ({}, {"a": 2, "b": "y", "c": True, "d": [1], "e": 0,
-                              "f": 1, "g": 2, "h": "xy"},
+                              "f": 1, "g": 2, "h": "xy", "i": 3, "j": [True]},
                          {"a": 1, "b": "x", "c": False, "d": [], "e": 0,
-                          "f": "s", "g": 0.5, "h": []}):
+                          "f": "s", "g": 0.5, "h": [], "i": 0, "j": [], "k": 1}):
             for row in evaluate_response(document, response)["rule_results"]:
                 seen.add(row["reason_code"])
         self.assertEqual(seen, set(evaluator.REASON_CODES))

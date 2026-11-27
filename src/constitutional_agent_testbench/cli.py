@@ -159,8 +159,8 @@ def _build_parser() -> argparse.ArgumentParser:
 
     validate_parser = subparsers.add_parser(
         "validate-policy",
-        help="Validate a version 1.0 or 1.1 policy.",
-        description="Validate a version 1.0 or 1.1 policy and report its identifier and schema version.",
+        help="Validate a version 1.0, 1.1 or 1.2 policy.",
+        description="Validate a version 1.0, 1.1 or 1.2 policy and report its identifier and schema version.",
         allow_abbrev=False,
     )
     validate_parser.add_argument("policy", help="policy path, or - for standard input")
@@ -169,7 +169,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "evaluate",
         help="Evaluate a candidate response.",
         description=(
-            "Evaluate a candidate response against a version 1.0 or 1.1 policy. "
+            "Evaluate a candidate response against a version 1.0, 1.1 or 1.2 policy. "
             "Completed evaluations return exit code 0 even when passed is false "
             "unless --strict-exit is supplied."
         ),
@@ -576,9 +576,9 @@ def _run_authorization(arguments: argparse.Namespace) -> dict[str, Any]:
     decision = _load_json_argument(arguments.decision)
     trusted = _load_json_argument(arguments.trusted_keys)
     action = _load_json_argument(arguments.action) if arguments.action is not None else None
-    policy = (validate_policy(_load_json_argument(arguments.policy))
-              if arguments.policy is not None else None)
-    return verify_authorization(decision, trusted, action=action, policy=policy,
+    recompute_policy = (validate_policy(_load_json_argument(arguments.policy))
+                        if arguments.policy is not None else None)
+    return verify_authorization(decision, trusted, action=action, policy=recompute_policy,
                                 now=arguments.now or utc_now())
 
 

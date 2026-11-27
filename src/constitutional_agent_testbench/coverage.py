@@ -2,27 +2,33 @@
 
 from typing import Any
 
-from .evaluator import FAILURE_REASON_BY_KIND, REASON_MISSING, REASON_SATISFIED
-from .policy import Policy
+from .evaluator import (FAILURE_REASON_BY_KIND, REASON_MISSING, REASON_NOT_APPLICABLE,
+                        REASON_SATISFIED)
+from .policy import Policy, validate_policy
 from .suite import evaluate_suite
 
 
-def reachable_reason_codes(kind: str) -> list[str]:
+def reachable_reason_codes(kind: str, guarded: bool = False) -> list[str]:
     """Every reason code a valid rule of this kind can emit, sorted.
 
     All of them are reachable for every valid rule: a schema 1.1 type list that
     admits every JSON value is rejected, so its failure code can always fire.
+    A schema 1.2 rule with a ``when`` guard can also be not applicable.
     """
 
     codes = {REASON_SATISFIED, REASON_MISSING}
     if kind in FAILURE_REASON_BY_KIND:
         codes.add(FAILURE_REASON_BY_KIND[kind])
+    if guarded:
+        codes.add(REASON_NOT_APPLICABLE)
     return sorted(codes)
 
 
 def suite_coverage(policy: Policy | dict[str, Any], suite: Any) -> dict[str, Any]:
     """Count observed rule pass/fail and reason-code coverage on a validated suite."""
-    report = evaluate_suite(policy, suite)
+    current = validate_policy(policy)
+    guarded = {rule.rule_id for rule in current.rules if rule.when}
+    report = evaluate_suite(current, suite)
     rules: dict[str, dict[str, Any]] = {}
     for case in report["cases"]:
         for item in case["evaluation"]["rule_results"]:
@@ -35,7 +41,7 @@ def suite_coverage(policy: Policy | dict[str, Any], suite: Any) -> dict[str, Any
     rows = sorted(rules.values(), key=lambda row: row["rule_id"])
     for row in rows:
         row["both_outcomes_observed"] = row["passed_cases"] > 0 and row["failed_cases"] > 0
-        row["unexercised_reason_codes"] = [code for code in reachable_reason_codes(row["kind"])
+        row["unexercised_reason_codes"] = [code for code in reachable_reason_codes(row["kind"], row["rule_id"] in guarded)
                                            if code not in row["reason_counts"]]
     return {"policy_id": report["policy_id"], "case_count": report["case_count"],
             "rules": rows, "rules_with_both_outcomes": sum(row["both_outcomes_observed"] for row in rows),

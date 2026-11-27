@@ -1,4 +1,4 @@
-"""Strict version 1.0 and 1.1 policy parsing and validation."""
+"""Strict version 1.0, 1.1 and 1.2 policy parsing and validation."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from .common import (
 )
 
 SCHEMA_VERSION = "1.0"
-SUPPORTED_SCHEMA_VERSIONS = ("1.0", "1.1")
+SUPPORTED_SCHEMA_VERSIONS = ("1.0", "1.1", "1.2")
 MAX_POLICY_RULES = 256
 MAX_ONE_OF_VALUES = 256
 #: The largest length bound. No valid response can hold a longer string, array
@@ -31,12 +31,20 @@ SCHEMA_1_0_RULE_KINDS = frozenset(
     {"required_field", "equals", "one_of", "false", "empty_list"}
 )
 SCHEMA_1_1_RULE_KINDS = SCHEMA_1_0_RULE_KINDS | {"type", "range", "length"}
+#: Schema 1.2 adds a cross-field comparison and a per-item array check. Every
+#: 1.2 rule may also carry a ``when`` guard.
+SCHEMA_1_2_RULE_KINDS = SCHEMA_1_1_RULE_KINDS | {"compare", "each"}
 RULE_KINDS_BY_SCHEMA_VERSION = {
     "1.0": SCHEMA_1_0_RULE_KINDS,
     "1.1": SCHEMA_1_1_RULE_KINDS,
+    "1.2": SCHEMA_1_2_RULE_KINDS,
 }
 #: Every rule kind this package can evaluate, across supported schema versions.
-SUPPORTED_RULE_KINDS = SCHEMA_1_1_RULE_KINDS
+SUPPORTED_RULE_KINDS = SCHEMA_1_2_RULE_KINDS
+#: Kinds an ``each`` rule may apply to every array item.
+ITEM_RULE_KINDS = SCHEMA_1_1_RULE_KINDS
+COMPARE_OPERATORS = ("eq", "ne", "lt", "lte", "gt", "gte")
+MAX_WHEN_CONDITIONS = 8
 _BOUND_FIELDS = ("minimum", "maximum")
 _ALL_VALUE_TYPES = frozenset({"array", "boolean", "null", "number", "object", "string"})
 
@@ -89,11 +97,28 @@ class Rule:
     #: Inclusive bounds for a schema 1.1 ``range`` or ``length`` rule.
     minimum: int | float | None = None
     maximum: int | float | None = None
+    #: Schema 1.2 guard: every condition must hold for the rule to apply.
+    when: tuple[Condition, ...] = ()
+    #: Schema 1.2 ``compare``: the operator and the path compared against.
+    op: str | None = None
+    other_path: str | None = None
+    #: Schema 1.2 ``each``: the constraint every array item must meet. Its
+    #: ``path`` is ``value`` or ``value.<item_path>``, evaluated on ``{"value": item}``.
+    item: Rule | None = None
+    item_path: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class Condition:
+    """One ``when`` condition: the value at ``path`` equals one of ``values``."""
+
+    path: str
+    values: tuple[Any, ...]
 
 
 @dataclass(frozen=True, slots=True)
 class Policy:
-    """A validated version 1.0 or 1.1 policy."""
+    """A validated version 1.0, 1.1 or 1.2 policy."""
 
     policy_id: str
     rules: tuple[Rule, ...]
@@ -268,6 +293,102 @@ def _check_bounds(raw_rule: dict[str, Any], kind: str, *, label: str,
     return minimum, maximum
 
 
+def _constraint_keys(raw_rule: dict[str, Any], kind: str) -> set[str]:
+    """Kind-specific fields a rule or ``each`` item must carry."""
+
+    if kind == "equals":
+        return {"value"}
+    if kind == "one_of":
+        return {"values"}
+    if kind == "type":
+        return {"types"}
+    if kind in ("range", "length"):
+        # At least one bound is required; that is checked after the field set.
+        return set(_BOUND_FIELDS) & set(raw_rule)
+    if kind == "compare":
+        return {"op", "other_path"}
+    if kind == "each":
+        return {"item"}
+    return set()
+
+
+def _check_values(raw_values: Any, *, label: str, **location: Any) -> tuple[Any, ...]:
+    if not isinstance(raw_values, list) or not raw_values:
+        raise _invalid(f"{label} values must be a non-empty JSON array.", **location)
+    if len(raw_values) > MAX_ONE_OF_VALUES:
+        raise _invalid(
+            f"{label} values must not contain more than {MAX_ONE_OF_VALUES} items.",
+            **location,
+        )
+    canonical_values: set[str] = set()
+    for value in raw_values:
+        _check_json_value(value, label=f"{label} values", **location)
+        marker = canonical_json(value)
+        if marker in canonical_values:
+            raise _invalid(f"{label} values must not contain duplicates.", **location)
+        canonical_values.add(marker)
+    return tuple(copy_json_tree(value) for value in raw_values)
+
+
+def _parse_constraint(raw_rule: dict[str, Any], kind: str, *, label: str,
+                      **location: Any) -> dict[str, Any]:
+    """Validate the kind-specific fields and return them as ``Rule`` keywords."""
+
+    if kind == "equals":
+        _check_json_value(raw_rule["value"], label=f"{label} value", **location)
+        return {"value": copy_json_tree(raw_rule["value"])}
+    if kind == "one_of":
+        return {"values": _check_values(raw_rule["values"], label=label, **location)}
+    if kind == "type":
+        return {"types": _check_types(raw_rule["types"], label=label, **location)}
+    if kind in ("range", "length"):
+        minimum, maximum = _check_bounds(raw_rule, kind, label=label, **location)
+        return {"minimum": minimum, "maximum": maximum}
+    if kind == "compare":
+        if raw_rule["op"] not in COMPARE_OPERATORS:
+            raise _invalid(f"{label} op must be one of {', '.join(COMPARE_OPERATORS)}.",
+                           **location)
+        return {"op": raw_rule["op"],
+                "other_path": _check_path(raw_rule["other_path"],
+                                          label=f"{label} other_path", **location)}
+    return {}
+
+
+def _parse_when(raw_when: Any, *, label: str, **location: Any) -> tuple[Condition, ...]:
+    if (not isinstance(raw_when, list) or not raw_when
+            or len(raw_when) > MAX_WHEN_CONDITIONS):
+        raise _invalid(f"{label} when must be a JSON array of 1 to "
+                       f"{MAX_WHEN_CONDITIONS} conditions.", **location)
+    conditions: list[Condition] = []
+    for raw_condition in raw_when:
+        condition_label = f"{label} when condition"
+        if not isinstance(raw_condition, dict):
+            raise _invalid(f"{condition_label} must be a JSON object.", **location)
+        _check_exact_keys(raw_condition, {"path", "values"}, label=condition_label, **location)
+        conditions.append(Condition(
+            path=_check_path(raw_condition["path"], label=f"{condition_label} path", **location),
+            values=_check_values(raw_condition["values"], label=condition_label, **location)))
+    return tuple(conditions)
+
+
+def _constraint_to_dict(rule: Rule, raw_rule: dict[str, Any]) -> None:
+    if rule.kind == "equals":
+        raw_rule["value"] = copy_json_tree(rule.value)
+    elif rule.kind == "one_of":
+        raw_rule["values"] = [copy_json_tree(value) for value in rule.values]
+    elif rule.kind == "type":
+        raw_rule["types"] = list(rule.types)
+    elif rule.kind in ("range", "length"):
+        # Only declared bounds are emitted, so a missing bound stays absent.
+        for field in _BOUND_FIELDS:
+            bound = getattr(rule, field)
+            if bound is not None:
+                raw_rule[field] = bound
+    elif rule.kind == "compare":
+        raw_rule["op"] = rule.op
+        raw_rule["other_path"] = rule.other_path
+
+
 def validate_policy(raw_policy: Any) -> Policy:
     """Validate and normalize a policy, rejecting every undeclared field."""
 
@@ -280,8 +401,13 @@ def validate_policy(raw_policy: Any) -> Policy:
                 has_irrelevant_bounds = rule.kind not in ("range", "length") and (
                     rule.minimum is not None or rule.maximum is not None
                 )
+                has_irrelevant_compare = rule.kind != "compare" and (
+                    rule.op is not None or rule.other_path is not None)
+                has_irrelevant_item = rule.kind != "each" and (
+                    rule.item is not None or rule.item_path is not None)
                 if (has_irrelevant_value or has_irrelevant_values
-                        or has_irrelevant_types or has_irrelevant_bounds):
+                        or has_irrelevant_types or has_irrelevant_bounds
+                        or has_irrelevant_compare or has_irrelevant_item):
                     rule_id = _safe_identifier(rule.rule_id)
                     raise _invalid(
                         f"{_rule_label(index, rule_id)} contains fields "
@@ -315,7 +441,7 @@ def validate_policy(raw_policy: Any) -> Policy:
 
     schema_version = raw_policy["schema_version"]
     if not isinstance(schema_version, str) or schema_version not in SUPPORTED_SCHEMA_VERSIONS:
-        raise _invalid("Policy schema_version must be 1.0 or 1.1.")
+        raise _invalid("Policy schema_version must be 1.0, 1.1 or 1.2.")
     allowed_kinds = RULE_KINDS_BY_SCHEMA_VERSION[schema_version]
 
     policy_id = _check_identifier(raw_policy["policy_id"], label="policy_id")
@@ -351,16 +477,9 @@ def validate_policy(raw_policy: Any) -> Policy:
         if not isinstance(kind, str) or kind not in allowed_kinds:
             raise _invalid(f"{label} has an unknown rule kind.", **location)
 
-        expected_keys = {"rule_id", "kind", "path"}
-        if kind == "equals":
-            expected_keys.add("value")
-        elif kind == "one_of":
-            expected_keys.add("values")
-        elif kind == "type":
-            expected_keys.add("types")
-        elif kind in ("range", "length"):
-            # At least one bound is required; that is checked after the field set.
-            expected_keys.update(set(_BOUND_FIELDS) & set(raw_rule))
+        expected_keys = {"rule_id", "kind", "path"} | _constraint_keys(raw_rule, kind)
+        if schema_version == "1.2" and "when" in raw_rule:
+            expected_keys.add("when")
         _check_exact_keys(raw_rule, expected_keys, label=label, **location)
 
         rule_id = _check_identifier(
@@ -376,62 +495,35 @@ def validate_policy(raw_policy: Any) -> Policy:
             label=f"{label} path",
             **location,
         )
-
-        if kind == "equals":
-            _check_json_value(
-                raw_rule["value"],
-                label=f"{label} value",
-                **location,
-            )
-            rule_value = copy_json_tree(raw_rule["value"])
-            rules.append(Rule(rule_id=rule_id, kind=kind, path=path, value=rule_value))
-            continue
-
-        if kind == "one_of":
-            raw_values = raw_rule["values"]
-            if not isinstance(raw_values, list) or not raw_values:
-                raise _invalid(
-                    f"{label} values must be a non-empty JSON array.",
-                    **location,
-                )
-            if len(raw_values) > MAX_ONE_OF_VALUES:
-                raise _invalid(
-                    f"{label} values must not contain more than "
-                    f"{MAX_ONE_OF_VALUES} items.",
-                    **location,
-                )
-            canonical_values: set[str] = set()
-            for value in raw_values:
-                _check_json_value(value, label=f"{label} values", **location)
-                marker = canonical_json(value)
-                if marker in canonical_values:
-                    raise _invalid(
-                        f"{label} values must not contain duplicates.",
-                        **location,
-                    )
-                canonical_values.add(marker)
-            rules.append(
-                Rule(
-                    rule_id=rule_id,
-                    kind=kind,
-                    path=path,
-                    values=tuple(copy_json_tree(value) for value in raw_values),
-                )
-            )
-            continue
-
-        if kind == "type":
-            rules.append(Rule(rule_id=rule_id, kind=kind, path=path,
-                              types=_check_types(raw_rule["types"], label=label, **location)))
-            continue
-
-        if kind in ("range", "length"):
-            minimum, maximum = _check_bounds(raw_rule, kind, label=label, **location)
-            rules.append(Rule(rule_id=rule_id, kind=kind, path=path,
-                              minimum=minimum, maximum=maximum))
-            continue
-
-        rules.append(Rule(rule_id=rule_id, kind=kind, path=path))
+        fields = _parse_constraint(raw_rule, kind, label=label, **location)
+        if kind == "compare":
+            if fields["other_path"] == path:
+                raise _invalid(f"{label} other_path must differ from path.", **location)
+        if kind == "each":
+            raw_item = raw_rule["item"]
+            item_label = f"{label} item"
+            if not isinstance(raw_item, dict):
+                raise _invalid(f"{item_label} must be a JSON object.", **location)
+            item_kind = raw_item.get("kind")
+            if not isinstance(item_kind, str) or item_kind not in ITEM_RULE_KINDS:
+                raise _invalid(f"{item_label} kind must be one of "
+                               f"{', '.join(sorted(ITEM_RULE_KINDS))}.", **location)
+            item_keys = {"kind"} | _constraint_keys(raw_item, item_kind)
+            if "path" in raw_item:
+                item_keys.add("path")
+            _check_exact_keys(raw_item, item_keys, label=item_label, **location)
+            item_path = (_check_path(raw_item["path"], label=f"{item_label} path", **location)
+                         if "path" in raw_item else None)
+            if item_path is not None and len(item_path.split(".")) >= MAX_JSON_NESTING:
+                raise _invalid(f"{item_label} path exceeds the path limit.", **location)
+            item_fields = _parse_constraint(raw_item, item_kind, label=item_label, **location)
+            fields["item"] = Rule(rule_id=rule_id, kind=item_kind,
+                                  path="value" if item_path is None else f"value.{item_path}",
+                                  **item_fields)
+            fields["item_path"] = item_path
+        if "when" in raw_rule:
+            fields["when"] = _parse_when(raw_rule["when"], label=label, **location)
+        rules.append(Rule(rule_id=rule_id, kind=kind, path=path, **fields))
 
     return Policy(policy_id=policy_id, rules=tuple(rules), schema_version=schema_version)
 
@@ -446,18 +538,17 @@ def policy_to_dict(policy: Policy) -> dict[str, Any]:
             "path": rule.path,
             "rule_id": rule.rule_id,
         }
-        if rule.kind == "equals":
-            raw_rule["value"] = copy_json_tree(rule.value)
-        elif rule.kind == "one_of":
-            raw_rule["values"] = [copy_json_tree(value) for value in rule.values]
-        elif rule.kind == "type":
-            raw_rule["types"] = list(rule.types)
-        elif rule.kind in ("range", "length"):
-            # Only declared bounds are emitted, so a missing bound stays absent.
-            for field in _BOUND_FIELDS:
-                bound = getattr(rule, field)
-                if bound is not None:
-                    raw_rule[field] = bound
+        _constraint_to_dict(rule, raw_rule)
+        if rule.kind == "each" and rule.item is not None:
+            raw_item: dict[str, Any] = {"kind": rule.item.kind}
+            if rule.item_path is not None:
+                raw_item["path"] = rule.item_path
+            _constraint_to_dict(rule.item, raw_item)
+            raw_rule["item"] = raw_item
+        if rule.when:
+            raw_rule["when"] = [{"path": condition.path,
+                                 "values": [copy_json_tree(value) for value in condition.values]}
+                                for condition in rule.when]
         raw_rules.append(raw_rule)
     return {
         "policy_id": policy.policy_id,

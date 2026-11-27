@@ -13,6 +13,19 @@ original wording.
 
 ### Added
 
+- Policy schema `1.2` for conditional and cross-field rules. Any rule may
+  carry a `when` guard of 1 to 8 path conditions; when a guard does not hold
+  the rule passes with the new `RULE_NOT_APPLICABLE` code, so one policy can
+  hold a refund limit that applies only to `refund.issue` and a recipient
+  allowlist that applies only to `email.send`. The new `compare` kind relates
+  two fields (`eq`, `ne`, `lt`, `lte`, `gt`, `gte`), such as a refund at most
+  the order total or an expiry after the request time, and fails with
+  `VALUE_COMPARISON_FAILED`. The new `each` kind applies one `1.0` or `1.1`
+  rule to every element of an array, optionally at a field inside each
+  element, and fails with `VALUE_ITEM_FAILED`. Synthetic generation, probes,
+  lint, explain, suite assertions and coverage all understand the new rules.
+  `1.0` and `1.1` policies and their outputs are unchanged. See
+  `examples/conditional-policy.json`.
 - Signed authorization decisions bound to one exact action. `authorize`
   evaluates a JSON action, such as a Consequence Rail `ActionProposal`, and
   signs an allow or deny `AuthorizationDecision` v0.1 over the action's

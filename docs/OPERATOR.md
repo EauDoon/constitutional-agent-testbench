@@ -95,8 +95,10 @@ relationships without displaying constraint values. The library equivalent is
 `inspect_policy`. Inspection supports up to 256 rules and a 1,000,000-byte
 formatted report; exceeding a workflow bound fails closed with `INVALID_WORKFLOW`.
 
-Authoring and regression tools use the same evaluator for policy schemas 1.0
-and 1.1. All rules still participate. Input content never selects authority,
+Authoring and regression tools use the same evaluator for policy schemas 1.0,
+1.1 and 1.2. A rule whose schema 1.2 `when` guard does not hold passes with
+`RULE_NOT_APPLICABLE`, so suite assertions and coverage treat that code as a
+pass. All rules still participate. Input content never selects authority,
 executes an action, or overrides another policy. Runtime dependencies remain
 limited to Python's standard library.
 

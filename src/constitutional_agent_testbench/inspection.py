@@ -93,7 +93,8 @@ def audit_assertions(policy: Policy | dict[str, Any], suite: Any) -> dict[str, A
         invalid = sorted(identifier for identifier in assertions.keys() & rules.keys()
                          if assertions[identifier]["reason_code"] not in
                          {"RULE_SATISFIED", "FIELD_MISSING",
-                          FAILURE_REASON_BY_KIND.get(rules[identifier].kind)})
+                          FAILURE_REASON_BY_KIND.get(rules[identifier].kind)}
+                         | ({"RULE_NOT_APPLICABLE"} if rules[identifier].when else set()))
         missing = sorted(rules.keys() - assertions.keys())
         # Unknown identifiers are reported separately. A stale rule that is
         # asserted as failed does not contradict the verdict of the declared rules.

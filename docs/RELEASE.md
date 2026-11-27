@@ -17,8 +17,8 @@ While the major version is 0, a minor bump marks backward-compatible features or
 a wave of related changes, and a patch bump marks fixes only. Declaring a stable
 1.0.0 API is a separate, explicit decision.
 
-The package version is independent of the schema versions: policy `1.0` and
-`1.1`, suite `1.0` and `1.1`, report `1.0`, receipt `1.0`, suite receipt `1.0`,
+The package version is independent of the schema versions: policy `1.0`,
+`1.1` and `1.2`, suite `1.0` and `1.1`, report `1.0`, receipt `1.0`, suite receipt `1.0`,
 replay `1.0` and the `sha256-canonical-json-v1` digest algorithm. A schema
 version changes only through an explicit schema decision, never as a side
 effect of a release.
@@ -30,6 +30,14 @@ kinds and the `VALUE_WRONG_TYPE`, `VALUE_OUT_OF_RANGE` and
 `1.0` policy, its evaluation, its synthetic and probe output and every receipt,
 suite receipt and replay digest are unchanged. Earlier packages reject `1.1`
 policies and suites that assert the new codes.
+
+Schema decision, next release: policy schema `1.2` is added beside unchanged
+`1.0` and `1.1`. It is a strict superset of `1.1` that adds the optional `when`
+guard, the `compare` and `each` rule kinds, and the `RULE_NOT_APPLICABLE`,
+`VALUE_COMPARISON_FAILED` and `VALUE_ITEM_FAILED` reason codes, which only
+`1.2` rules emit. `RULE_NOT_APPLICABLE` is a passing code. Every `1.0` and
+`1.1` policy, evaluation, synthetic and probe output and digest is unchanged.
+Earlier packages reject `1.2` policies and suites that assert the new codes.
 
 `src/constitutional_agent_testbench/_version.py` is the single source of the
 package version. `pyproject.toml` reads it at build time, the package re-exports

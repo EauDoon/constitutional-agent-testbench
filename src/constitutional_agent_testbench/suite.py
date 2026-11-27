@@ -7,7 +7,7 @@ from typing import Any
 
 from .common import (MAX_JSON_INPUT_BYTES, TestbenchError,
                      bounded_canonical_json_size, copy_json_tree, ensure_json_value)
-from .evaluator import REASON_CODES, _compile, _evaluate_compiled
+from .evaluator import PASSING_REASON_CODES, REASON_CODES, _compile, _evaluate_compiled
 from .policy import Policy, validate_policy
 
 MAX_SUITE_CASES = 256
@@ -25,7 +25,7 @@ def _validate_assertions(expected: Any) -> None:
                 or type(assertion["passed"]) is not bool
                 or not isinstance(assertion["reason_code"], str)
                 or assertion["reason_code"] not in REASON_CODES
-                or assertion["passed"] != (assertion["reason_code"] == "RULE_SATISFIED")):
+                or assertion["passed"] != (assertion["reason_code"] in PASSING_REASON_CODES)):
             raise SuiteInputError("Rule assertions require valid IDs, boolean passed and a consistent reason code.")
 
 
