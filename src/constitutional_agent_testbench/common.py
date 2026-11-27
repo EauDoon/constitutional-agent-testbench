@@ -61,6 +61,12 @@ def _reject_duplicate_members(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 def load_json_stream(input_file: BinaryIO | TextIO) -> Any:
     """Load bounded strict JSON from a binary or text input stream."""
 
+    return parse_json_text(read_text_stream(input_file))
+
+
+def read_text_stream(input_file: BinaryIO | TextIO) -> str:
+    """Read bounded UTF-8 text from a binary or text input stream."""
+
     data = bytearray()
     stream_is_binary = None
     while True:
@@ -97,12 +103,17 @@ def load_json_stream(input_file: BinaryIO | TextIO) -> Any:
         text = data.decode("utf-8")
     except UnicodeError as exc:
         raise JsonInputError(ENCODING_MESSAGE) from exc
-
-    return parse_json_text(text)
+    return text
 
 
 def load_json(path: str | Path) -> Any:
     """Load strict UTF-8 JSON without echoing paths or input content in errors."""
+
+    return parse_json_text(read_text(path))
+
+
+def read_text(path: str | Path) -> str:
+    """Read bounded UTF-8 text from a regular file without echoing its path."""
 
     descriptor = None
     try:
@@ -118,7 +129,7 @@ def load_json(path: str | Path) -> Any:
             )
         with os.fdopen(descriptor, "rb") as input_file:
             descriptor = None  # The stream now owns the descriptor.
-            return load_json_stream(input_file)
+            return read_text_stream(input_file)
     except OSError as exc:
         raise JsonInputError("Unable to read the requested JSON input.") from exc
     finally:

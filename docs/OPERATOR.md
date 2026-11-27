@@ -37,6 +37,8 @@ Use the installed `constitutional-agent-testbench` command after
 | `create-replay` / `replay` | Create and independently check portable JSON replay bundles. |
 | `authorize` | Evaluate one action and sign an allow or deny decision bound to its exact digest, in the Consequence Rail `AuthorizationDecision` v0.1 format. Needs the optional `signing` extra. |
 | `verify-authorization` | Check a signed decision against the authorizer role of a trusted-keys document, its action binding, its validity window and, with `--policy`, a recomputed evaluation. |
+| `compare-decision-log` | Replay an OPA, Cedar or generic decision log through a policy and report where the engine's verdicts and the policy's differ, without input values. |
+| `import-decision-log` | Turn up to 256 logged decisions into a version 1.0 suite with the engine's verdict as `expected_passed`. |
 
 Operational results and controlled errors are JSON with sorted object keys;
 help remains plain text. Unknown commands or options and missing or extra
@@ -250,6 +252,7 @@ With `--strict-exit`, exit 1 means:
 | `check-suite` | Any of the lint, consistency, assertion or regression preflight checks failed. |
 | `authorize` | The signed decision is a deny: the action failed at least one rule. The decision is still written. |
 | `verify-authorization` | The key is not a trusted authorizer, the signature or `decision_id` is invalid, or a requested action binding, validity window or recomputed evaluation did not match. |
+| `compare-decision-log` | At least one replayed decision disagrees with the policy's verdict. |
 
 All JSON input arguments accept `-`, with at most one stdin input per invocation.
 Existing playground and output-path exceptions remain unchanged. Inputs retain

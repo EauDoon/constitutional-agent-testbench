@@ -31,6 +31,8 @@ from .authorization import (AuthorizationInputError, SigningUnavailableError, at
                             authorization_signing_input, build_authorization,
                             create_authorization, rail_canonical_json, rail_digest,
                             sign_authorization, trusted_authorizers, verify_authorization)
+from .decision_log import (DecisionLogInputError, compare_decision_log, import_decision_log,
+                           normalize_decision_log, parse_decision_log_text)
 
 from .suite import validate_suite_report
 from .curation import capture_assertions, shard_suite, select_outcomes, deduplicate_suite, import_responses
@@ -39,6 +41,11 @@ from .compare import migration_expectations
 from .triage import check_suite
 
 __all__ = [
+    "DecisionLogInputError",
+    "compare_decision_log",
+    "import_decision_log",
+    "normalize_decision_log",
+    "parse_decision_log_text",
     "AuthorizationInputError",
     "SigningUnavailableError",
     "attach_signature",

@@ -13,6 +13,15 @@ original wording.
 
 ### Added
 
+- Replay another engine's decision log. `compare-decision-log` reads Open
+  Policy Agent decision log events (JSON Lines or an array), Cedar request and
+  decision records, or a generic log, evaluates each logged input against a
+  Testbench policy, and reports agreements, disagreements in each direction
+  and the failed rule IDs behind each disagreement, without input values.
+  `import-decision-log` turns up to 256 logged decisions into a fixture suite
+  with the engine's verdict as the expectation. Erased or masked OPA events,
+  non-boolean results and non-object inputs fail closed with
+  `INVALID_DECISION_LOG`. Example logs are in `examples/decision-logs/`.
 - Policy schema `1.2` for conditional and cross-field rules. Any rule may
   carry a `when` guard of 1 to 8 path conditions; when a guard does not hold
   the rule passes with the new `RULE_NOT_APPLICABLE` code, so one policy can

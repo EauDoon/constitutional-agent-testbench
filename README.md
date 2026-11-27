@@ -200,6 +200,44 @@ extra; an HSM or cloud KMS can sign instead through
 cannot tell two evaluated inputs apart, such as `1.0` where the policy compares
 with `1`, or an integer beyond 2**53 - 1, is refused rather than bound.
 
+## Test another engine's decision log
+
+Teams often run the same rules in a runtime engine such as Open Policy Agent
+or Cedar. `compare-decision-log` replays that engine's logged inputs through a
+Testbench policy and reports every input where the two verdicts differ, so
+drift between the engine's policy and the one you test here shows up as data:
+
+```bash
+constitutional-agent-testbench compare-decision-log examples/conditional-policy.json \
+  examples/decision-logs/cedar-decisions.json --format cedar --input-path context --strict-exit
+```
+
+| `--format` | Each logged decision | Verdict |
+| --- | --- | --- |
+| `opa` | An OPA decision log event with `input` and `result`, as JSON Lines or an array. `--decision-path` keeps only events whose `path` matches. | `result` when it is a boolean, else the boolean at `--result-path` (default `allow`). |
+| `cedar` | `{"request": {...}, "decision": "Allow"}`, with an optional `id`. | `Allow` or `Deny`, any case. |
+| `generic` | `{"log_version": "1.0", "decisions": [{"decision_id", "input", "allow"}]}`. | `allow`. |
+
+- `--input-path` replays one field of each input, such as a Cedar request's
+  `context`, so Testbench rule paths can stay short.
+- The report counts agreements, disagreements, `engine_more_permissive`
+  (the engine allowed what the policy fails) and `engine_more_restrictive`,
+  and lists up to 256 disagreements with their failed rule IDs. It never
+  echoes input values. `--strict-exit` returns 1 on any disagreement.
+- `import-decision-log` turns up to 256 decisions into a version 1.0 fixture
+  suite, with the engine's verdict as `expected_passed`, so `run-suite`,
+  `triage-suite` and the other corpus tools work on real traffic.
+- It fails closed: an event with `erased` or `masked` fields, a result that is
+  not a boolean, or an input that is not a JSON object stops the run with
+  `INVALID_DECISION_LOG` instead of being guessed at. Logs are bounded at
+  1,000,000 bytes and 10,000 decisions.
+
+The two logs in [`examples/decision-logs/`](examples/decision-logs/) are
+hand-written in each engine's log shape, not output captured from a live OPA or
+Cedar deployment. In the Cedar one, the engine allowed refund `refund-002` of
+15,000 against an order total of 12,000, and the report names
+`refund-at-most-order-total` as the rule the engine's policy is missing.
+
 ## PrecedenceTrace
 
 PrecedenceTrace is a conformance mode, not a policy engine or precedence
@@ -467,6 +505,7 @@ under non-UTF-8 process encodings.
 | [`src/constitutional_agent_testbench/synthetic.py`](src/constitutional_agent_testbench/synthetic.py) | Deterministic passing and failing fixture generation. |
 | [`src/constitutional_agent_testbench/common.py`](src/constitutional_agent_testbench/common.py) | Strict JSON, canonical equality, path, and output helpers. |
 | [`src/constitutional_agent_testbench/authorization.py`](src/constitutional_agent_testbench/authorization.py) | Signed authorization decisions in the Consequence Rail format, rail canonical digests and verification. |
+| [`src/constitutional_agent_testbench/decision_log.py`](src/constitutional_agent_testbench/decision_log.py) | Reading OPA, Cedar and generic decision logs, importing them as suites and comparing them with a policy. |
 | [`src/constitutional_agent_testbench/cli.py`](src/constitutional_agent_testbench/cli.py) | Command parsing, JSON results, error handling, and optional output writing. |
 | [`src/constitutional_agent_testbench/playground.py`](src/constitutional_agent_testbench/playground.py) | Offline Tk playground with a live verdict and explicit export only. |
 | [`tests/`](tests/) | Unit tests for validation, evaluation, synthetic generation, PrecedenceTrace, and the command-line contract. |
