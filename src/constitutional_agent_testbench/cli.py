@@ -65,6 +65,27 @@ class JsonArgumentParser(argparse.ArgumentParser):
     def error(self, message: str) -> None:
         raise CliUsageError(_usage_error_message(message))
 
+    def _print_message(self, message: str, file: Any = None) -> None:
+        """Write help or version text and flush it, failing closed.
+
+        argparse swallows a failed write and leaves buffered text for the
+        interpreter's exit-time flush, so a full device or a broken pipe ended
+        with exit status 0 and no text. A closed standard output keeps the
+        argparse fallback to standard error.
+        """
+
+        if not message:
+            return
+        stream = file or sys.stderr
+        try:
+            stream.write(message)
+            stream.flush()
+        except (AttributeError, OSError, ValueError) as exc:
+            _release_failed_stream(stream)
+            raise JsonOutputError(
+                "Unable to write the help or version text to standard output."
+            ) from exc
+
     def exit(self, status: int = 0, message: str | None = None) -> None:
         if status == 0 and message is None:
             raise _HelpRequested()

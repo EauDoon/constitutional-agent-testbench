@@ -17,6 +17,8 @@ original wording.
 
 ### Fixed
 
+- `--help` and `--version` exit `2` with `JSON_OUTPUT_ERROR` when their text cannot be written, for example to a full device or a broken pipe. They previously exited `0` with nothing printed, so a script that captured the version saw success and an empty value.
+
 - The next release will identify internally contradictory pass expectations in suite inspection, including singleton fixtures. The strict exit gate now rejects these impossible expectations without needing a policy.
 
 - Reject non-regular file inputs before reading, so a named pipe cannot stall a file-based evaluation; stdin remains supported through the explicit stream path.
