@@ -1,0 +1,65 @@
+[
+  {
+    "decision": "Allow",
+    "id": "refund-001",
+    "request": {
+      "action": "Action::\"refund.issue\"",
+      "context": {
+        "action_type": "refund.issue",
+        "context": {
+          "order_total_minor": 12000
+        },
+        "expires_at": "2026-11-28T02:32:00.000Z",
+        "parameters": {
+          "amount_minor": 9000,
+          "currency": "USD"
+        },
+        "requested_at": "2026-11-28T02:30:00.000Z"
+      },
+      "principal": "Agent::\"support-agent\"",
+      "resource": "Order::\"ord_demo_42\""
+    }
+  },
+  {
+    "decision": "Allow",
+    "id": "refund-002",
+    "request": {
+      "action": "Action::\"refund.issue\"",
+      "context": {
+        "action_type": "refund.issue",
+        "context": {
+          "order_total_minor": 12000
+        },
+        "expires_at": "2026-11-28T02:32:00.000Z",
+        "parameters": {
+          "amount_minor": 15000,
+          "currency": "USD"
+        },
+        "requested_at": "2026-11-28T02:30:00.000Z"
+      },
+      "principal": "Agent::\"support-agent\"",
+      "resource": "Order::\"ord_demo_42\""
+    }
+  },
+  {
+    "decision": "Deny",
+    "id": "refund-003",
+    "request": {
+      "action": "Action::\"refund.issue\"",
+      "context": {
+        "action_type": "refund.issue",
+        "context": {
+          "order_total_minor": 12000
+        },
+        "expires_at": "2026-11-28T02:32:00.000Z",
+        "parameters": {
+          "amount_minor": 0,
+          "currency": "USD"
+        },
+        "requested_at": "2026-11-28T02:30:00.000Z"
+      },
+      "principal": "Agent::\"support-agent\"",
+      "resource": "Order::\"ord_demo_42\""
+    }
+  }
+]

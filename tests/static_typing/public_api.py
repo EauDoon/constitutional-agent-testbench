@@ -12,7 +12,12 @@ from __future__ import annotations
 from typing import Any
 
 from constitutional_agent_testbench import (
+    DecisionLogInputError,
     EvaluationResult,
+    compare_decision_log,
+    import_decision_log,
+    normalize_decision_log,
+    parse_decision_log_text,
     attach_signature,
     authorization_signing_input,
     build_authorization,
@@ -147,3 +152,12 @@ authorizers: dict[str, bytes] = trusted_authorizers({"schema_version": "", "auth
 verification: dict[str, Any] = verify_authorization(signed, {}, action=response, policy=policy,
                                                     now=decided_at)
 digest_text: str = rail_digest(response) + rail_canonical_json(response)
+
+# Decision logs from other engines.
+log: Any = parse_decision_log_text('{"decision_id": "d1", "input": {}, "result": true}')
+normalized: dict[str, Any] = normalize_decision_log(log, log_format="opa", result_path="allow",
+                                                    decision_path=None, input_path=None)
+imported_log: dict[str, Any] = import_decision_log(log, log_format="opa")
+log_report: dict[str, Any] = compare_decision_log(policy, log, log_format="cedar",
+                                                  input_path="context")
+log_error_code: str = DecisionLogInputError.code

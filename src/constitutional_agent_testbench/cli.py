@@ -17,6 +17,8 @@ from .common import (
     TestbenchError,
     load_json,
     load_json_stream,
+    read_text,
+    read_text_stream,
     stable_json,
     write_json,
 )
@@ -33,6 +35,8 @@ from .compare import compare_policies
 from .receipt import create_receipt, verify_receipt
 from .authorization import (DEFAULT_AUTHORIZATION_TTL_SECONDS, MAX_AUTHORIZATION_TTL_SECONDS,
                             create_authorization, utc_now, verify_authorization)
+from .decision_log import (DECISION_LOG_FORMATS, compare_decision_log, import_decision_log,
+                           parse_decision_log_text)
 from .operations import COMMANDS, add_operation_parsers, run_operation
 
 
@@ -272,6 +276,37 @@ def _build_parser() -> argparse.ArgumentParser:
     verify_authorization_parser.add_argument("--strict-exit", action="store_true",
                                              help="return 1 unless every requested check passed")
 
+    for name, summary in (
+        ("import-decision-log",
+         "Import another engine's logged inputs and verdicts as a fixture suite."),
+        ("compare-decision-log",
+         "Replay another engine's decision log against a policy and report disagreements."),
+    ):
+        log_parser = subparsers.add_parser(
+            name,
+            help=summary,
+            description=(
+                summary + " The log is OPA decision log events (JSON Lines or an array), "
+                "Cedar request and decision records, or a generic log. Reports name "
+                "decisions and rules but never echo input values."
+            ),
+            allow_abbrev=False,
+        )
+        if name == "compare-decision-log":
+            log_parser.add_argument("policy", help="policy path, or - for standard input")
+        log_parser.add_argument("log", help="decision log path, or - for standard input")
+        log_parser.add_argument("--format", dest="log_format", required=True,
+                                choices=DECISION_LOG_FORMATS, help="decision log format")
+        log_parser.add_argument("--result-path", metavar="PATH", default="allow",
+                                help="field of an OPA result object holding the verdict (default allow)")
+        log_parser.add_argument("--decision-path", metavar="PATH",
+                                help="replay only OPA events whose path equals this value")
+        log_parser.add_argument("--input-path", metavar="PATH",
+                                help="replay this field of each input, such as context")
+        if name == "compare-decision-log":
+            log_parser.add_argument("--strict-exit", action="store_true",
+                                    help="return 1 when any replayed decision disagrees")
+
     playground_parser = subparsers.add_parser(
         "playground",
         help="Open the offline policy playground.",
@@ -456,7 +491,7 @@ def _guard_output(arguments):
         raise CliUsageError("--output writes a file and does not accept an empty path or '-'.")
     fields = (COMMANDS[arguments.command][0] if arguments.command in COMMANDS
               else ("policy", "response", "candidate", "suite", "receipt", "action",
-                    "decision", "trusted_keys", "private_key"))
+                    "decision", "trusted_keys", "private_key", "log"))
     try:
         destination = Path(output)
         for field in fields:
@@ -478,6 +513,27 @@ def _load_json_argument(path: str) -> Any:
     if sys.stdin is None:
         raise JsonInputError("Standard input is closed, so '-' cannot be read.")
     return load_json_stream(getattr(sys.stdin, "buffer", sys.stdin))
+
+
+def _load_text_argument(path: str) -> str:
+    if path != "-":
+        return read_text(path)
+    if sys.stdin is None:
+        raise JsonInputError("Standard input is closed, so '-' cannot be read.")
+    return read_text_stream(getattr(sys.stdin, "buffer", sys.stdin))
+
+
+def _run_decision_log(arguments: argparse.Namespace) -> dict[str, Any]:
+    options = {"log_format": arguments.log_format, "result_path": arguments.result_path,
+               "decision_path": arguments.decision_path, "input_path": arguments.input_path}
+    if arguments.command == "import-decision-log":
+        return import_decision_log(parse_decision_log_text(_load_text_argument(arguments.log)),
+                                   **options)
+    if arguments.policy == "-" and arguments.log == "-":
+        raise CliUsageError("Only one JSON input may be read from standard input per command.")
+    policy = validate_policy(_load_json_argument(arguments.policy))
+    return compare_decision_log(
+        policy, parse_decision_log_text(_load_text_argument(arguments.log)), **options)
 
 
 class _StreamUnavailable(Exception):
@@ -596,6 +652,8 @@ def _run_command(arguments: argparse.Namespace) -> dict[str, Any]:
         )
     if arguments.command in ("authorize", "verify-authorization"):
         return _run_authorization(arguments)
+    if arguments.command in ("import-decision-log", "compare-decision-log"):
+        return _run_decision_log(arguments)
     if arguments.command in COMMANDS:
         fields = COMMANDS[arguments.command][0]
         if sum(getattr(arguments, field) == "-" for field in fields) > 1:
@@ -701,6 +759,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 0 if result["verified"] else 1
         if arguments.command == "authorize":
             return 0 if result["allow"] is True else 1
+        if arguments.command == "compare-decision-log":
+            return 0 if result["agrees"] else 1
         if arguments.command == "lint-policy":
             return 1 if result["has_conflicts"] else 0
         if arguments.command == "explain":

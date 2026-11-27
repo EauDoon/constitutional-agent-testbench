@@ -91,6 +91,10 @@ jobs:
           constitutional-agent-testbench generate-synthetic examples/conditional-policy.json
           constitutional-agent-testbench generate-probes examples/conditional-policy.json
           constitutional-agent-testbench lint-policy examples/conditional-policy.json --strict-exit
+          constitutional-agent-testbench compare-decision-log examples/conditional-policy.json examples/decision-logs/opa-decisions.jsonl --format opa --decision-path agent/gate --strict-exit
+          status=0; constitutional-agent-testbench compare-decision-log examples/conditional-policy.json examples/decision-logs/cedar-decisions.json --format cedar --input-path context --strict-exit > /dev/null || status=$?; test "$status" -eq 1
+          constitutional-agent-testbench import-decision-log examples/decision-logs/cedar-decisions.json --format cedar --input-path context --output imported.json
+          constitutional-agent-testbench run-suite examples/conditional-policy.json imported.json > /dev/null
           constitutional-agent-testbench playground --smoke-test
           constitutional-agent-testbench lint-policy examples/policy.json --strict-exit
           constitutional-agent-testbench explain examples/policy.json examples/failing-response.json

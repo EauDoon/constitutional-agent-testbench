@@ -7,7 +7,7 @@ include README.md
 include SECURITY.md
 include src/constitutional_agent_testbench/py.typed
 recursive-include evals *.py *.json
-recursive-include examples *.json
+recursive-include examples *.json *.jsonl
 recursive-include docs *.md *.html
 recursive-include release *.json
 recursive-include scripts *.py
